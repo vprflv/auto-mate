@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+body {
+    font-feature-settings: "kern" 1, "tnum" 1;
+}
+
+.glass {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px);
+}
