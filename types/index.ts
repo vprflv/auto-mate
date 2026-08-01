@@ -120,6 +120,7 @@ export type CarFluids = {
 export type CarPartItem = {
     id: string;
     category: PartCategory;
+    subcategory?: string;
     name: string;
     brand?: string;
     oemNumber?: string;
