@@ -6,9 +6,10 @@ type Props = {
     items: CarPartItem[];
     subcategory: string | null;
     carId?: string;
+    onEditItem?: (item: CarPartItem) => void;
 };
 
-export default function PartsItemList({ items, subcategory, carId }: Props) {
+export default function PartsItemList({ items, subcategory, carId, onEditItem }: Props) {
     const list = subcategory
         ? items.filter((i) => (i.subcategory || 'other') === subcategory)
         : items;
@@ -20,7 +21,13 @@ export default function PartsItemList({ items, subcategory, carId }: Props) {
                     Пока нет записей
                 </p>
             ) : (
-                list.map((item) => <PartListItem key={item.id} item={item} />)
+                {list.map((item) => (
+                        <PartListItem
+                            key={item.id}
+                            item={item}
+                            onEdit={onEditItem}
+                        />
+                    ))}
             )}
 
             {carId && (

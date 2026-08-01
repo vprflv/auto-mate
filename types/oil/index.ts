@@ -16,6 +16,7 @@ export type CarFluidItem = {
     spec?: string;
     volume?: string;
     notes?: string;
+    photo?: string;
 };
 
 export type CarFluids = {

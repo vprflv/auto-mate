@@ -121,6 +121,7 @@ export type CarPartItem = {
     analogNumber?: string;
     quantity?: number;
     notes?: string;
+    photo?: string;
 };
 
 export type CarParts = {

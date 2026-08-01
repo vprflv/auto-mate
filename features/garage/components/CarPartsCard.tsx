@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil } from 'lucide-react';
+import {Package, Pencil} from 'lucide-react';
 import { CarPartItem, CarParts, PartCategory } from '@/types';
 import {
     PART_CATEGORY_LABELS,
@@ -125,46 +125,58 @@ export default function CarPartsCard({ parts, onUpdateParts }: Props) {
             )}
 
             {/* 3. Список позиций */}
+            {/* 3. Список позиций */}
             {category && sub && (
                 <div className="space-y-3">
                     {inSub.length === 0 ? (
                         <p className="text-center text-zinc-500 text-sm py-6">Пока нет записей</p>
                     ) : (
-                        inSub.map((item) => (
-                            <div
-                                key={item.id}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => setEditItem(item)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        setEditItem(item);
-                                    }
-                                }}
-                                className="bg-zinc-950/50 border border-zinc-800 hover:border-zinc-600 rounded-2xl px-4 py-3 cursor-pointer transition flex items-start justify-between gap-3"
-                            >
-                                <div className="min-w-0">
-                                    <p className="text-sm text-white">
-                                        {item.quantity && item.quantity > 1
-                                            ? `${item.quantity}× `
-                                            : ''}
-                                        {item.name}
-                                    </p>
-                                    {item.brand && (
-                                        <p className="text-xs text-zinc-500 mt-0.5">
-                                            {item.brand}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {inSub.map((item) => (
+                                <div
+                                    key={item.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => setEditItem(item)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            setEditItem(item);
+                                        }
+                                    }}
+                                    className="bg-zinc-950 border border-zinc-800 hover:border-zinc-600 rounded-2xl overflow-hidden cursor-pointer transition"
+                                >
+                                    {/* Фото */}
+                                    <div className="aspect-[4/3] bg-zinc-900 flex items-center justify-center">
+                                        {item.photo ? (
+                                            <img
+                                                src={item.photo}
+                                                alt={item.name}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <Package className="w-10 h-10 text-zinc-700" strokeWidth={1.5} />
+                                        )}
+                                    </div>
+
+                                    {/* Информация */}
+                                    <div className="p-3">
+                                        {item.brand && (
+                                            <p className="text-xs text-zinc-500 mb-0.5 truncate">{item.brand}</p>
+                                        )}
+                                        <p className="text-sm text-white font-medium leading-snug line-clamp-2">
+                                            {item.quantity && item.quantity > 1 ? `${item.quantity}× ` : ''}
+                                            {item.name}
                                         </p>
-                                    )}
-                                    {item.oemNumber && (
-                                        <p className="text-xs font-mono text-zinc-400 mt-1">
-                                            {item.oemNumber}
-                                        </p>
-                                    )}
+                                        {item.oemNumber && (
+                                            <p className="text-xs font-mono text-zinc-400 mt-1 truncate">
+                                                {item.oemNumber}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
-                                <Pencil className="w-4 h-4 text-zinc-500 shrink-0 mt-0.5" />
-                            </div>
-                        ))
+                            ))}
+                        </div>
                     )}
                 </div>
             )}

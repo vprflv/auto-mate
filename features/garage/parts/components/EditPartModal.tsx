@@ -10,6 +10,7 @@ import {
     PART_SUBCATEGORY_LABELS,
     PART_SUBCATEGORY_ORDER,
 } from '@/features/garage/lib/config/partSubcategories';
+import {Package} from "lucide-react";
 
 type Props = {
     item: CarPartItem | null;
@@ -66,6 +67,57 @@ export default function EditPartModal({
                     </button>
                 </div>
 
+                {/* Фото */}
+                <div>
+                    <label className="block text-xs text-zinc-400 mb-2">Фото</label>
+
+                    <div className="flex items-center gap-4">
+                        {/* Превью */}
+                        <div className="w-20 h-20 rounded-xl bg-zinc-950 border border-zinc-700 overflow-hidden flex items-center justify-center shrink-0">
+                            {form.photo ? (
+                                <img
+                                    src={form.photo}
+                                    alt=""
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <Package className="w-8 h-8 text-zinc-600" strokeWidth={1.5} />
+                            )}
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="cursor-pointer text-sm text-blue-400 hover:text-blue-300">
+                                {form.photo ? 'Заменить фото' : 'Добавить фото'}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+
+                                        const reader = new FileReader();
+                                        reader.onload = () => {
+                                            set({ photo: reader.result as string });
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }}
+                                />
+                            </label>
+
+                            {form.photo && (
+                                <button
+                                    type="button"
+                                    onClick={() => set({ photo: undefined })}
+                                    className="text-sm text-red-400 hover:text-red-300 text-left"
+                                >
+                                    Удалить фото
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 {/* Перенос */}
                 <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -101,6 +153,8 @@ export default function EditPartModal({
                         </select>
                     </div>
                 </div>
+
+
 
                 <div>
                     <label className="block text-xs text-zinc-400 mb-1">Название *</label>
