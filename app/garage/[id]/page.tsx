@@ -10,7 +10,7 @@ import CarSpecs from '@/features/garage/car/components/CarSpecs';
 import CarExtraInfo from '@/features/garage/car/components/CarExtraInfo';
 import ServiceHistory from '@/features/garage/car/components/ServiceHistory';
 import DangerZone from '@/features/garage/car/components/DangerZone';
-import CarFluidsCard from '@/features/garage/components/CarFluidsCard';
+import CarFluidsCard from '@/features/garage/oil/components/CarFluidsCard';
 import CarPartsCard from '@/features/garage/components/CarPartsCard';
 
 type Section =
@@ -105,8 +105,12 @@ export default function CarPage() {
                         {section === 'fluids' && (
                             <CarFluidsCard
                                 fluids={car.fluids}
-                                onEdit={() => {
-                                    // позже: router.push(`/garage/${car.id}/fluids/edit`)
+                                onUpdateFluids={(fluids) => {
+                                    updateCar({
+                                        ...car,
+                                        fluids,
+                                        updatedAt: new Date().toISOString(),
+                                    });
                                 }}
                             />
                         )}

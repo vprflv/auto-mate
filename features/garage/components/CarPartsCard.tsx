@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import {CarPartItem, CarParts, PartCategory} from '@/types';
+import { Pencil } from 'lucide-react';
+import { CarPartItem, CarParts, PartCategory } from '@/types';
 import {
     PART_CATEGORY_LABELS,
     PART_CATEGORY_ORDER,
@@ -11,20 +11,19 @@ import {
     PART_SUBCATEGORY_LABELS,
     PART_SUBCATEGORY_ORDER,
 } from '@/features/garage/lib/config/partSubcategories';
-import EditPartModal from "@/features/garage/parts/components/EditPartModal";
+import EditPartModal from '@/features/garage/parts/components/EditPartModal';
 
 type Props = {
     parts?: CarParts;
-    onEdit?: () => void;
-    carId?: string;
     onUpdateParts?: (parts: CarParts) => void;
 };
 
-export default function CarPartsCard({ parts, onEdit, carId, onUpdateParts }: Props) {
+export default function CarPartsCard({ parts, onUpdateParts }: Props) {
     const items = parts?.items ?? [];
     const [category, setCategory] = useState<PartCategory | null>(null);
     const [sub, setSub] = useState<string | null>(null);
     const [editItem, setEditItem] = useState<CarPartItem | null>(null);
+
     const categories = PART_CATEGORY_ORDER.filter((c) =>
         items.some((i) => i.category === c)
     );
@@ -71,15 +70,6 @@ export default function CarPartsCard({ parts, onEdit, carId, onUpdateParts }: Pr
                     )}
                     <h2 className="text-lg font-semibold truncate">{title}</h2>
                 </div>
-                {onEdit && (
-                    <button
-                        type="button"
-                        onClick={onEdit}
-                        className="text-sm text-blue-400 hover:text-blue-300 shrink-0"
-                    >
-                        Изменить
-                    </button>
-                )}
             </div>
 
             {items.length === 0 && (
@@ -108,7 +98,7 @@ export default function CarPartsCard({ parts, onEdit, carId, onUpdateParts }: Pr
                 </div>
             )}
 
-            {/* 2. Колодки / Диски — всегда из конфига */}
+            {/* 2. Подразделы — всегда из конфига */}
             {category && !sub && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {subs.map((id) => {
@@ -134,7 +124,7 @@ export default function CarPartsCard({ parts, onEdit, carId, onUpdateParts }: Pr
                 </div>
             )}
 
-            {/* 3. Список */}
+            {/* 3. Список позиций */}
             {category && sub && (
                 <div className="space-y-3">
                     {inSub.length === 0 ? (
@@ -143,28 +133,38 @@ export default function CarPartsCard({ parts, onEdit, carId, onUpdateParts }: Pr
                         inSub.map((item) => (
                             <div
                                 key={item.id}
-                                className="bg-zinc-950/50 border border-zinc-800 rounded-2xl px-4 py-3"
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => setEditItem(item)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        setEditItem(item);
+                                    }
+                                }}
+                                className="bg-zinc-950/50 border border-zinc-800 hover:border-zinc-600 rounded-2xl px-4 py-3 cursor-pointer transition flex items-start justify-between gap-3"
                             >
-                                <p className="text-sm text-white">
-                                    {item.quantity && item.quantity > 1 ? `${item.quantity}× ` : ''}
-                                    {item.name}
-                                </p>
-                                {item.brand && (
-                                    <p className="text-xs text-zinc-500 mt-0.5">{item.brand}</p>
-                                )}
-                                {item.oemNumber && (
-                                    <p className="text-xs font-mono text-zinc-400 mt-1">{item.oemNumber}</p>
-                                )}
+                                <div className="min-w-0">
+                                    <p className="text-sm text-white">
+                                        {item.quantity && item.quantity > 1
+                                            ? `${item.quantity}× `
+                                            : ''}
+                                        {item.name}
+                                    </p>
+                                    {item.brand && (
+                                        <p className="text-xs text-zinc-500 mt-0.5">
+                                            {item.brand}
+                                        </p>
+                                    )}
+                                    {item.oemNumber && (
+                                        <p className="text-xs font-mono text-zinc-400 mt-1">
+                                            {item.oemNumber}
+                                        </p>
+                                    )}
+                                </div>
+                                <Pencil className="w-4 h-4 text-zinc-500 shrink-0 mt-0.5" />
                             </div>
                         ))
-                    )}
-                    {carId && (
-                        <Link
-                            href={`/garage/${carId}/parts/edit`}
-                            className="inline-block text-sm text-blue-400 hover:text-blue-300"
-                        >
-                            Редактировать каталог
-                        </Link>
                     )}
                 </div>
             )}
@@ -176,9 +176,6 @@ export default function CarPartsCard({ parts, onEdit, carId, onUpdateParts }: Pr
                 onSave={saveItem}
                 onDelete={deleteItem}
             />
-
-
-
         </section>
     );
 }

@@ -1,3 +1,5 @@
+import {FluidCategory} from "@/types/oil";
+
 export type Car = {
     id: string;
     vin: string;
@@ -71,15 +73,7 @@ export type PartCategory =
     | 'body'
     | 'other';
 
-export type FluidCategory =
-    | 'engineOil'
-    | 'gearboxOil'
-    | 'transferCaseOil'
-    | 'differentialOil'
-    | 'coolant'
-    | 'brakeFluid'
-    | 'powerSteeringFluid'
-    | 'otherFluid';
+
 
 export type ServicePart = {
     id: string;
