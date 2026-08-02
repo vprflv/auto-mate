@@ -23,6 +23,8 @@ export type Car = {
     notes?: string;
     addedAt: string;
     updatedAt?: string;
+
+    photos?: string[];
 };
 
 

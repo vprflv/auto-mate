@@ -1,13 +1,26 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import { ServiceRecord } from '@/types';
 import ServiceRecordCard from './ServiceRecordCard';
+import EditServiceModal from './EditServiceModal';
 
 type Props = {
     carId: string;
     records: ServiceRecord[];
+    onUpdateRecord: (record: ServiceRecord) => void;
+    onDeleteRecord: (id: string) => void;
 };
 
-export default function ServiceHistory({ carId, records }: Props) {
+export default function ServiceHistory({
+                                           carId,
+                                           records,
+                                           onUpdateRecord,
+                                           onDeleteRecord,
+                                       }: Props) {
+    const [editRecord, setEditRecord] = useState<ServiceRecord | null>(null);
+
     const sorted = [...records].sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
@@ -34,10 +47,23 @@ export default function ServiceHistory({ carId, records }: Props) {
             ) : (
                 <div className="space-y-4">
                     {sorted.map((record) => (
-                        <ServiceRecordCard key={record.id} record={record} />
+                        <ServiceRecordCard
+                            key={record.id}
+                            record={record}
+                            onEdit={setEditRecord}
+                            onDelete={onDeleteRecord}
+                        />
                     ))}
                 </div>
             )}
+
+            <EditServiceModal
+                open={!!editRecord}
+                record={editRecord}
+                onClose={() => setEditRecord(null)}
+                onSave={onUpdateRecord}
+                onDelete={onDeleteRecord}
+            />
         </section>
     );
 }

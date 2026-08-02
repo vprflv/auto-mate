@@ -12,6 +12,7 @@ import ServiceHistory from '@/features/garage/car/components/ServiceHistory';
 import DangerZone from '@/features/garage/car/components/DangerZone';
 import CarFluidsCard from '@/features/garage/oil/components/CarFluidsCard';
 import CarPartsCard from '@/features/garage/components/CarPartsCard';
+import CarPhotosGallery from "@/features/garage/gallery/components/CarPhotosGallery";
 
 type Section =
     | 'overview'
@@ -35,7 +36,7 @@ export default function CarPage() {
 
 
 
-    const { car, records, loading, deleteCar, updateCar} = useCar(id);
+    const { car, records, loading, deleteCar, updateCar, deleteRecord, updateRecord } = useCar(id);
     const [section, setSection] = useState<Section>('overview');
 
     if (loading) {
@@ -96,9 +97,22 @@ export default function CarPage() {
                     {/* ===== Правый контент ===== */}
                     <div className="flex-1 min-w-0">
                         {section === 'overview' && (
-                            <div className="grid gap-6 md:grid-cols-2">
-                                <CarSpecs car={car} />
-                                <CarExtraInfo car={car} />
+                            <div className="space-y-6">
+                                <CarPhotosGallery
+                                    photos={car.photos || []}
+                                    onUpdatePhotos={(photos) => {
+                                        updateCar({
+                                            ...car,
+                                            photos,
+                                            updatedAt: new Date().toISOString(),
+                                        });
+                                    }}
+                                />
+
+                                <div className="grid gap-6 md:grid-cols-2">
+                                    <CarSpecs car={car} />
+                                    <CarExtraInfo car={car} />
+                                </div>
                             </div>
                         )}
 
@@ -130,7 +144,12 @@ export default function CarPage() {
                         )}
 
                         {section === 'service' && (
-                            <ServiceHistory carId={car.id} records={records} />
+                            <ServiceHistory
+                                carId={car.id}
+                                records={records}
+                                onUpdateRecord={updateRecord}
+                                onDeleteRecord={deleteRecord}
+                            />
                         )}
 
                         {section === 'danger' && <DangerZone onDelete={deleteCar} />}

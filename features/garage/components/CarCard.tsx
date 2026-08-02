@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Car } from '@/types';
+import {CarIcon} from "lucide-react";
 
 type Props = {
     car: Car;
@@ -9,6 +10,21 @@ type Props = {
 export default function CarCard({ car, onRemove }: Props) {
     return (
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 hover:border-zinc-600 transition">
+
+            {/* Главное фото */}
+            <div className="aspect-[16/10] bg-zinc-950 rounded-2xl overflow-hidden mb-5">
+                {car.photos?.[0] ? (
+                    <img
+                        src={car.photos[0]}
+                        alt={car.nickname || `${car.make} ${car.model}`}
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                        <CarIcon className="w-12 h-12 text-zinc-700" /> {/* или Package */}
+                    </div>
+                )}
+            </div>
             <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
                     <h2 className="text-2xl font-semibold leading-tight">

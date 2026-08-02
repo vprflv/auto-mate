@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {Package, Pencil} from 'lucide-react';
+import {Package, Pencil, Plus} from 'lucide-react';
 import { CarPartItem, CarParts, PartCategory } from '@/types';
 import {
     PART_CATEGORY_LABELS,
@@ -47,7 +47,11 @@ export default function CarPartsCard({ parts, onUpdateParts }: Props) {
     const back = () => (sub ? setSub(null) : setCategory(null));
 
     const saveItem = (updated: CarPartItem) => {
-        const next = items.map((i) => (i.id === updated.id ? updated : i));
+        const exists = items.some((i) => i.id === updated.id);
+        const next = exists
+            ? items.map((i) => (i.id === updated.id ? updated : i))
+            : [...items, updated];
+
         onUpdateParts?.({ items: next });
     };
 
@@ -178,6 +182,23 @@ export default function CarPartsCard({ parts, onUpdateParts }: Props) {
                             ))}
                         </div>
                     )}
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setEditItem({
+                                id: crypto.randomUUID(),
+                                category: category!,
+                                subcategory: sub || 'other',
+                                name: '',
+                                quantity: 1,
+                            });
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200 transition"
+                    >
+                        <Plus size={18} />
+                        Добавить в этот раздел
+                    </button>
                 </div>
             )}
 

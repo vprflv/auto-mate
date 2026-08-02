@@ -58,6 +58,8 @@ export function useCar(id: string) {
             );
         }
 
+
+
         const serviceData = localStorage.getItem('automate-service');
         if (serviceData) {
             const allRecords: ServiceRecord[] = JSON.parse(serviceData);
@@ -70,11 +72,35 @@ export function useCar(id: string) {
         router.push('/garage');
     };
 
+    const updateRecord = (updated: ServiceRecord) => {
+        const serviceData = localStorage.getItem('automate-service');
+        if (!serviceData) return;
+
+        const allRecords: ServiceRecord[] = JSON.parse(serviceData);
+        const next = allRecords.map((r) => (r.id === updated.id ? updated : r));
+        localStorage.setItem('automate-service', JSON.stringify(next));
+        setRecords(next.filter((r) => r.carId === id));
+    };
+
+    const deleteRecord = (recordId: string) => {
+        if (!confirm('Удалить эту запись ТО?')) return;
+
+        const serviceData = localStorage.getItem('automate-service');
+        if (!serviceData) return;
+
+        const allRecords: ServiceRecord[] = JSON.parse(serviceData);
+        const next = allRecords.filter((r) => r.id !== recordId);
+        localStorage.setItem('automate-service', JSON.stringify(next));
+        setRecords(next.filter((r) => r.carId === id));
+    };
+
     return {
         car,
         records,
         loading,
         updateCar,
         deleteCar,
+        updateRecord,
+        deleteRecord,
     };
 }

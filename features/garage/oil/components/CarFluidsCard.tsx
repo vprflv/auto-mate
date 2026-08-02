@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, Plus } from 'lucide-react';
+import {Package, Pencil, Plus} from 'lucide-react';
 
 import { FLUID_CATEGORY_OPTIONS } from '@/features/garage/lib/config/serviceItemCategories';
 import EditFluidModal from './EditFluidModal';
@@ -122,31 +122,52 @@ export default function CarFluidsCard({ fluids, onUpdateFluids }: Props) {
             )}
 
             {/* 2. Список внутри раздела */}
+            {/* 2. Список внутри раздела */}
             {category && (
                 <div className="space-y-3">
                     {inCategory.length === 0 ? (
                         <p className="text-center text-zinc-500 text-sm py-6">Пока нет записей</p>
                     ) : (
-                        inCategory.map((item) => (
-                            <div
-                                key={item.id}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => {
-                                    setEditItem(item);
-                                    setIsCreating(false);
-                                }}
-                                className="bg-zinc-950/50 border border-zinc-800 hover:border-zinc-600 rounded-2xl px-4 py-3 cursor-pointer transition flex items-start justify-between gap-3"
-                            >
-                                <div className="min-w-0">
-                                    <p className="text-sm text-white">{item.name}</p>
-                                    <p className="text-xs text-zinc-500 mt-0.5">
-                                        {formatFluid(item)}
-                                    </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {inCategory.map((item) => (
+                                <div
+                                    key={item.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => {
+                                        setEditItem(item);
+                                        setIsCreating(false);
+                                    }}
+                                    className="bg-zinc-950 border border-zinc-800 hover:border-zinc-600 rounded-2xl overflow-hidden cursor-pointer transition"
+                                >
+                                    {/* Фото */}
+                                    <div className="aspect-[4/3] bg-zinc-900 flex items-center justify-center">
+                                        {item.photo ? (
+                                            <img
+                                                src={item.photo}
+                                                alt={item.name}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <Package className="w-10 h-10 text-zinc-700" strokeWidth={1.5} />
+                                        )}
+                                    </div>
+
+                                    {/* Информация */}
+                                    <div className="p-3">
+                                        {item.brand && (
+                                            <p className="text-xs text-zinc-500 mb-0.5 truncate">{item.brand}</p>
+                                        )}
+                                        <p className="text-sm text-white font-medium leading-snug line-clamp-2">
+                                            {item.name}
+                                        </p>
+                                        <p className="text-xs text-zinc-400 mt-1 truncate">
+                                            {formatFluid(item)}
+                                        </p>
+                                    </div>
                                 </div>
-                                <Pencil className="w-4 h-4 text-zinc-500 shrink-0 mt-0.5" />
-                            </div>
-                        ))
+                            ))}
+                        </div>
                     )}
 
                     <button
