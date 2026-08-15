@@ -11,6 +11,7 @@ import PartsEmpty from "@/features/garage/parts/components/PartsEmpty";
 import PartsCategoryGrid from "@/features/garage/parts/components/PartsCategoryGrid";
 import PartsSubcategoryGrid from "@/features/garage/parts/components/PartsSubcategoryGrid";
 import PartsItemList from "@/features/garage/parts/components/PartsItemList";
+import {getSubcategoriesFor} from "@/features/garage/lib/getSubcategories";
 
 
 type Props = {
@@ -25,6 +26,8 @@ export default function CarPartsCard({ parts, onEdit, carId }: Props) {
     const [subcategory, setSubcategory] = useState<string | null>(null);
 
     const hasData = items.length > 0;
+
+    const subs = category ? getSubcategoriesFor(category) : [];
 
     const categoryItems = category
         ? items.filter((i) => i.category === category)
@@ -67,6 +70,8 @@ export default function CarPartsCard({ parts, onEdit, carId }: Props) {
                     <h2 className="text-lg font-semibold truncate">{title}</h2>
                 </div>
 
+
+
                 {onEdit && (
                     <button
                         type="button"
@@ -101,6 +106,8 @@ export default function CarPartsCard({ parts, onEdit, carId }: Props) {
                     carId={carId}
                 />
             ) : null}
+
+            
 
             <p className="text-xs text-zinc-600 mt-5 leading-relaxed">
                 Справочная информация по вашей машине. Перед покупкой сверяйте

@@ -23,10 +23,10 @@ export function useAddService(carId: string) {
     const [cost, setCost] = useState('');
     const [parts, setParts] = useState<PartForm[]>([]);
 
+    const [photos, setPhotos] = useState<string[]>([]);
+
     useEffect(() => {
         const data = localStorage.getItem(STORAGE_KEYS.garage);
-        // если ключ ещё строкой:
-        // const data = localStorage.getItem('automate-garage');
 
         if (data) {
             const cars: Car[] = JSON.parse(data);
@@ -99,6 +99,7 @@ export function useAddService(carId: string) {
             description: description.trim() || undefined,
             parts: serviceParts,
             cost: cost ? parseFloat(cost) : undefined,
+            photos: photos.length > 0 ? photos : undefined,
             createdAt: new Date().toISOString(),
         };
 
@@ -155,5 +156,7 @@ export function useAddService(carId: string) {
         updatePart,
         removePart,
         submit,
+        photos,
+        setPhotos,
     };
 }

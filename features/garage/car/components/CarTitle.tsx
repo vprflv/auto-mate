@@ -28,6 +28,13 @@ export default function CarTitle({ car }: Props) {
                 >
                     Редактировать
                 </Link>
+
+                <Link
+                    href={`/garage/${car.id}/catalog`}
+                    className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-xl text-sm font-medium transition"
+                >
+                    Каталог
+                </Link>
                 <Link
                     href={`/garage/${car.id}/service/add`}
                     className="bg-blue-600 hover:bg-blue-500 px-5 py-3 rounded-xl text-sm font-medium transition"

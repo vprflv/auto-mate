@@ -1,4 +1,5 @@
 import { PartCategory } from '@/types';
+import {getUserSubcategoriesByCategory} from "@/features/garage/lib/userSubcategories";
 
 type Rule = { sub: string; patterns: RegExp[] };
 
@@ -44,18 +45,31 @@ const RULES: Partial<Record<PartCategory, Rule[]>> = {
     ],
 };
 
+
+
 export function detectSubcategory(
     category: PartCategory,
     name: string
 ): string {
-    const rules = RULES[category];
-    if (!rules) return 'other';
+    const text = name.trim().toLowerCase();
 
-    const text = name.trim();
-    for (const rule of rules) {
-        if (rule.patterns.some((re) => re.test(text))) {
-            return rule.sub;
+    // 1. Сначала пользовательские категории
+    const userSubs = getUserSubcategoriesByCategory(category);
+    for (const sub of userSubs) {
+        if (sub.keywords.some((kw) => text.includes(kw))) {
+            return sub.key;
         }
     }
+
+    // 2. Потом системные правила
+    const rules = RULES[category];
+    if (rules) {
+        for (const rule of rules) {
+            if (rule.patterns.some((re) => re.test(text))) {
+                return rule.sub;
+            }
+        }
+    }
+
     return 'other';
 }

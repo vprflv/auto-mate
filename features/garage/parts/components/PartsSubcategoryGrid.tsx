@@ -1,9 +1,5 @@
 import { CarPartItem, PartCategory } from '@/types';
-import {
-    PART_SUBCATEGORY_LABELS,
-    PART_SUBCATEGORY_ORDER,
-} from '@/features/garage/lib/config/partSubcategories';
-
+import { getSubcategoriesFor } from '@/features/garage/lib/getSubcategories';
 
 type Props = {
     category: PartCategory;
@@ -16,25 +12,25 @@ export default function PartsSubcategoryGrid({
                                                  items,
                                                  onSelect,
                                              }: Props) {
-    // Всегда берём список из конфига — Колодки, Диски и т.д. кликабельны
-    const subs = PART_SUBCATEGORY_ORDER[category] || ['other'];
+    const subs = getSubcategoriesFor(category);
 
     return (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {subs.map((sub) => {
+            {subs.map((s) => {
                 const count = items.filter(
-                    (i) => (i.subcategory || 'other') === sub
+                    (i) => (i.subcategory || 'other') === s.id
                 ).length;
 
                 return (
                     <button
-                        key={sub}
+                        key={s.id}
                         type="button"
-                        onClick={() => onSelect(sub)}
+                        onClick={() => onSelect(s.id)}
                         className="bg-zinc-950 border border-zinc-800 hover:border-zinc-600 rounded-2xl px-4 py-4 text-left transition"
                     >
                         <p className="text-sm font-medium text-white">
-                            {PART_SUBCATEGORY_LABELS[sub] || sub}
+                            {s.label}
+                            {s.isCustom ? ' ★' : ''}
                         </p>
                         <p className="text-xs text-zinc-500 mt-1">
                             {count > 0 ? `${count} поз.` : 'пусто'}

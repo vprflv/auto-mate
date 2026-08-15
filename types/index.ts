@@ -138,6 +138,16 @@ export type ServiceRecord = {
     title: string;
     description?: string;
     parts: ServicePart[];
+    photos?: string[];
     cost?: number;
+    createdAt: string;
+};
+
+export type UserSubcategory = {
+    id: string;
+    category: PartCategory;
+    name: string;
+    key: string;
+    keywords: string[];
     createdAt: string;
 };

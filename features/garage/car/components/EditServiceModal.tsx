@@ -5,6 +5,7 @@ import { ServiceRecord, ServicePart } from '@/types';
 import ServiceMainFields from '@/features/garage/add/components/ServiceMainFields';
 import ServicePartsSection from '@/features/garage/add/components/ServicePartsSection';
 import { PartForm, createEmptyPart } from '@/features/garage/add/types/serviceForm';
+import ServicePhotosSection from "@/features/garage/add/components/ServicePhotosSection";
 
 type Props = {
     record: ServiceRecord | null;
@@ -56,8 +57,13 @@ export default function EditServiceModal({
     const [cost, setCost] = useState('');
     const [parts, setParts] = useState<PartForm[]>([]);
 
+    const [photos, setPhotos] = useState<string[]>([])
+
+
+
     useEffect(() => {
         if (open && record) {
+            setPhotos(record.photos || [])
             setTitle(record.title || '');
             setDate(record.date || new Date().toISOString().slice(0, 10));
             setMileage(record.mileage ? String(record.mileage) : '');
@@ -88,10 +94,12 @@ export default function EditServiceModal({
             title: title.trim(),
             date,
             mileage: mileage ? parseInt(mileage) : undefined,
+            photos: photos.length ? photos : undefined,
             description: description.trim() || undefined,
             cost: cost ? parseFloat(cost) : undefined,
             parts: formToParts(parts),
         };
+
 
         onSave(updated);
         onClose();
@@ -128,6 +136,10 @@ export default function EditServiceModal({
                     onChange={updatePart}
                     onRemove={removePart}
                 />
+
+                <ServicePhotosSection photos={photos} onChange={setPhotos} />
+
+
 
                 <div className="flex gap-3 pt-2">
                     {onDelete && (

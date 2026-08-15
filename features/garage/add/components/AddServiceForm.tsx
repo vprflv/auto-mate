@@ -6,6 +6,7 @@ import ServiceFormHeader from './ServiceFormHeader';
 import ServiceMainFields from './ServiceMainFields';
 import ServicePartsSection from './ServicePartsSection';
 import {useAddService} from "@/features/garage/add/hooks/useAddService";
+import ServicePhotosSection from "@/features/garage/add/components/ServicePhotosSection";
 
 type Props = {
     carId: string;
@@ -31,6 +32,8 @@ export default function AddServiceForm({ carId }: Props) {
         updatePart,
         removePart,
         submit,
+        photos,
+        setPhotos
     } = useAddService(carId);
 
     if (loading) {
@@ -81,6 +84,11 @@ export default function AddServiceForm({ carId }: Props) {
                         onAdd={addPart}
                         onChange={updatePart}
                         onRemove={removePart}
+                    />
+
+                    <ServicePhotosSection
+                        photos={photos}
+                        onChange={setPhotos}
                     />
 
                     <div className="flex gap-4 pt-2">

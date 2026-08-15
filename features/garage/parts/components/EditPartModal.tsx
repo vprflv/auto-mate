@@ -11,6 +11,7 @@ import {
     PART_SUBCATEGORY_ORDER,
 } from '@/features/garage/lib/config/partSubcategories';
 import {Package} from "lucide-react";
+import {addUserSubcategory, learnKeywords} from "@/features/garage/lib/userSubcategories";
 
 type Props = {
     item: CarPartItem | null;
@@ -41,6 +42,10 @@ export default function EditPartModal({
         setForm((prev) => (prev ? { ...prev, ...patch } : prev));
 
     const handleSave = () => {
+        if (form.subcategory?.startsWith('custom_')) {
+            learnKeywords(form.subcategory, form.name);
+        }
+
         if (!form.name.trim()) return;
         onSave({
             ...form,
@@ -142,14 +147,25 @@ export default function EditPartModal({
                         <label className="block text-xs text-zinc-400 mb-1">Подраздел</label>
                         <select
                             value={form.subcategory || 'other'}
-                            onChange={(e) => set({ subcategory: e.target.value })}
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '__new__') {
+                                    const name = prompt('Название новой подкатегории:');
+                                    if (!name?.trim()) return;
+                                    const created = addUserSubcategory(form.category, name.trim());
+                                    set({ subcategory: created.key });
+                                    return;
+                                }
+                                set({ subcategory: value });
+                            }}
+                            className="..."
                         >
                             {subs.map((s) => (
-                                <option key={s} value={s}>
-                                    {PART_SUBCATEGORY_LABELS[s] || s}
+                                <option key={s.id} value={s.id}>
+                                    {s.label}{s.isCustom ? ' ★' : ''}
                                 </option>
                             ))}
+                            <option value="__new__">+ Создать свою...</option>
                         </select>
                     </div>
                 </div>
