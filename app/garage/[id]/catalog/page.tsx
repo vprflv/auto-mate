@@ -180,6 +180,17 @@ export default function CatalogPage({
                         className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-zinc-600"
                     />
                 </div>
+
+                {catalog.source === 'ai' || catalog.source === 'mock' ? (
+                    <div className="mx-4 mt-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                        <p className="font-medium">Справочный каталог</p>
+                        <p className="text-amber-200/80 mt-1">
+                            Подбор выполнен автоматически и может содержать неточности.
+                            Перед покупкой обязательно проверяйте применимость по VIN
+                            и оригинальным каталогам производителя.
+                        </p>
+                    </div>
+                ) : null}
             </div>
 
             <div className="flex flex-col md:flex-row">

@@ -12,6 +12,7 @@ import {
 } from '@/features/garage/lib/config/partSubcategories';
 import {Package} from "lucide-react";
 import {addUserSubcategory, learnKeywords} from "@/features/garage/lib/userSubcategories";
+import {getSubcategoriesFor} from "@/features/garage/lib/getSubcategories";
 
 type Props = {
     item: CarPartItem | null;
@@ -36,7 +37,7 @@ export default function EditPartModal({
 
     if (!open || !form) return null;
 
-    const subs = PART_SUBCATEGORY_ORDER[form.category] ?? ['other'];
+    const subs = getSubcategoriesFor(form.category);
 
     const set = (patch: Partial<CarPartItem>) =>
         setForm((prev) => (prev ? { ...prev, ...patch } : prev));
@@ -129,11 +130,13 @@ export default function EditPartModal({
                         <label className="block text-xs text-zinc-400 mb-1">Категория</label>
                         <select
                             value={form.category}
+
                             onChange={(e) => {
                                 const category = e.target.value as PartCategory;
-                                const firstSub = PART_SUBCATEGORY_ORDER[category]?.[0] || 'other';
+                                const firstSub = getSubcategoriesFor(category)[0]?.id || 'other';
                                 set({ category, subcategory: firstSub });
                             }}
+
                             className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
                         >
                             {PART_CATEGORY_ORDER.map((c) => (
@@ -158,11 +161,12 @@ export default function EditPartModal({
                                 }
                                 set({ subcategory: value });
                             }}
-                            className="..."
+                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
                         >
                             {subs.map((s) => (
                                 <option key={s.id} value={s.id}>
-                                    {s.label}{s.isCustom ? ' ★' : ''}
+                                    {s.label}
+                                    {s.isCustom ? ' ★' : ''}
                                 </option>
                             ))}
                             <option value="__new__">+ Создать свою...</option>

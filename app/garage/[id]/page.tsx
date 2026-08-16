@@ -13,6 +13,9 @@ import DangerZone from '@/features/garage/car/components/DangerZone';
 import CarFluidsCard from '@/features/garage/oil/components/CarFluidsCard';
 import CarPartsCard from '@/features/garage/components/CarPartsCard';
 import CarPhotosGallery from "@/features/garage/gallery/components/CarPhotosGallery";
+import {getCachedCatalog, saveCatalog} from "@/features/catalog/lib/storage";
+import {catalogProvider} from "@/features/catalog/lib/providers";
+import {BookOpen, Loader2} from "lucide-react";
 
 type Section =
     | 'overview'
@@ -38,6 +41,8 @@ export default function CarPage() {
 
     const { car, records, loading, deleteCar, updateCar, deleteRecord, updateRecord } = useCar(id);
     const [section, setSection] = useState<Section>('overview');
+    const [isGenerating, setIsGenerating] = useState(false);
+
 
     if (loading) {
         return (
@@ -58,12 +63,62 @@ export default function CarPage() {
         );
     }
 
+
+    const hasCatalog = typeof window !== 'undefined' && !!getCachedCatalog(car.id);
+
+    const handleGenerateCatalog = async () => {
+        // Если уже есть — просто открываем
+        if (getCachedCatalog(car.id)) {
+            router.push(`/garage/${car.id}/catalog`);
+            return;
+        }
+
+        try {
+            setIsGenerating(true);
+
+            const catalog = await catalogProvider.getCatalog({
+                carId: car.id,
+                vin: car.vin,
+                make: car.make,
+                model: car.model,
+                year: car.year,
+            });
+
+            saveCatalog(catalog);
+            router.push(`/garage/${car.id}/catalog`);
+        } catch (e) {
+            console.error(e);
+            alert('Не удалось сгенерировать каталог');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-zinc-950 text-white">
+
             <CarHeader />
 
             <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
                 {/* Заголовок всегда сверху */}
+                <button
+                    type="button"
+                    onClick={handleGenerateCatalog}
+                    disabled={isGenerating}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-sm font-medium transition"
+                >
+                    {isGenerating ? (
+                        <>
+                            <Loader2 size={16} className="animate-spin" />
+                            Генерация...
+                        </>
+                    ) : (
+                        <>
+                            <BookOpen size={16} />
+                            {hasCatalog ? 'Открыть каталог' : 'Сгенерировать каталог'}
+                        </>
+                    )}
+                </button>
                 <CarTitle car={car} />
 
                 <div className="flex flex-col md:flex-row gap-6 md:gap-8">

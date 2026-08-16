@@ -27,7 +27,7 @@ export type VehicleCatalog = {
     make: string;
     model: string;
     year: number;
-    source: 'mock' | 'laximo' | 'partsapi' | 'tecdoc' | string;
+    source: 'mock' | 'ai' | 'laximo' | 'partsapi' | 'tecdoc' | string;
     fetchedAt: string;
     nodes: CatalogNode[];          // дерево верхнего уровня
     articles: CatalogArticle[];    // плоский список для поиска
