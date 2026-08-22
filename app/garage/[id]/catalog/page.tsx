@@ -310,6 +310,20 @@ export default function CatalogPage({
                                             {art.quantity ? `${art.quantity} шт.` : '—'}
                                         </div>
 
+                                        <Link
+                                            href={{
+                                                pathname: `/garage/${carId}/buy`,
+                                                query: {
+                                                    name: art.name,
+                                                    oem: art.oem,
+                                                    brand: art.brand || '',
+                                                },
+                                            }}
+                                            className="px-4 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-sm font-medium transition"
+                                        >
+                                            Где купить
+                                        </Link>
+
                                         {isAlreadyAdded(art.oem) ? (
                                             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 text-sm font-medium">
                                                 <svg
@@ -328,26 +342,29 @@ export default function CatalogPage({
                                                 В каталоге
                                             </div>
                                         ) : (
-                                            <button
-                                                onClick={() => {
-                                                    const findNodeName = (nodes: typeof catalog.nodes): string | undefined => {
-                                                        for (const node of nodes) {
-                                                            if (node.id === art.nodeId) return node.name;
-                                                            if (node.children) {
-                                                                const found = findNodeName(node.children);
-                                                                if (found) return found;
+                                            <div>
+                                                <button
+                                                    onClick={() => {
+                                                        const findNodeName = (nodes: typeof catalog.nodes): string | undefined => {
+                                                            for (const node of nodes) {
+                                                                if (node.id === art.nodeId) return node.name;
+                                                                if (node.children) {
+                                                                    const found = findNodeName(node.children);
+                                                                    if (found) return found;
+                                                                }
                                                             }
-                                                        }
-                                                        return undefined;
-                                                    };
+                                                            return undefined;
+                                                        };
 
-                                                    setNodeNameToSave(findNodeName(catalog.nodes));
-                                                    setArticleToSave(art);
-                                                }}
-                                                className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm font-medium transition active:scale-95"
-                                            >
-                                                В мой каталог
-                                            </button>
+                                                        setNodeNameToSave(findNodeName(catalog.nodes));
+                                                        setArticleToSave(art);
+                                                    }}
+                                                    className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm font-medium transition active:scale-95"
+                                                >
+                                                    В мой каталог
+                                                </button>
+                                            </div>
+
                                         )}
                                     </div>
                                 </div>

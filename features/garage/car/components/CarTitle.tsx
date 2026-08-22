@@ -1,11 +1,58 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { BookOpen, Loader2 } from 'lucide-react';
 import { Car } from '@/types';
+import {
+    getCachedCatalog,
+    saveCatalog,
+} from '@/features/catalog/lib/storage';
+import { catalogProvider } from '@/features/catalog/lib/providers';
 
 type Props = {
     car: Car;
 };
 
 export default function CarTitle({ car }: Props) {
+    const router = useRouter();
+    const [hasCatalog, setHasCatalog] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    useEffect(() => {
+        setHasCatalog(!!getCachedCatalog(car.id));
+    }, [car.id]);
+
+    const handleGenerateCatalog = async () => {
+        // Если каталог уже есть — просто открываем
+        if (getCachedCatalog(car.id)) {
+            router.push(`/garage/${car.id}/catalog`);
+            return;
+        }
+
+        try {
+            setIsGenerating(true);
+
+            const catalog = await catalogProvider.getCatalog({
+                carId: car.id,
+                vin: car.vin,
+                make: car.make,
+                model: car.model,
+                year: car.year,
+            });
+
+            saveCatalog(catalog);
+            setHasCatalog(true);
+            router.push(`/garage/${car.id}/catalog`);
+        } catch (e) {
+            console.error(e);
+            alert('Не удалось сгенерировать каталог');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     return (
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 mb-10">
             <div>
@@ -29,12 +76,25 @@ export default function CarTitle({ car }: Props) {
                     Редактировать
                 </Link>
 
-                <Link
-                    href={`/garage/${car.id}/catalog`}
-                    className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-xl text-sm font-medium transition"
+                <button
+                    type="button"
+                    onClick={handleGenerateCatalog}
+                    disabled={isGenerating}
+                    className="inline-flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-60 px-5 py-3 rounded-xl text-sm font-medium transition"
                 >
-                    Каталог
-                </Link>
+                    {isGenerating ? (
+                        <>
+                            <Loader2 size={16} className="animate-spin" />
+                            Генерация...
+                        </>
+                    ) : (
+                        <>
+                            <BookOpen size={16} />
+                            {hasCatalog ? 'Открыть каталог' : 'Сгенерировать каталог'}
+                        </>
+                    )}
+                </button>
+
                 <Link
                     href={`/garage/${car.id}/service/add`}
                     className="bg-blue-600 hover:bg-blue-500 px-5 py-3 rounded-xl text-sm font-medium transition"

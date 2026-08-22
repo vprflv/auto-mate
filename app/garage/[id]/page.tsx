@@ -101,24 +101,7 @@ export default function CarPage() {
 
             <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
                 {/* Заголовок всегда сверху */}
-                <button
-                    type="button"
-                    onClick={handleGenerateCatalog}
-                    disabled={isGenerating}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-sm font-medium transition"
-                >
-                    {isGenerating ? (
-                        <>
-                            <Loader2 size={16} className="animate-spin" />
-                            Генерация...
-                        </>
-                    ) : (
-                        <>
-                            <BookOpen size={16} />
-                            {hasCatalog ? 'Открыть каталог' : 'Сгенерировать каталог'}
-                        </>
-                    )}
-                </button>
+
                 <CarTitle car={car} />
 
                 <div className="flex flex-col md:flex-row gap-6 md:gap-8">

@@ -13,13 +13,15 @@ import {
     getSubcategoryLabel,
 } from '@/features/garage/lib/getSubcategories';
 import {addUserSubcategory} from "@/features/garage/lib/userSubcategories";
+import Link from "next/link";
 
 type Props = {
+    carId: string;
     parts?: CarParts;
     onUpdateParts?: (parts: CarParts) => void;
 };
 
-export default function CarPartsCard({ parts, onUpdateParts }: Props) {
+export default function CarPartsCard({ parts, onUpdateParts, carId }: Props) {
     const items = parts?.items ?? [];
     const [category, setCategory] = useState<PartCategory | null>(null);
     const [sub, setSub] = useState<string | null>(null);
@@ -163,42 +165,65 @@ export default function CarPartsCard({ parts, onUpdateParts }: Props) {
                             {inSub.map((item) => (
                                 <div
                                     key={item.id}
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={() => setEditItem(item)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' || e.key === ' ') {
-                                            e.preventDefault();
-                                            setEditItem(item);
-                                        }
-                                    }}
-                                    className="bg-zinc-950 border border-zinc-800 hover:border-zinc-600 rounded-2xl overflow-hidden cursor-pointer transition"
+                                    className="bg-zinc-950 border border-zinc-800 hover:border-zinc-600 rounded-2xl overflow-hidden transition"
                                 >
-                                    <div className="aspect-[4/3] bg-zinc-900 flex items-center justify-center">
-                                        {item.photo ? (
-                                            <img
-                                                src={item.photo}
-                                                alt={item.name}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <Package className="w-10 h-10 text-zinc-700" strokeWidth={1.5} />
-                                        )}
+                                    {/* Фото — клик открывает редактирование */}
+                                    <div
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => setEditItem(item)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                setEditItem(item);
+                                            }
+                                        }}
+                                        className="cursor-pointer"
+                                    >
+                                        <div className="aspect-[4/3] bg-zinc-900 flex items-center justify-center">
+                                            {item.photo ? (
+                                                <img
+                                                    src={item.photo}
+                                                    alt={item.name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <Package className="w-10 h-10 text-zinc-700" strokeWidth={1.5} />
+                                            )}
+                                        </div>
+
+                                        <div className="p-3 pb-2">
+                                            {item.brand && (
+                                                <p className="text-xs text-zinc-500 mb-0.5 truncate">{item.brand}</p>
+                                            )}
+                                            <p className="text-sm text-white font-medium leading-snug line-clamp-2">
+                                                {item.quantity && item.quantity > 1 ? `${item.quantity}× ` : ''}
+                                                {item.name}
+                                            </p>
+                                            {item.oemNumber && (
+                                                <p className="text-xs font-mono text-zinc-400 mt-1 truncate">
+                                                    {item.oemNumber}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
 
-                                    <div className="p-3">
-                                        {item.brand && (
-                                            <p className="text-xs text-zinc-500 mb-0.5 truncate">{item.brand}</p>
-                                        )}
-                                        <p className="text-sm text-white font-medium leading-snug line-clamp-2">
-                                            {item.quantity && item.quantity > 1 ? `${item.quantity}× ` : ''}
-                                            {item.name}
-                                        </p>
-                                        {item.oemNumber && (
-                                            <p className="text-xs font-mono text-zinc-400 mt-1 truncate">
-                                                {item.oemNumber}
-                                            </p>
-                                        )}
+                                    {/* Действия */}
+                                    <div className="px-3 pb-3 flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setEditItem(item)}
+                                            className="flex-1 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-xs font-medium transition"
+                                        >
+                                            Изменить
+                                        </button>
+
+                                        <Link
+                                            href={`/garage/${carId}/buy?name=${encodeURIComponent(item.name)}&oem=${encodeURIComponent(item.oemNumber || '')}&brand=${encodeURIComponent(item.brand || '')}&analog=${encodeURIComponent(item.analogNumber || '')}`}
+                                            className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-medium transition text-center"
+                                        >
+                                            Где купить
+                                        </Link>
                                     </div>
                                 </div>
                             ))}
