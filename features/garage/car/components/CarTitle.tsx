@@ -25,7 +25,6 @@ export default function CarTitle({ car }: Props) {
     }, [car.id]);
 
     const handleGenerateCatalog = async () => {
-        // Если каталог уже есть — просто открываем
         if (getCachedCatalog(car.id)) {
             router.push(`/garage/${car.id}/catalog`);
             return;
@@ -56,14 +55,14 @@ export default function CarTitle({ car }: Props) {
     return (
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 mb-10">
             <div>
-                <h1 className="text-4xl font-bold leading-tight">
+                <h1 className="text-4xl font-bold leading-tight text-[#F5F5F5]">
                     {car.nickname || `${car.make} ${car.model}`}
                 </h1>
-                <p className="text-zinc-400 mt-2 text-lg">
+                <p className="text-[#A3A3A3] mt-2 text-lg">
                     {car.make} {car.model} • {car.year}
                     {car.color ? ` • ${car.color}` : ''}
                 </p>
-                <p className="font-mono text-sm text-zinc-500 mt-2 tracking-wide">
+                <p className="font-mono text-sm text-[#666666] mt-2 tracking-wide">
                     {car.vin}
                 </p>
             </div>
@@ -71,7 +70,7 @@ export default function CarTitle({ car }: Props) {
             <div className="flex flex-wrap gap-3">
                 <Link
                     href={`/garage/${car.id}/edit`}
-                    className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-xl text-sm font-medium transition"
+                    className="bg-[#1F1F1F] hover:bg-[#2A2A2A] px-5 py-3 rounded-xl text-sm font-medium text-[#F5F5F5] transition"
                 >
                     Редактировать
                 </Link>
@@ -80,7 +79,7 @@ export default function CarTitle({ car }: Props) {
                     type="button"
                     onClick={handleGenerateCatalog}
                     disabled={isGenerating}
-                    className="inline-flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-60 px-5 py-3 rounded-xl text-sm font-medium transition"
+                    className="inline-flex items-center justify-center gap-2 bg-[#1F1F1F] hover:bg-[#2A2A2A] disabled:opacity-60 px-5 py-3 rounded-xl text-sm font-medium text-[#F5F5F5] transition"
                 >
                     {isGenerating ? (
                         <>
@@ -97,7 +96,7 @@ export default function CarTitle({ car }: Props) {
 
                 <Link
                     href={`/garage/${car.id}/service/add`}
-                    className="bg-blue-600 hover:bg-blue-500 px-5 py-3 rounded-xl text-sm font-medium transition"
+                    className="bg-[#39FF14] hover:bg-[#57FF3A] px-5 py-3 rounded-xl text-sm font-medium text-black transition shadow-[0_0_16px_rgba(57,255,20,0.25)]"
                 >
                     + Добавить ТО
                 </Link>

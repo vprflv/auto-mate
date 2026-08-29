@@ -1,4 +1,4 @@
-import {FluidCategory} from "@/types/oil";
+import {CarFluids, FluidCategory} from "@/types/oil";
 
 export type Car = {
     id: string;
@@ -90,28 +90,28 @@ export type ServicePart = {
 };
 
 
-export type FluidItem = {
-    id: string;
-    name: string;
-    spec?: string;
-    brand?: string;
-    volume?: string;
-    notes?: string;
-};
+// export type FluidItem = {
+//     id: string;
+//     name: string;
+//     spec?: string;
+//     brand?: string;
+//     volume?: string;
+//     notes?: string;
+// };
 
 
 
 
-export type CarFluids = {
-    engineOil?: FluidItem;
-    gearboxOil?: FluidItem;
-    transferCaseOil?: FluidItem;
-    differentialOil?: FluidItem;
-    coolant?: FluidItem;
-    brakeFluid?: FluidItem;
-    powerSteeringFluid?: FluidItem;
-    other?: FluidItem[];
-};
+// export type CarFluids = {
+//     engineOil?: FluidItem;
+//     gearboxOil?: FluidItem;
+//     transferCaseOil?: FluidItem;
+//     differentialOil?: FluidItem;
+//     coolant?: FluidItem;
+//     brakeFluid?: FluidItem;
+//     powerSteeringFluid?: FluidItem;
+//     other?: FluidItem[];
+// };
 
 export type CarPartItem = {
     id: string;

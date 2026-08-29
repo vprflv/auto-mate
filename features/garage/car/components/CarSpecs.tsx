@@ -18,17 +18,17 @@ export default function CarSpecs({ car }: Props) {
     ].filter((row) => row.value);
 
     return (
-        <section className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
-            <h2 className="text-lg font-semibold mb-5">Характеристики</h2>
+        <section className="bg-[#161616] border border-[#2A2A2A] rounded-3xl p-6">
+            <h2 className="text-lg font-semibold mb-5 text-[#F5F5F5]">Характеристики</h2>
             <div className="space-y-3 text-sm">
                 {rows.map((row) => (
                     <div key={row.label} className="flex justify-between gap-4">
-                        <span className="text-zinc-500">{row.label}</span>
-                        <span className="text-right">{row.value}</span>
+                        <span className="text-[#39FF14]">{row.label}</span>
+                        <span className="text-right text-[#39FF14]">{row.value}</span>
                     </div>
                 ))}
                 {rows.length === 0 && (
-                    <p className="text-zinc-500">Нет данных</p>
+                    <p className="text-[#A3A3A3]">Нет данных</p>
                 )}
             </div>
         </section>

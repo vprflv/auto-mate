@@ -28,19 +28,19 @@ export default function ServiceHistory({
     return (
         <section className="mb-10">
             <div className="flex items-center justify-between mb-5">
-                <h2 className="text-2xl font-bold">История обслуживания</h2>
+                <h2 className="text-2xl font-bold text-[#F5F5F5]">История обслуживания</h2>
                 <Link
                     href={`/garage/${carId}/service/add`}
-                    className="text-sm text-blue-400 hover:text-blue-300 transition"
+                    className="text-sm text-[#39FF14] hover:text-[#57FF3A] transition"
                 >
                     + Добавить запись
                 </Link>
             </div>
 
             {sorted.length === 0 ? (
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-10 text-center">
-                    <p className="text-zinc-500 mb-2">Пока нет записей</p>
-                    <p className="text-sm text-zinc-600">
+                <div className="bg-[#161616]/70 border border-[#2A2A2A] rounded-3xl p-10 text-center">
+                    <p className="text-[#A3A3A3] mb-2">Пока нет записей</p>
+                    <p className="text-sm text-[#666666]">
                         Добавь первое ТО — масло, фильтры, колодки и т.д.
                     </p>
                 </div>

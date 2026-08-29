@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { Plus, X, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCarPhotosGallery } from '@/features/garage/gallery/hooks/useCarPhotosGallery';
 
 type Props = {
     photos: string[];
@@ -9,56 +9,23 @@ type Props = {
 };
 
 export default function CarPhotosGallery({ photos, onUpdatePhotos }: Props) {
-    const [activeIndex, setActiveIndex] = useState(0);
+    const {
+        activeIndex,
+        setActiveIndex,
+        addPhoto,
+        confirmRemovePhoto,
+        setAsMain,
+        prev,
+        next,
+    } = useCarPhotosGallery({ photos, onUpdatePhotos });
 
-    const addPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = () => {
-            const base64 = reader.result as string;
-            const next = [...photos, base64];
-            onUpdatePhotos(next);
-            setActiveIndex(next.length - 1); // сразу показываем новое фото
-        };
-        reader.readAsDataURL(file);
-    };
-
-    const removePhoto = (index: number) => {
-        const next = photos.filter((_, i) => i !== index);
-        onUpdatePhotos(next);
-
-        if (activeIndex >= next.length) {
-            setActiveIndex(Math.max(0, next.length - 1));
-        }
-    };
-
-    const setAsMain = (index: number) => {
-        if (index === 0) return;
-        const next = [...photos];
-        const [photo] = next.splice(index, 1);
-        next.unshift(photo);
-        onUpdatePhotos(next);
-        setActiveIndex(0);
-    };
-
-    const prev = () => {
-        setActiveIndex((i) => (i === 0 ? photos.length - 1 : i - 1));
-    };
-
-    const next = () => {
-        setActiveIndex((i) => (i === photos.length - 1 ? 0 : i + 1));
-    };
-
-    // ===== Пустое состояние =====
     if (photos.length === 0) {
         return (
-            <section className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
-                <div className="aspect-[16/9] bg-zinc-950 flex flex-col items-center justify-center gap-4">
-                    <ImageIcon className="w-16 h-16 text-zinc-700" strokeWidth={1.5} />
-                    <p className="text-zinc-500">Пока нет фото автомобиля</p>
-                    <label className="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white text-sm px-5 py-2.5 rounded-xl transition flex items-center gap-2">
+            <section className="bg-[#161616] border border-[#2A2A2A] rounded-3xl overflow-hidden">
+                <div className="aspect-[16/9] bg-[#0A0A0A] flex flex-col items-center justify-center gap-4">
+                    <ImageIcon className="w-16 h-16 text-[#3A3A3A]" strokeWidth={1.5} />
+                    <p className="text-[#A3A3A3]">Пока нет фото автомобиля</p>
+                    <label className="cursor-pointer bg-[#39FF14] hover:bg-[#57FF3A] text-black text-sm px-5 py-2.5 rounded-xl transition flex items-center gap-2">
                         <Plus size={16} />
                         Добавить фото
                         <input type="file" accept="image/*" className="hidden" onChange={addPhoto} />
@@ -69,16 +36,14 @@ export default function CarPhotosGallery({ photos, onUpdatePhotos }: Props) {
     }
 
     return (
-        <section className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
-            {/* ===== Большое главное фото ===== */}
-            <div className="relative aspect-[16/9] bg-zinc-950 group">
+        <section className="bg-[#161616] border border-[#2A2A2A] rounded-3xl overflow-hidden">
+            <div className="relative aspect-[16/9] bg-[#0A0A0A] group">
                 <img
                     src={photos[activeIndex]}
                     alt={`Фото ${activeIndex + 1}`}
                     className="w-full h-full object-cover"
                 />
 
-                {/* Стрелки навигации */}
                 {photos.length > 1 && (
                     <>
                         <button
@@ -98,7 +63,6 @@ export default function CarPhotosGallery({ photos, onUpdatePhotos }: Props) {
                     </>
                 )}
 
-                {/* Кнопки управления */}
                 <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition">
                     {activeIndex !== 0 && (
                         <button
@@ -111,21 +75,19 @@ export default function CarPhotosGallery({ photos, onUpdatePhotos }: Props) {
                     )}
                     <button
                         type="button"
-                        onClick={() => removePhoto(activeIndex)}
+                        onClick={() => confirmRemovePhoto(activeIndex)}
                         className="w-8 h-8 rounded-lg bg-red-600/80 hover:bg-red-600 flex items-center justify-center"
                     >
                         <X size={14} />
                     </button>
                 </div>
 
-                {/* Счётчик */}
                 <div className="absolute bottom-3 left-3 text-xs bg-black/50 px-2.5 py-1 rounded-lg backdrop-blur-sm">
                     {activeIndex + 1} / {photos.length}
                 </div>
             </div>
 
-            {/* ===== Миниатюры ===== */}
-            <div className="p-4 border-t border-zinc-800">
+            <div className="p-4 border-t border-[#2A2A2A]">
                 <div className="flex gap-2 overflow-x-auto pb-1">
                     {photos.map((photo, index) => (
                         <button
@@ -134,20 +96,19 @@ export default function CarPhotosGallery({ photos, onUpdatePhotos }: Props) {
                             onClick={() => setActiveIndex(index)}
                             className={`
                 relative shrink-0 w-20 h-14 rounded-xl overflow-hidden border-2 transition
-                ${index === activeIndex ? 'border-blue-500' : 'border-transparent opacity-70 hover:opacity-100'}
+                ${index === activeIndex ? 'border-[#39FF14]' : 'border-transparent opacity-70 hover:opacity-100'}
               `}
                         >
                             <img src={photo} alt="" className="w-full h-full object-cover" />
                             {index === 0 && (
-                                <span className="absolute bottom-0.5 left-0.5 text-[9px] bg-blue-600 px-1 rounded">
+                                <span className="absolute bottom-0.5 left-0.5 text-[9px] bg-[#39FF14] text-black px-1 rounded">
                   Глав
                 </span>
                             )}
                         </button>
                     ))}
 
-                    {/* Кнопка добавить */}
-                    <label className="shrink-0 w-20 h-14 rounded-xl border-2 border-dashed border-zinc-700 hover:border-zinc-500 flex items-center justify-center cursor-pointer transition text-zinc-500 hover:text-zinc-300">
+                    <label className="shrink-0 w-20 h-14 rounded-xl border-2 border-dashed border-[#3A3A3A] hover:border-[#39FF14] flex items-center justify-center cursor-pointer transition text-[#666666] hover:text-[#39FF14]">
                         <Plus size={20} />
                         <input type="file" accept="image/*" className="hidden" onChange={addPhoto} />
                     </label>
