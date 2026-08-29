@@ -1,4 +1,4 @@
-import { ManualCarForm as ManualCarFormType } from '@/features/garage/add/hooks/useAddCar';
+import { ManualCarForm as ManualCarFormType } from '@/types'
 
 type Props = {
     form: ManualCarFormType;

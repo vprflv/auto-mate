@@ -164,15 +164,6 @@ export default function HomeAuthForm() {
                     </button>
                 </p>
 
-                <p className="text-center mt-4">
-                    <button
-                        type="button"
-                        onClick={scrollToFaq}
-                        className="inline-flex items-center gap-2 text-sm text-[#39FF14] border border-[#39FF14]/40 hover:border-[#39FF14] hover:bg-[#39FF14]/10 rounded-full px-4 py-1.5 transition"
-                    >
-                        Что такое AutoMate?
-                    </button>
-                </p>
             </div>
         </section>
     );

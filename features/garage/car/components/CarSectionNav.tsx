@@ -8,7 +8,7 @@ const MENU: { id: CarSection; label: string }[] = [
     { id: 'fluids', label: 'Масла и жидкости' },
     { id: 'parts', label: 'Запчасти' },
     { id: 'service', label: 'История ТО' },
-    { id: 'danger', label: 'Опасная зона' },
+    { id: 'danger', label: 'Удаление автомобиля' },
 ];
 
 type Props = {

@@ -20,7 +20,7 @@ export default function GaragePage() {
 
     return (
         <div className="min-h-screen bg-[#0A0A0A] text-[#F5F5F5]">
-            <GarageHeader />
+            {/*<GarageHeader />*/}
 
             <main className="max-w-5xl mx-auto px-6 py-10">
                 <GarageTitle carsLabel={carsLabel} />

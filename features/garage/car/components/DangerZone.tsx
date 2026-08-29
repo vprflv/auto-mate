@@ -6,7 +6,7 @@ export default function DangerZone({ onDelete }: Props) {
     return (
         <section className="border border-red-900/40 bg-red-950/20 rounded-3xl p-6">
             <h2 className="text-lg font-semibold text-red-400 mb-2">
-                Опасная зона
+                Удаление автомобиля
             </h2>
             <p className="text-sm text-zinc-400 mb-4">
                 Удаление автомобиля также удалит всю историю его обслуживания.
