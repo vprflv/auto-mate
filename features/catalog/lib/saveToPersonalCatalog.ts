@@ -224,3 +224,45 @@ export function saveArticleToPersonalCatalog(
         return { success: false, message: 'Ошибка при сохранении' };
     }
 }
+
+export function removeArticleFromPersonalCatalog(
+    carId: string,
+    oem: string
+): { success: boolean; message: string } {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+            return { success: false, message: 'Гараж не найден' };
+        }
+
+        const cars: Car[] = JSON.parse(raw);
+        const carIndex = cars.findIndex((c) => c.id === carId);
+
+        if (carIndex === -1) {
+            return { success: false, message: 'Машина не найдена' };
+        }
+
+        const car = cars[carIndex];
+        const currentItems = car.partsCatalog?.items || [];
+        const nextItems = currentItems.filter(
+            (item) => item.oemNumber?.toLowerCase() !== oem.toLowerCase()
+        );
+
+        if (nextItems.length === currentItems.length) {
+            return { success: false, message: 'Запчасть не найдена в каталоге' };
+        }
+
+        cars[carIndex] = {
+            ...car,
+            partsCatalog: { items: nextItems },
+            updatedAt: new Date().toISOString(),
+        };
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cars));
+
+        return { success: true, message: 'Запчасть убрана из вашего каталога' };
+    } catch (e) {
+        console.error(e);
+        return { success: false, message: 'Ошибка при удалении' };
+    }
+}

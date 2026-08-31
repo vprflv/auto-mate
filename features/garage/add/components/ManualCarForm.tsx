@@ -1,12 +1,16 @@
-import { ManualCarForm as ManualCarFormType } from '@/types'
+import type { ManualCarForm as ManualCarFormValues } from '@/types';
 
 type Props = {
-    form: ManualCarFormType;
+    form: ManualCarFormValues;
     error: string;
-    onChange: (field: keyof ManualCarFormType, value: string) => void;
+    fromDecode?: boolean;
+    onChange: (field: keyof ManualCarFormValues, value: string) => void;
     onSubmit: (e: React.FormEvent) => void;
     onCancel: () => void;
 };
+
+const inputClass =
+    'w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl px-4 py-3 text-[#F5F5F5] placeholder:text-[#666666] focus:outline-none focus:border-[#39FF14] transition';
 
 export default function ManualCarForm({
                                           form,
@@ -14,134 +18,141 @@ export default function ManualCarForm({
                                           onChange,
                                           onSubmit,
                                           onCancel,
+                                          fromDecode
                                       }: Props) {
     return (
         <form onSubmit={onSubmit} className="space-y-6">
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-sm text-amber-200">
-                VIN не найден в базе. Заполни данные вручную — VIN уже подставлен.
-            </div>
+            {fromDecode ? (
+                <div className="bg-[#161616] border border-[#2A2A2A] rounded-2xl p-4 text-sm text-[#A3A3A3]">
+                    Данные из VIN уже подставлены. Можно поправить и дополнить перед сохранением.
+                </div>
+            ) : (
+                <div className="bg-[#161616] border border-[#2A2A2A] rounded-2xl p-4 text-sm text-[#A3A3A3]">
+                    VIN не найден в базе. Заполни данные вручную — VIN уже подставлен.
+                </div>
+            )}
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 space-y-5">
-                <h2 className="text-lg font-semibold">Основное</h2>
+            <div className="bg-[#161616] border border-[#2A2A2A] rounded-3xl p-6 space-y-5">
+                <h2 className="text-lg font-semibold text-[#F5F5F5]">Основное</h2>
 
                 <div>
-                    <label className="block text-sm text-zinc-400 mb-2">VIN</label>
+                    <label className="block text-sm text-[#39FF14] mb-2">VIN</label>
                     <input
                         value={form.vin}
                         onChange={(e) => onChange('vin', e.target.value.toUpperCase())}
                         maxLength={17}
-                        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 font-mono tracking-wide focus:outline-none focus:border-blue-500"
+                        className={`${inputClass} font-mono tracking-wide`}
                     />
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-2">Марка *</label>
+                        <label className="block text-sm text-[#39FF14] mb-2">Марка *</label>
                         <input
                             value={form.make}
                             onChange={(e) => onChange('make', e.target.value)}
                             required
                             placeholder="Geely, Haval, Chery..."
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500"
+                            className={inputClass}
                         />
                     </div>
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-2">Модель *</label>
+                        <label className="block text-sm text-[#39FF14] mb-2">Модель *</label>
                         <input
                             value={form.model}
                             onChange={(e) => onChange('model', e.target.value)}
                             required
                             placeholder="Coolray, Jolion..."
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500"
+                            className={inputClass}
                         />
                     </div>
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-2">Год *</label>
+                        <label className="block text-sm text-[#39FF14] mb-2">Год *</label>
                         <input
                             type="number"
                             value={form.year}
                             onChange={(e) => onChange('year', e.target.value)}
                             required
                             placeholder="2023"
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500"
+                            className={inputClass}
                         />
                     </div>
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-2">Цвет</label>
+                        <label className="block text-sm text-[#39FF14] mb-2">Цвет</label>
                         <input
                             value={form.color}
                             onChange={(e) => onChange('color', e.target.value)}
                             placeholder="Белый"
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500"
+                            className={inputClass}
                         />
                     </div>
                     <div className="sm:col-span-2">
-                        <label className="block text-sm text-zinc-400 mb-2">Прозвище</label>
+                        <label className="block text-sm text-[#39FF14] mb-2">Прозвище</label>
                         <input
                             value={form.nickname}
                             onChange={(e) => onChange('nickname', e.target.value)}
                             placeholder="Мой хавал"
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500"
+                            className={inputClass}
                         />
                     </div>
                 </div>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 space-y-5">
-                <h2 className="text-lg font-semibold">Характеристики</h2>
+            <div className="bg-[#161616] border border-[#2A2A2A] rounded-3xl p-6 space-y-5">
+                <h2 className="text-lg font-semibold text-[#F5F5F5]">Характеристики</h2>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-2">Кузов</label>
+                        <label className="block text-sm text-[#39FF14] mb-2">Кузов</label>
                         <input
                             value={form.bodyClass}
                             onChange={(e) => onChange('bodyClass', e.target.value)}
                             placeholder="SUV, седан..."
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500"
+                            className={inputClass}
                         />
                     </div>
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-2">Объём двигателя (л)</label>
+                        <label className="block text-sm text-[#39FF14] mb-2">Объём двигателя (л)</label>
                         <input
                             value={form.displacementL}
                             onChange={(e) => onChange('displacementL', e.target.value)}
                             placeholder="1.5"
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500"
+                            className={inputClass}
                         />
                     </div>
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-2">Топливо</label>
+                        <label className="block text-sm text-[#39FF14] mb-2">Топливо</label>
                         <input
                             value={form.fuel}
                             onChange={(e) => onChange('fuel', e.target.value)}
                             placeholder="Бензин"
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500"
+                            className={inputClass}
                         />
                     </div>
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-2">КПП</label>
+                        <label className="block text-sm text-[#39FF14] mb-2">КПП</label>
                         <input
                             value={form.transmission}
                             onChange={(e) => onChange('transmission', e.target.value)}
                             placeholder="Автомат / механика"
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500"
+                            className={inputClass}
                         />
                     </div>
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-2">Привод</label>
+                        <label className="block text-sm text-[#39FF14] mb-2">Привод</label>
                         <input
                             value={form.driveType}
                             onChange={(e) => onChange('driveType', e.target.value)}
                             placeholder="Передний / полный"
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500"
+                            className={inputClass}
                         />
                     </div>
                     <div>
-                        <label className="block text-sm text-zinc-400 mb-2">Двигатель</label>
+                        <label className="block text-sm text-[#39FF14] mb-2">Двигатель</label>
                         <input
                             value={form.engine}
                             onChange={(e) => onChange('engine', e.target.value)}
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500"
+                            className={inputClass}
                         />
                     </div>
                 </div>
@@ -152,14 +163,14 @@ export default function ManualCarForm({
             <div className="flex gap-4">
                 <button
                     type="submit"
-                    className="flex-1 bg-white text-black font-medium py-4 rounded-2xl hover:bg-zinc-200 transition"
+                    className="flex-1 bg-[#39FF14] hover:bg-[#57FF3A] text-black font-medium py-4 rounded-2xl transition"
                 >
                     Сохранить в гараж
                 </button>
                 <button
                     type="button"
                     onClick={onCancel}
-                    className="flex-1 bg-zinc-800 hover:bg-zinc-700 py-4 rounded-2xl font-medium transition"
+                    className="flex-1 bg-[#1F1F1F] hover:bg-[#2A2A2A] text-[#F5F5F5] py-4 rounded-2xl font-medium transition"
                 >
                     Отмена
                 </button>

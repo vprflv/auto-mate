@@ -4,7 +4,12 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { DecodedCar, ManualCarForm } from '@/types';
-import {createEmptyManualForm, isManualFormValid, mapManualFormToCar} from "@/features/garage/add/lib/manualForm";
+import {
+    createEmptyManualForm,
+    isManualFormValid,
+    mapDecodedToManualForm,
+    mapManualFormToCar
+} from "@/features/garage/add/lib/manualForm";
 import {fetchVinData, mapNhtsaToDecodedCar} from "@/features/garage/add/lib/decodeVin";
 import {isValidVin, normalizeVin} from "@/features/garage/add/lib/config/vin";
 import {addCarToGarage} from "@/features/garage/add/lib/storage";
@@ -22,6 +27,24 @@ export function useAddCar() {
     const [manualForm, setManualForm] = useState<ManualCarForm>(
         createEmptyManualForm()
     );
+
+    const [editingDecoded, setEditingDecoded] = useState(false);
+
+
+    const editDecodedCar = () => {
+        if (!decoded) return;
+        setManualForm(mapDecodedToManualForm(decoded));
+        setEditingDecoded(true);
+        setManualMode(true);
+        setError('');
+    };
+
+    const cancelManualMode = () => {
+        setManualMode(false);
+        setEditingDecoded(false);
+        setError('');
+        setManualForm(createEmptyManualForm());
+    };
 
     const decodeMutation = useMutation({
         mutationFn: fetchVinData,
@@ -65,17 +88,16 @@ export function useAddCar() {
     };
 
     const enableManualMode = () => {
+
+        setEditingDecoded(false);
+
         setManualMode(true);
         setDecoded(null);
         setManualForm(createEmptyManualForm(normalizeVin(vin)));
         setError('');
     };
 
-    const cancelManualMode = () => {
-        setManualMode(false);
-        setError('');
-        setManualForm(createEmptyManualForm());
-    };
+
 
     const updateManualField = (field: keyof ManualCarForm, value: string) => {
         setManualForm((prev) => ({ ...prev, [field]: value }));
@@ -111,6 +133,8 @@ export function useAddCar() {
         decoded,
         error,
         isDecoding: decodeMutation.isPending,
+        editingDecoded,
+        editDecodedCar,
         manualMode,
         manualForm,
         decodeVin,

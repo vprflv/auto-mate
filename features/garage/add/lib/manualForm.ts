@@ -1,4 +1,4 @@
-import { ManualCarForm, Car } from '@/types';
+import {ManualCarForm, Car, DecodedCar} from '@/types';
 
 export function createEmptyManualForm(vin = ''): ManualCarForm {
     return {
@@ -39,6 +39,25 @@ export function mapManualFormToCar(form: ManualCarForm): Car {
         color: form.color.trim() || undefined,
         nickname: form.nickname.trim() || undefined,
         addedAt: new Date().toISOString(),
+    };
+}
+
+
+export function mapDecodedToManualForm(car: DecodedCar): ManualCarForm {
+    return {
+        ...createEmptyManualForm(car.vin),
+        make: car.make || '',
+        model: car.model || '',
+        year: car.year ? String(car.year) : '',
+        bodyClass: car.bodyClass || '',
+        displacementL: car.displacementL || '',
+        cylinders: car.cylinders || '',
+        engine: car.engine || '',
+        fuel: car.fuel || '',
+        driveType: car.driveType || '',
+        transmission: car.transmission || '',
+        doors: car.doors || '',
+        plantCountry: car.plantCountry || '',
     };
 }
 
