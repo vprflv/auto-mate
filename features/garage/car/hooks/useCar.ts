@@ -44,11 +44,6 @@ export function useCar(id: string) {
     const deleteCar = () => {
         if (!car) return;
 
-        const confirmed = confirm(
-            `Удалить ${car.make} ${car.model} из гаража? Это действие нельзя отменить.`
-        );
-        if (!confirmed) return;
-
         const carsData = localStorage.getItem('automate-garage');
         if (carsData) {
             const cars: Car[] = JSON.parse(carsData);
@@ -57,8 +52,6 @@ export function useCar(id: string) {
                 JSON.stringify(cars.filter((c) => c.id !== id))
             );
         }
-
-
 
         const serviceData = localStorage.getItem('automate-service');
         if (serviceData) {
@@ -83,8 +76,6 @@ export function useCar(id: string) {
     };
 
     const deleteRecord = (recordId: string) => {
-        if (!confirm('Удалить эту запись ТО?')) return;
-
         const serviceData = localStorage.getItem('automate-service');
         if (!serviceData) return;
 

@@ -88,6 +88,7 @@ export function useAddService(carId: string) {
                 p.itemType === 'part'
                     ? (p.partCategory as ServicePart['partCategory'])
                     : undefined,
+            subcategory: p.itemType === 'part' ? p.subcategory : undefined,
         }));
 
         const newRecord: ServiceRecord = {

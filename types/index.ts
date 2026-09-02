@@ -83,10 +83,10 @@ export type ServicePart = {
     brand?: string;
     oemNumber?: string;
     quantity: number;
-    // новое
+    partCategory?: PartCategory;
+    subcategory?: string;
     itemType: 'fluid' | 'part';
     fluidCategory?: FluidCategory;
-    partCategory?: PartCategory;
 };
 
 

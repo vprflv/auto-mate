@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { BookOpen, Loader2 } from 'lucide-react';
 import { Car } from '@/types';
 import {
@@ -46,7 +47,7 @@ export default function CarTitle({ car }: Props) {
             router.push(`/garage/${car.id}/catalog`);
         } catch (e) {
             console.error(e);
-            alert('Не удалось сгенерировать каталог');
+            toast.error('Не удалось сгенерировать каталог');
         } finally {
             setIsGenerating(false);
         }
@@ -79,7 +80,11 @@ export default function CarTitle({ car }: Props) {
                     type="button"
                     onClick={handleGenerateCatalog}
                     disabled={isGenerating}
-                    className="inline-flex items-center justify-center gap-2 bg-[#1F1F1F] hover:bg-[#2A2A2A] disabled:opacity-60 px-5 py-3 rounded-xl text-sm font-medium text-[#F5F5F5] transition"
+                    className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition disabled:opacity-60 ${
+                        hasCatalog
+                            ? 'bg-[#1F1F1F] hover:bg-[#2A2A2A] text-[#F5F5F5]'
+                            : 'bg-[#39FF14] hover:bg-[#57FF3A] text-black'
+                    }`}
                 >
                     {isGenerating ? (
                         <>
@@ -96,7 +101,7 @@ export default function CarTitle({ car }: Props) {
 
                 <Link
                     href={`/garage/${car.id}/service/add`}
-                    className="bg-[#39FF14] hover:bg-[#57FF3A] px-5 py-3 rounded-xl text-sm font-medium text-black transition shadow-[0_0_16px_rgba(57,255,20,0.25)]"
+                    className="bg-[#1F1F1F] hover:bg-[#2A2A2A] px-5 py-3 rounded-xl text-sm font-medium text-[#F5F5F5] transition"
                 >
                     + Добавить ТО
                 </Link>

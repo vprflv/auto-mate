@@ -48,7 +48,8 @@ function upsertPart(parts: CarParts, part: ServicePart): CarParts {
     const category = part.partCategory || 'other';
     const items = [...(parts.items || [])];
 
-    const subcategory = detectSubcategory(category, part.name);
+    const subcategory =
+        part.subcategory || detectSubcategory(category, part.name);
 
     const newItem: CarPartItem = {
         id: part.id,

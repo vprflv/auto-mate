@@ -11,6 +11,9 @@ type Props = {
     onCostChange: (v: string) => void;
 };
 
+const inputClass =
+    'w-full bg-[#161616] border border-[#2A2A2A] rounded-2xl px-5 py-4 text-[#F5F5F5] placeholder:text-[#666666] focus:outline-none focus:border-[#39FF14] transition';
+
 export default function ServiceMainFields({
                                               title,
                                               date,
@@ -24,62 +27,62 @@ export default function ServiceMainFields({
                                               onCostChange,
                                           }: Props) {
     return (
-        <>
+        <div className="bg-[#161616] border border-[#2A2A2A] rounded-3xl p-6 space-y-5">
             <div>
-                <label className="block text-sm text-zinc-400 mb-2">Название работы</label>
+                <label className="block text-sm text-[#39FF14] mb-2">Название работы</label>
                 <input
                     value={title}
                     onChange={(e) => onTitleChange(e.target.value)}
                     required
                     placeholder="Замена масла, колодки, диагностика..."
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500"
+                    className={inputClass}
                 />
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                    <label className="block text-sm text-zinc-400 mb-2">Дата</label>
+                    <label className="block text-sm text-[#39FF14] mb-2">Дата</label>
                     <input
                         type="date"
                         value={date}
                         onChange={(e) => onDateChange(e.target.value)}
                         required
-                        className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500"
+                        className={inputClass}
                     />
                 </div>
                 <div>
-                    <label className="block text-sm text-zinc-400 mb-2">Пробег (км)</label>
+                    <label className="block text-sm text-[#39FF14] mb-2">Пробег (км)</label>
                     <input
                         type="number"
                         value={mileage}
                         onChange={(e) => onMileageChange(e.target.value)}
                         placeholder="125000"
-                        className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500"
+                        className={inputClass}
                     />
                 </div>
             </div>
 
             <div>
-                <label className="block text-sm text-zinc-400 mb-2">Комментарий</label>
+                <label className="block text-sm text-[#39FF14] mb-2">Комментарий</label>
                 <textarea
                     value={description}
                     onChange={(e) => onDescriptionChange(e.target.value)}
                     rows={3}
                     placeholder="Что ещё важно помнить..."
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 resize-none"
+                    className={`${inputClass} resize-none`}
                 />
             </div>
 
             <div>
-                <label className="block text-sm text-zinc-400 mb-2">Стоимость (₽)</label>
+                <label className="block text-sm text-[#39FF14] mb-2">Стоимость (₽)</label>
                 <input
                     type="number"
                     value={cost}
                     onChange={(e) => onCostChange(e.target.value)}
                     placeholder="4500"
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500"
+                    className={inputClass}
                 />
             </div>
-        </>
+        </div>
     );
 }

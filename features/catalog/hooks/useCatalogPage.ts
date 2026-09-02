@@ -1,28 +1,47 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
+
 import { useVehicleCatalog } from '@/features/catalog/hooks/useVehicleCatalog';
 import {
+    detectCategory,
     removeArticleFromPersonalCatalog,
-    saveArticleToPersonalCatalog
+    saveArticleToPersonalCatalog,
 } from '@/features/catalog/lib/saveToPersonalCatalog';
 import { getGarageCars } from '@/features/garage/add/lib/storage';
 import { CarPartItem, PartCategory } from '@/types';
 import { CatalogArticle } from '@/types/catalog/catalog';
 import { findNodeName } from '@/features/catalog/lib/findNodeName';
 
+import {
+    PART_SUBCATEGORY_LABELS,
+    PART_SUBCATEGORY_ORDER,
+} from '@/features/garage/lib/config/partSubcategories';
+
 function getPersonalParts(carId: string): CarPartItem[] {
     const car = getGarageCars().find((item) => item.id === carId);
     return car?.partsCatalog?.items || [];
+}
+
+function detectSubcategory(category: PartCategory, text: string): string {
+    const q = text.toLowerCase();
+    const keys = PART_SUBCATEGORY_ORDER[category] || ['other'];
+
+    for (const key of keys) {
+        if (key === 'other') continue;
+        const label = PART_SUBCATEGORY_LABELS[key] || key;
+        if (q.includes(label.toLowerCase()) || q.includes(key.toLowerCase())) {
+            return key;
+        }
+    }
+
+    return 'other';
 }
 
 export function useCatalogPage(carId: string) {
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [personalParts, setPersonalParts] = useState<CarPartItem[]>([]);
-    const [articleToSave, setArticleToSave] = useState<CatalogArticle | null>(null);
-    const [nodeNameToSave, setNodeNameToSave] = useState<string | undefined>();
 
     const car = useMemo(
         () => getGarageCars().find((item) => item.id === carId) || null,
@@ -66,59 +85,34 @@ export function useCatalogPage(carId: string) {
             (item) => item.oemNumber?.toLowerCase() === oem.toLowerCase()
         );
 
-    const openSaveModal = (art: CatalogArticle) => {
+    const addToPersonal = (art: CatalogArticle) => {
         if (!catalog) return;
-        setNodeNameToSave(findNodeName(catalog.nodes, art.nodeId) || undefined);
-        setArticleToSave(art);
-    };
 
-    const confirmSave = ({
-                             category,
-                             subcategory,
-                         }: {
-        category: PartCategory;
-        subcategory: string;
-    }) => {
-        if (!articleToSave) return;
+        const nodeName = findNodeName(catalog.nodes, art.nodeId) || undefined;
+        const category = detectCategory(art, nodeName);
+        const subcategory = detectSubcategory(
+            category,
+            `${art.name} ${nodeName || ''} ${art.note || ''}`
+        );
 
-        const result = saveArticleToPersonalCatalog(carId, articleToSave, {
+        const result = saveArticleToPersonalCatalog(carId, art, {
             category,
             subcategory,
-            nodeName: nodeNameToSave,
+            nodeName,
         });
 
         if (result.success) {
-            toast.success(result.message);
             setPersonalParts(getPersonalParts(carId));
-        } else {
-            toast.error(result.message);
         }
-
-        setArticleToSave(null);
     };
 
     const removeFromPersonal = (art: CatalogArticle) => {
-        toast.warning(`Убрать «${art.name}» из каталога?`, {
-            description: 'Позиция исчезнет из личного списка запчастей.',
-            duration: Infinity,
-            action: {
-                label: 'Убрать',
-                onClick: () => {
-                    const result = removeArticleFromPersonalCatalog(carId, art.oem);
-                    if (result.success) {
-                        toast.success(result.message);
-                        setPersonalParts(getPersonalParts(carId));
-                    } else {
-                        toast.error(result.message);
-                    }
-                },
-            },
-            cancel: {
-                label: 'Отмена',
-                onClick: () => {},
-            },
-        });
+        const result = removeArticleFromPersonalCatalog(carId, art.oem);
+        if (result.success) {
+            setPersonalParts(getPersonalParts(carId));
+        }
     };
+
 
     return {
         car,
@@ -132,12 +126,8 @@ export function useCatalogPage(carId: string) {
         setSelectedNodeId,
         filteredArticles,
         selectedNodeName,
-        removeFromPersonal,
         isAlreadyAdded,
-        articleToSave,
-        nodeNameToSave,
-        openSaveModal,
-        closeSaveModal: () => setArticleToSave(null),
-        confirmSave,
+        addToPersonal,
+        removeFromPersonal,
     };
 }

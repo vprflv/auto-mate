@@ -22,11 +22,7 @@ export default function CatalogPageView({ carId }: { carId: string }) {
         filteredArticles,
         selectedNodeName,
         isAlreadyAdded,
-        articleToSave,
-        nodeNameToSave,
-        openSaveModal,
-        closeSaveModal,
-        confirmSave,
+        addToPersonal,
         removeFromPersonal
     } = useCatalogPage(carId);
 
@@ -100,7 +96,7 @@ export default function CatalogPageView({ carId }: { carId: string }) {
                                     carId={carId}
                                     article={art}
                                     alreadyAdded={isAlreadyAdded(art.oem)}
-                                    onAdd={() => openSaveModal(art)}
+                                    onAdd={() => addToPersonal(art)}
                                     onRemove={() => removeFromPersonal(art)}
                                 />
                             ))}
@@ -109,13 +105,13 @@ export default function CatalogPageView({ carId }: { carId: string }) {
                 </main>
             </div>
 
-            <SaveToCatalogModal
-                open={!!articleToSave}
-                article={articleToSave}
-                nodeName={nodeNameToSave}
-                onClose={closeSaveModal}
-                onConfirm={confirmSave}
-            />
+            {/*<SaveToCatalogModal*/}
+            {/*    open={!!articleToSave}*/}
+            {/*    article={articleToSave}*/}
+            {/*    nodeName={nodeNameToSave}*/}
+            {/*    onClose={closeSaveModal}*/}
+            {/*    onConfirm={confirmSave}*/}
+            {/*/>*/}
         </div>
     );
 }

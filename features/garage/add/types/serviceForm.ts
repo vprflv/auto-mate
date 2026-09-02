@@ -7,6 +7,7 @@ export type PartForm = {
     itemType: 'fluid' | 'part';
     fluidCategory: string;
     partCategory: string;
+    subcategory: string;
 };
 
 export function createEmptyPart(): PartForm {
@@ -19,5 +20,6 @@ export function createEmptyPart(): PartForm {
         itemType: 'part',
         fluidCategory: 'engineOil',
         partCategory: 'filters',
+        subcategory: 'oil',
     };
 }

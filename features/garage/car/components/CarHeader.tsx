@@ -10,9 +10,7 @@ export default function CarHeader() {
                 >
                     ← Назад в гараж
                 </Link>
-                <Link href="/automa-te/public" className="font-bold text-lg text-[#F5F5F5] hover:text-[#39FF14] transition">
-                    AutoMate
-                </Link>
+
             </div>
         </header>
     );

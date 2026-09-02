@@ -6,16 +6,13 @@ type Props = {
 
 export default function ServiceFormHeader({ carId }: Props) {
     return (
-        <header className="border-b border-zinc-800">
-            <div className="max-w-2xl mx-auto px-6 py-5 flex items-center justify-between">
-                <Link
-                    href={`/garage/${carId}`}
-                    className="text-zinc-400 hover:text-white transition text-sm"
-                >
-                    ← Назад к авто
-                </Link>
-                <span className="font-semibold">Новая запись ТО</span>
-            </div>
-        </header>
+        <div className="max-w-2xl mx-auto px-6 pt-6">
+            <Link
+                href={`/garage/${carId}`}
+                className="text-sm text-[#A3A3A3] hover:text-[#39FF14] transition"
+            >
+                ← Назад к авто
+            </Link>
+        </div>
     );
 }

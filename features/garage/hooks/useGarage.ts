@@ -22,9 +22,6 @@ export function useGarage() {
     }, []);
 
     const removeCar = (id: string) => {
-        const confirmed = confirm('Удалить этот автомобиль из гаража?');
-        if (!confirmed) return;
-
         const updated = cars.filter((car) => car.id !== id);
         setCars(updated);
         saveGarageCars(updated);
