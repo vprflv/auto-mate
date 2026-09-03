@@ -1,4 +1,5 @@
-import { FluidCategory, PartCategory } from '@/types';
+import {  PartCategory } from '@/types';
+import {FluidCategory} from "@/types/oil";
 
 export const FLUID_CATEGORY_OPTIONS: { value: FluidCategory; label: string }[] = [
     { value: 'engineOil', label: 'Моторное масло' },
