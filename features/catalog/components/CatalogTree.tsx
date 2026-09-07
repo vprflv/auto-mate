@@ -28,8 +28,8 @@ function TreeNode({ node, level, selectedNodeId, onSelect }: TreeNodeProps) {
             <div
                 className={`flex items-center gap-1 rounded-lg transition ${
                     isSelected
-                        ? 'bg-blue-600 text-white'
-                        : 'hover:bg-zinc-800 text-zinc-300'
+                        ? 'bg-[#39FF14] text-black'
+                        : 'hover:bg-[#1F1F1F] text-[#A3A3A3] hover:text-[#F5F5F5]'
                 }`}
                 style={{ paddingLeft: 8 + level * 14 }}
             >
@@ -92,8 +92,8 @@ export default function CatalogTree({
                 onClick={() => onSelect(null)}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
                     selectedNodeId === null
-                        ? 'bg-zinc-800 text-white'
-                        : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                        ? 'bg-[#39FF14] text-black'
+                        : 'text-[#A3A3A3] hover:bg-[#1F1F1F] hover:text-[#F5F5F5]'
                 }`}
             >
                 Все запчасти

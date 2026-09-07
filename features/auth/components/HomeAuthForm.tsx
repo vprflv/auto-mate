@@ -3,6 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { useAuth } from '@/features/auth/components/AuthProvider';
 import { useRouter } from 'next/navigation';
+import {Eye, EyeOff} from "lucide-react";
 
 export default function HomeAuthForm() {
     const router = useRouter();
@@ -14,6 +15,7 @@ export default function HomeAuthForm() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const onSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -112,15 +114,25 @@ export default function HomeAuthForm() {
 
                     <div>
                         <label className="block text-sm text-[#A3A3A3] mb-2">Пароль</label>
-                        <input
-                            type="password"
-                            required
-                            minLength={6}
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="••••••••"
-                            className="w-full bg-[#161616]/70 backdrop-blur-md border border-[#2A2A2A] rounded-2xl px-5 py-4 text-[#F5F5F5] placeholder:text-[#666666] focus:outline-none focus:border-[#39FF14] transition"
-                        />
+                        <div className="relative">
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                required
+                                minLength={6}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="••••••••"
+                                className="w-full bg-[#161616]/70 backdrop-blur-md border border-[#2A2A2A] rounded-2xl px-5 py-4 pr-12 text-[#F5F5F5] placeholder:text-[#666666] focus:outline-none focus:border-[#39FF14] transition"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword((v) => !v)}
+                                aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#666666] hover:text-[#39FF14] transition"
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
                     </div>
 
                     {error && <p className="text-sm text-red-400">{error}</p>}

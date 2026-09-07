@@ -1,7 +1,6 @@
 'use client';
 
 import CatalogTree from '@/features/catalog/components/CatalogTree';
-import SaveToCatalogModal from '@/features/catalog/components/SaveToCatalogModal';
 import CatalogHeader from './CatalogHeader';
 import CatalogArticlesHeader from './CatalogArticlesHeader';
 import CatalogEmpty from './CatalogEmpty';
@@ -23,16 +22,20 @@ export default function CatalogPageView({ carId }: { carId: string }) {
         selectedNodeName,
         isAlreadyAdded,
         addToPersonal,
-        removeFromPersonal
+        removeFromPersonal,
     } = useCatalogPage(carId);
 
     if (!car) {
-        return <div className="p-6 text-center text-[#A3A3A3]">Машина не найдена</div>;
+        return (
+            <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center text-[#A3A3A3]">
+                Машина не найдена
+            </div>
+        );
     }
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[60vh] text-[#A3A3A3]">
+            <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center text-[#A3A3A3]">
                 Загружаем каталог...
             </div>
         );
@@ -40,7 +43,9 @@ export default function CatalogPageView({ carId }: { carId: string }) {
 
     if (!catalog) {
         return (
-            <div className="p-6 text-center text-[#A3A3A3]">Не удалось загрузить каталог</div>
+            <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center text-[#A3A3A3]">
+                Не удалось загрузить каталог
+            </div>
         );
     }
 
@@ -56,7 +61,7 @@ export default function CatalogPageView({ carId }: { carId: string }) {
             />
 
             <div className="flex flex-col md:flex-row">
-                <aside className="md:w-72 border-b md:border-b-0 md:border-r border-[#2A2A2A] p-4 overflow-y-auto max-h-[40vh] md:max-h-none">
+                <aside className="md:w-72 bg-[#0A0A0A] border-b md:border-b-0 md:border-r border-[#2A2A2A] p-4 overflow-y-auto max-h-[40vh] md:max-h-none">
                     <p className="text-xs text-[#666666] mb-3 uppercase tracking-wider">
                         Разделы
                     </p>
@@ -104,14 +109,6 @@ export default function CatalogPageView({ carId }: { carId: string }) {
                     )}
                 </main>
             </div>
-
-            {/*<SaveToCatalogModal*/}
-            {/*    open={!!articleToSave}*/}
-            {/*    article={articleToSave}*/}
-            {/*    nodeName={nodeNameToSave}*/}
-            {/*    onClose={closeSaveModal}*/}
-            {/*    onConfirm={confirmSave}*/}
-            {/*/>*/}
         </div>
     );
 }
