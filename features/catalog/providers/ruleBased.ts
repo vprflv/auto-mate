@@ -16,6 +16,21 @@ function uid(prefix: string) {
 function buildNodes(): CatalogNode[] {
     return [
         {
+            id: 'fluids',
+            name: 'Масла и техжидкости',
+            hasArticles: true,
+            children: [
+                { id: 'fluids-engine', name: 'Моторное масло', parentId: 'fluids', hasArticles: true },
+                { id: 'fluids-gearbox', name: 'Трансмиссия', parentId: 'fluids', hasArticles: true },
+                { id: 'fluids-transfer', name: 'Раздатка', parentId: 'fluids', hasArticles: true },
+                { id: 'fluids-diff', name: 'Редуктор', parentId: 'fluids', hasArticles: true },
+                { id: 'fluids-coolant', name: 'Антифриз', parentId: 'fluids', hasArticles: true },
+                { id: 'fluids-brake', name: 'Тормозная жидкость', parentId: 'fluids', hasArticles: true },
+                { id: 'fluids-psf', name: 'ГУР', parentId: 'fluids', hasArticles: true },
+            ],
+        },
+
+        {
             id: 'maintenance',
             name: 'Расходники ТО',
             hasArticles: true,
@@ -62,6 +77,14 @@ function buildArticles(params: CatalogProviderParams): CatalogArticle[] {
     const label = `${params.make} ${params.model} ${params.year}`;
 
     const base: Omit<CatalogArticle, 'id'>[] = [
+        { oem: 'FLUID-ENGINE', name: `Моторное масло (${label})`, brand: 'Оригинал / аналог', quantity: 1, note: 'Справочно. Допуск и вязкость сверьте по VIN', nodeId: 'fluids-engine' },
+        { oem: 'FLUID-GEARBOX', name: `Масло КПП / АКПП (${label})`, brand: 'Оригинал / аналог', quantity: 1, note: 'Справочно. Тип масла зависит от коробки', nodeId: 'fluids-gearbox' },
+        { oem: 'FLUID-TRANSFER', name: `Масло раздаточной коробки (${label})`, brand: 'Оригинал / аналог', quantity: 1, note: 'Если раздатки нет — позицию можно не сохранять', nodeId: 'fluids-transfer' },
+        { oem: 'FLUID-DIFF', name: `Масло редуктора (${label})`, brand: 'Оригинал / аналог', quantity: 1, note: 'Справочно. Проверьте по VIN', nodeId: 'fluids-diff' },
+        { oem: 'FLUID-COOLANT', name: `Антифриз (${label})`, brand: 'Оригинал / аналог', quantity: 1, note: 'Справочно. Цвет и допуск сверьте по сервисной книге', nodeId: 'fluids-coolant' },
+        { oem: 'FLUID-BRAKE', name: `Тормозная жидкость (${label})`, brand: 'Оригинал / аналог', quantity: 1, note: 'Обычно DOT 4. Уточните по VIN', nodeId: 'fluids-brake' },
+        { oem: 'FLUID-PSF', name: `Жидкость ГУР (${label})`, brand: 'Оригинал / аналог', quantity: 1, note: 'Если ГУР электрический — позицию можно не сохранять', nodeId: 'fluids-psf' },
+
         {
             oem: 'УТОЧНИТЬ',
             name: `Фильтр масляный (${label})`,

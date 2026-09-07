@@ -5,22 +5,30 @@ import { useEffect, useMemo, useState } from 'react';
 import { useVehicleCatalog } from '@/features/catalog/hooks/useVehicleCatalog';
 import {
     detectCategory,
+    isFluidArticle,
     removeArticleFromPersonalCatalog,
+    removeFluidFromPersonalCatalog,
     saveArticleToPersonalCatalog,
+    saveFluidToPersonalCatalog,
 } from '@/features/catalog/lib/saveToPersonalCatalog';
 import { getGarageCars } from '@/features/garage/add/lib/storage';
 import { CarPartItem, PartCategory } from '@/types';
 import { CatalogArticle } from '@/types/catalog/catalog';
 import { findNodeName } from '@/features/catalog/lib/findNodeName';
-
 import {
     PART_SUBCATEGORY_LABELS,
     PART_SUBCATEGORY_ORDER,
 } from '@/features/garage/lib/config/partSubcategories';
+import { CarFluidItem } from '@/types/oil';
 
 function getPersonalParts(carId: string): CarPartItem[] {
     const car = getGarageCars().find((item) => item.id === carId);
     return car?.partsCatalog?.items || [];
+}
+
+function getPersonalFluids(carId: string): CarFluidItem[] {
+    const car = getGarageCars().find((item) => item.id === carId);
+    return car?.fluids?.items || [];
 }
 
 function detectSubcategory(category: PartCategory, text: string): string {
@@ -42,6 +50,7 @@ export function useCatalogPage(carId: string) {
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [personalParts, setPersonalParts] = useState<CarPartItem[]>([]);
+    const [personalFluids, setPersonalFluids] = useState<CarFluidItem[]>([]);
 
     const car = useMemo(
         () => getGarageCars().find((item) => item.id === carId) || null,
@@ -59,14 +68,23 @@ export function useCatalogPage(carId: string) {
 
     useEffect(() => {
         setPersonalParts(getPersonalParts(carId));
+        setPersonalFluids(getPersonalFluids(carId));
     }, [carId]);
 
     const filteredArticles = useMemo(() => {
         if (!catalog) return [];
 
         return catalog.articles.filter((art) => {
-            if (selectedNodeId && art.nodeId !== selectedNodeId) return false;
+            if (selectedNodeId) {
+                const allowed =
+                    selectedNodeId === 'fluids'
+                        ? art.nodeId.startsWith('fluids')
+                        : art.nodeId === selectedNodeId;
+                if (!allowed) return false;
+            }
+
             if (!search) return true;
+
             const q = search.toLowerCase();
             return (
                 art.name.toLowerCase().includes(q) ||
@@ -83,10 +101,19 @@ export function useCatalogPage(carId: string) {
     const isAlreadyAdded = (oem: string) =>
         personalParts.some(
             (item) => item.oemNumber?.toLowerCase() === oem.toLowerCase()
+        ) ||
+        personalFluids.some(
+            (item) => item.spec?.toLowerCase() === oem.toLowerCase()
         );
 
     const addToPersonal = (art: CatalogArticle) => {
         if (!catalog) return;
+
+        if (isFluidArticle(art)) {
+            const result = saveFluidToPersonalCatalog(carId, art);
+            if (result.success) setPersonalFluids(getPersonalFluids(carId));
+            return;
+        }
 
         const nodeName = findNodeName(catalog.nodes, art.nodeId) || undefined;
         const category = detectCategory(art, nodeName);
@@ -107,12 +134,17 @@ export function useCatalogPage(carId: string) {
     };
 
     const removeFromPersonal = (art: CatalogArticle) => {
+        if (isFluidArticle(art)) {
+            const result = removeFluidFromPersonalCatalog(carId, art.oem);
+            if (result.success) setPersonalFluids(getPersonalFluids(carId));
+            return;
+        }
+
         const result = removeArticleFromPersonalCatalog(carId, art.oem);
         if (result.success) {
             setPersonalParts(getPersonalParts(carId));
         }
     };
-
 
     return {
         car,

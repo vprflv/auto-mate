@@ -1,6 +1,7 @@
 // features/catalog/lib/saveToPersonalCatalog.ts
 import { Car, CarPartItem, CarParts, PartCategory } from '@/types';
 import {CatalogArticle} from "@/types/catalog/catalog";
+import {CarFluidItem, CarFluids, FluidCategory} from "@/types/oil";
 
 
 const STORAGE_KEY = 'automate-garage';
@@ -261,6 +262,126 @@ export function removeArticleFromPersonalCatalog(
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cars));
 
         return { success: true, message: 'Запчасть убрана из вашего каталога' };
+    } catch (e) {
+        console.error(e);
+        return { success: false, message: 'Ошибка при удалении' };
+    }
+}
+
+const FLUID_NODE_TO_CATEGORY: Record<string, FluidCategory> = {
+    'fluids-engine': 'engineOil',
+    'fluids-gearbox': 'gearboxOil',
+    'fluids-transfer': 'transferCaseOil',
+    'fluids-diff': 'differentialOil',
+    'fluids-coolant': 'coolant',
+    'fluids-brake': 'brakeFluid',
+    'fluids-psf': 'powerSteeringFluid',
+};
+
+export function isFluidArticle(article: CatalogArticle) {
+    return article.nodeId.startsWith('fluids');
+}
+
+export function catalogArticleToFluid(article: CatalogArticle): CarFluidItem {
+    return {
+        id: crypto.randomUUID(),
+        category: FLUID_NODE_TO_CATEGORY[article.nodeId] || 'otherFluid',
+        name: article.name,
+        brand: article.brand,
+        spec: article.oem,
+        notes: article.note,
+    };
+}
+
+export function saveFluidToPersonalCatalog(
+    carId: string,
+    article: CatalogArticle
+): { success: boolean; message: string } {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+            return { success: false, message: 'Гараж не найден' };
+        }
+
+        const cars: Car[] = JSON.parse(raw);
+        const carIndex = cars.findIndex((c) => c.id === carId);
+
+        if (carIndex === -1) {
+            return { success: false, message: 'Машина не найдена' };
+        }
+
+        const car = cars[carIndex];
+        const currentItems = car.fluids?.items || [];
+
+        const alreadyExists = currentItems.some(
+            (item) => item.spec?.toLowerCase() === article.oem.toLowerCase()
+        );
+
+        if (alreadyExists) {
+            return {
+                success: false,
+                message: 'Эта жидкость уже есть в вашем каталоге',
+            };
+        }
+
+        const updatedFluids: CarFluids = {
+            items: [...currentItems, catalogArticleToFluid(article)],
+        };
+
+        cars[carIndex] = {
+            ...car,
+            fluids: updatedFluids,
+            updatedAt: new Date().toISOString(),
+        };
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cars));
+
+        return {
+            success: true,
+            message: `«${article.name}» добавлена в масла`,
+        };
+    } catch (e) {
+        console.error(e);
+        return { success: false, message: 'Ошибка при сохранении' };
+    }
+}
+
+export function removeFluidFromPersonalCatalog(
+    carId: string,
+    oem: string
+): { success: boolean; message: string } {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+            return { success: false, message: 'Гараж не найден' };
+        }
+
+        const cars: Car[] = JSON.parse(raw);
+        const carIndex = cars.findIndex((c) => c.id === carId);
+
+        if (carIndex === -1) {
+            return { success: false, message: 'Машина не найдена' };
+        }
+
+        const car = cars[carIndex];
+        const currentItems = car.fluids?.items || [];
+        const nextItems = currentItems.filter(
+            (item) => item.spec?.toLowerCase() !== oem.toLowerCase()
+        );
+
+        if (nextItems.length === currentItems.length) {
+            return { success: false, message: 'Жидкость не найдена в каталоге' };
+        }
+
+        cars[carIndex] = {
+            ...car,
+            fluids: { items: nextItems },
+            updatedAt: new Date().toISOString(),
+        };
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cars));
+
+        return { success: true, message: 'Жидкость убрана из вашего каталога' };
     } catch (e) {
         console.error(e);
         return { success: false, message: 'Ошибка при удалении' };
