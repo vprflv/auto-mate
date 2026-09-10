@@ -13,6 +13,7 @@ import {
 import {Package} from "lucide-react";
 import {addUserSubcategory, learnKeywords} from "@/features/garage/lib/userSubcategories";
 import {getSubcategoriesFor} from "@/features/garage/lib/getSubcategories";
+import NamePromptModal from "@/features/garage/parts/components/NamePromptModal";
 
 type Props = {
     item: CarPartItem | null;
@@ -30,7 +31,7 @@ export default function EditPartModal({
                                           onDelete,
                                       }: Props) {
     const [form, setForm] = useState<CarPartItem | null>(null);
-
+    const [newSubOpen, setNewSubOpen] = useState(false);
     useEffect(() => {
         if (item) setForm(structuredClone(item));
     }, [item]);
@@ -153,10 +154,7 @@ export default function EditPartModal({
                             onChange={(e) => {
                                 const value = e.target.value;
                                 if (value === '__new__') {
-                                    const name = prompt('Название новой подкатегории:');
-                                    if (!name?.trim()) return;
-                                    const created = addUserSubcategory(form.category, name.trim());
-                                    set({ subcategory: created.key });
+                                    setNewSubOpen(true);
                                     return;
                                 }
                                 set({ subcategory: value });
@@ -263,6 +261,17 @@ export default function EditPartModal({
                     </button>
                 </div>
             </div>
+
+            <NamePromptModal
+                open={newSubOpen}
+                title="Новая подкатегория"
+                placeholder="Колодки, диски…"
+                onClose={() => setNewSubOpen(false)}
+                onSubmit={(name) => {
+                    const created = addUserSubcategory(form.category, name);
+                    set({ subcategory: created.key });
+                }}
+            />
         </div>
     );
 }

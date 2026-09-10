@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import {Package, Pencil, Plus} from 'lucide-react';
+import { Package, Plus } from 'lucide-react';
 
 import { FLUID_CATEGORY_OPTIONS } from '@/features/garage/lib/config/serviceItemCategories';
 import EditFluidModal from './EditFluidModal';
-import {CarFluidItem, CarFluids, FluidCategory} from "@/types/oil";
+import { CarFluidItem, CarFluids, FluidCategory } from '@/types/oil';
 
 type Props = {
     fluids?: CarFluids;
@@ -61,42 +61,41 @@ export default function CarFluidsCard({ fluids, onUpdateFluids }: Props) {
     };
 
     return (
-        <section className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+        <section className="bg-[#161616] border border-[#2A2A2A] rounded-3xl p-6">
             <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3 min-w-0">
                     {category && (
                         <button
                             type="button"
                             onClick={() => setCategory(null)}
-                            className="text-sm text-zinc-400 hover:text-white shrink-0"
+                            className="text-sm text-[#A3A3A3] hover:text-[#39FF14] shrink-0 transition"
                         >
                             ← Назад
                         </button>
                     )}
-                    <h2 className="text-lg font-semibold truncate">{title}</h2>
+                    <h2 className="text-lg font-semibold truncate text-[#F5F5F5]">{title}</h2>
                 </div>
 
                 {!category && (
                     <button
                         type="button"
                         onClick={() => openCreate()}
-                        className="text-sm text-blue-400 hover:text-blue-300 shrink-0"
+                        className="text-sm text-[#39FF14] hover:text-[#57FF3A] shrink-0 transition"
                     >
                         + Добавить
                     </button>
                 )}
             </div>
 
-            {/* 1. Разделы */}
             {!category && (
                 <>
                     {items.length === 0 ? (
                         <div className="text-center py-8">
-                            <p className="text-zinc-500 text-sm mb-3">Пока не указано</p>
+                            <p className="text-[#666666] text-sm mb-3">Пока не указано</p>
                             <button
                                 type="button"
                                 onClick={() => openCreate()}
-                                className="text-sm text-blue-400 hover:text-blue-300"
+                                className="text-sm text-[#39FF14] hover:text-[#57FF3A] transition"
                             >
                                 Добавить первую жидкость
                             </button>
@@ -108,10 +107,10 @@ export default function CarFluidsCard({ fluids, onUpdateFluids }: Props) {
                                     key={c}
                                     type="button"
                                     onClick={() => setCategory(c)}
-                                    className="bg-zinc-950 border border-zinc-800 hover:border-zinc-600 rounded-2xl px-4 py-4 text-left"
+                                    className="bg-[#0A0A0A] border border-[#2A2A2A] hover:border-[#39FF14]/40 rounded-2xl px-4 py-4 text-left transition"
                                 >
-                                    <p className="text-sm font-medium">{LABELS[c]}</p>
-                                    <p className="text-xs text-zinc-500 mt-1">
+                                    <p className="text-sm font-medium text-[#F5F5F5]">{LABELS[c]}</p>
+                                    <p className="text-xs text-[#666666] mt-1">
                                         {items.filter((i) => i.category === c).length} поз.
                                     </p>
                                 </button>
@@ -121,12 +120,10 @@ export default function CarFluidsCard({ fluids, onUpdateFluids }: Props) {
                 </>
             )}
 
-            {/* 2. Список внутри раздела */}
-            {/* 2. Список внутри раздела */}
             {category && (
                 <div className="space-y-3">
                     {inCategory.length === 0 ? (
-                        <p className="text-center text-zinc-500 text-sm py-6">Пока нет записей</p>
+                        <p className="text-center text-[#666666] text-sm py-6">Пока нет записей</p>
                     ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             {inCategory.map((item) => (
@@ -138,10 +135,9 @@ export default function CarFluidsCard({ fluids, onUpdateFluids }: Props) {
                                         setEditItem(item);
                                         setIsCreating(false);
                                     }}
-                                    className="bg-zinc-950 border border-zinc-800 hover:border-zinc-600 rounded-2xl overflow-hidden cursor-pointer transition"
+                                    className="bg-[#0A0A0A] border border-[#2A2A2A] hover:border-[#39FF14]/40 rounded-2xl overflow-hidden cursor-pointer transition"
                                 >
-                                    {/* Фото */}
-                                    <div className="aspect-[4/3] bg-zinc-900 flex items-center justify-center">
+                                    <div className="aspect-[4/3] bg-[#161616] flex items-center justify-center">
                                         {item.photo ? (
                                             <img
                                                 src={item.photo}
@@ -149,19 +145,18 @@ export default function CarFluidsCard({ fluids, onUpdateFluids }: Props) {
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : (
-                                            <Package className="w-10 h-10 text-zinc-700" strokeWidth={1.5} />
+                                            <Package className="w-10 h-10 text-[#3A3A3A]" strokeWidth={1.5} />
                                         )}
                                     </div>
 
-                                    {/* Информация */}
                                     <div className="p-3">
                                         {item.brand && (
-                                            <p className="text-xs text-zinc-500 mb-0.5 truncate">{item.brand}</p>
+                                            <p className="text-xs text-[#666666] mb-0.5 truncate">{item.brand}</p>
                                         )}
-                                        <p className="text-sm text-white font-medium leading-snug line-clamp-2">
+                                        <p className="text-sm text-[#F5F5F5] font-medium leading-snug line-clamp-2">
                                             {item.name}
                                         </p>
-                                        <p className="text-xs text-zinc-400 mt-1 truncate">
+                                        <p className="text-xs text-[#A3A3A3] mt-1 truncate">
                                             {formatFluid(item)}
                                         </p>
                                     </div>
@@ -173,7 +168,7 @@ export default function CarFluidsCard({ fluids, onUpdateFluids }: Props) {
                     <button
                         type="button"
                         onClick={() => openCreate(category)}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200 transition"
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-[#2A2A2A] text-[#A3A3A3] hover:border-[#39FF14] hover:text-[#39FF14] transition"
                     >
                         <Plus size={18} />
                         Добавить в этот раздел
@@ -181,7 +176,7 @@ export default function CarFluidsCard({ fluids, onUpdateFluids }: Props) {
                 </div>
             )}
 
-            <p className="text-xs text-zinc-600 mt-5 leading-relaxed">
+            <p className="text-xs text-[#666666] mt-5 leading-relaxed">
                 Справочная информация. Перед заменой сверьте данные с сервисной книгой
                 или уточните у дилера.
             </p>

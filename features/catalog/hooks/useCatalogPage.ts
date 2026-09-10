@@ -71,27 +71,33 @@ export function useCatalogPage(carId: string) {
         setPersonalFluids(getPersonalFluids(carId));
     }, [carId]);
 
+    useEffect(() => {
+        if (!catalog?.nodes.length) return;
+        if (selectedNodeId) return;
+        setSelectedNodeId(catalog.nodes[0].id);
+    }, [catalog, selectedNodeId]);
+
     const filteredArticles = useMemo(() => {
         if (!catalog) return [];
 
-        return catalog.articles.filter((art) => {
-            if (selectedNodeId) {
-                const allowed =
-                    selectedNodeId === 'fluids'
-                        ? art.nodeId.startsWith('fluids')
-                        : art.nodeId === selectedNodeId;
-                if (!allowed) return false;
-            }
+        const q = search.trim().toLowerCase();
 
-            if (!search) return true;
-
-            const q = search.toLowerCase();
-            return (
-                art.name.toLowerCase().includes(q) ||
-                art.oem.toLowerCase().includes(q) ||
-                (art.brand && art.brand.toLowerCase().includes(q))
+        if (q) {
+            return catalog.articles.filter(
+                (art) =>
+                    art.name.toLowerCase().includes(q) ||
+                    art.oem.toLowerCase().includes(q) ||
+                    (art.brand && art.brand.toLowerCase().includes(q))
             );
-        });
+        }
+
+        if (!selectedNodeId) return [];
+
+        return catalog.articles.filter((art) =>
+            selectedNodeId === 'fluids'
+                ? art.nodeId.startsWith('fluids')
+                : art.nodeId === selectedNodeId
+        );
     }, [catalog, selectedNodeId, search]);
 
     const selectedNodeName = catalog

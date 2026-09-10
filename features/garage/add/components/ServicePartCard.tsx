@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { FLUID_CATEGORY_OPTIONS } from '@/features/garage/lib/config/serviceItemCategories';
 import { PartForm } from '@/features/garage/add/types/serviceForm';
@@ -6,6 +8,7 @@ import { getSubcategoriesFor } from '@/features/garage/lib/getSubcategories';
 import { addUserCategory } from '@/features/garage/lib/userCategories';
 import { addUserSubcategory } from '@/features/garage/lib/userSubcategories';
 import { getCategoriesFor } from '@/features/garage/lib/getCategories';
+import NamePromptModal from '@/features/garage/parts/components/NamePromptModal';
 
 type Props = {
     part: PartForm;
@@ -24,20 +27,17 @@ export default function ServicePartCard({
                                             onRemove,
                                         }: Props) {
     const [, setTick] = useState(0);
+    const [namePrompt, setNamePrompt] = useState<'category' | 'subcategory' | null>(null);
     const refresh = () => setTick((v) => v + 1);
 
-    const createCategory = () => {
-        const name = prompt('Название новой категории:');
-        if (!name?.trim()) return;
+    const createCategory = (name: string) => {
         const created = addUserCategory(name);
         onChange(part.id, 'partCategory', created.key);
         onChange(part.id, 'subcategory', 'other');
         refresh();
     };
 
-    const createSubcategory = () => {
-        const name = prompt('Название новой подкатегории:');
-        if (!name?.trim()) return;
+    const createSubcategory = (name: string) => {
         const created = addUserSubcategory(part.partCategory as PartCategory, name);
         onChange(part.id, 'subcategory', created.key);
         refresh();
@@ -90,7 +90,7 @@ export default function ServicePartCard({
                             value={part.partCategory}
                             onChange={(e) => {
                                 if (e.target.value === '__new_category__') {
-                                    createCategory();
+                                    setNamePrompt('category');
                                     return;
                                 }
 
@@ -122,7 +122,7 @@ export default function ServicePartCard({
                             value={part.subcategory}
                             onChange={(e) => {
                                 if (e.target.value === '__new_subcategory__') {
-                                    createSubcategory();
+                                    setNamePrompt('subcategory');
                                     return;
                                 }
                                 onChange(part.id, 'subcategory', e.target.value);
@@ -185,6 +185,25 @@ export default function ServicePartCard({
                     />
                 </div>
             </div>
+
+            <NamePromptModal
+                open={!!namePrompt}
+                title={
+                    namePrompt === 'subcategory'
+                        ? 'Новая подкатегория'
+                        : 'Новая категория'
+                }
+                placeholder={
+                    namePrompt === 'subcategory'
+                        ? 'Колодки, диски…'
+                        : 'Электрика, салон…'
+                }
+                onClose={() => setNamePrompt(null)}
+                onSubmit={(name) => {
+                    if (namePrompt === 'category') createCategory(name);
+                    if (namePrompt === 'subcategory') createSubcategory(name);
+                }}
+            />
         </div>
     );
 }

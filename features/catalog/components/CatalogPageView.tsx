@@ -76,22 +76,12 @@ export default function CatalogPageView({ carId }: { carId: string }) {
                     <CatalogArticlesHeader
                         title={selectedNodeName || 'Все запчасти'}
                         count={filteredArticles.length}
-                        onReset={
-                            selectedNodeId ? () => setSelectedNodeId(null) : undefined
-                        }
                     />
 
                     {filteredArticles.length === 0 ? (
                         <CatalogEmpty
                             search={search}
-                            onClear={
-                                search || selectedNodeId
-                                    ? () => {
-                                        setSearch('');
-                                        setSelectedNodeId(null);
-                                    }
-                                    : undefined
-                            }
+                            onClear={search ? () => setSearch('') : undefined}
                         />
                     ) : (
                         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

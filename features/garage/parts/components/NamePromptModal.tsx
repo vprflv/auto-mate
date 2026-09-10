@@ -31,8 +31,7 @@ export default function NamePromptModal({
 
     if (!open) return null;
 
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
+    const submit = () => {
         const name = value.trim();
         if (!name) return;
         onSubmit(name);
@@ -40,13 +39,10 @@ export default function NamePromptModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
             <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
-            <form
-                onSubmit={submit}
-                className="relative w-full max-w-sm bg-[#161616] border border-[#2A2A2A] rounded-3xl p-5 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
-            >
+            <div className="relative w-full max-w-sm bg-[#161616] border border-[#2A2A2A] rounded-3xl p-5 shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
                 <h3 className="text-base font-semibold text-[#F5F5F5] mb-4">{title}</h3>
 
                 <label className="block text-xs text-[#39FF14] mb-1.5">Название</label>
@@ -54,6 +50,12 @@ export default function NamePromptModal({
                     ref={inputRef}
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            submit();
+                        }
+                    }}
                     placeholder={placeholder}
                     className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl px-3 py-2.5 text-sm text-[#F5F5F5] placeholder:text-[#666666] outline-none focus:border-[#39FF14]"
                 />
@@ -67,14 +69,15 @@ export default function NamePromptModal({
                         Отмена
                     </button>
                     <button
-                        type="submit"
+                        type="button"
+                        onClick={submit}
                         disabled={!value.trim()}
                         className="flex-1 py-2.5 rounded-xl bg-[#39FF14] hover:bg-[#57FF3A] disabled:opacity-40 text-sm font-medium text-black transition"
                     >
                         {confirmLabel}
                     </button>
                 </div>
-            </form>
+            </div>
         </div>
     );
 }

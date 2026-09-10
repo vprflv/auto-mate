@@ -86,18 +86,6 @@ export default function CatalogTree({
                                     }: Props) {
     return (
         <div className="space-y-0.5">
-            {/* Кнопка "Все запчасти" */}
-            <button
-                type="button"
-                onClick={() => onSelect(null)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
-                    selectedNodeId === null
-                        ? 'bg-[#39FF14] text-black'
-                        : 'text-[#A3A3A3] hover:bg-[#1F1F1F] hover:text-[#F5F5F5]'
-                }`}
-            >
-                Все запчасти
-            </button>
 
             {nodes.map((node) => (
                 <TreeNode
