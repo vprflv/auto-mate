@@ -40,9 +40,17 @@ export default function CarPartsCard({ parts, onUpdateParts, carId }: Props) {
     } = useCarPartsCard({ parts, onUpdateParts });
 
     return (
-        <section className="bg-[#161616] border border-[#2A2A2A] rounded-3xl p-6">
+        /*
+          Заменили bg-[#161616] на var(--card) (песочный цвет в светлой теме).
+          Сделали деликатную полупрозрачную рамку border-[var(--border)]/20,
+          чтобы карточка идеально мэтчилась с соседними блоками характеристик.
+        */
+        <section className="bg-[var(--card)] border border-[var(--border)]/20 rounded-3xl p-6 transition-colors duration-200">
+
+            {/* Шапка каталога с кнопкой "Назад" */}
             <CarPartsHeader category={category} sub={sub} onBack={back} />
 
+            {/* ВЬЮШКА 1: Список главных категорий (Электрика, Двигатель...) */}
             {!category && (
                 <CarPartsCategoryView
                     categories={categories}
@@ -52,6 +60,7 @@ export default function CarPartsCard({ parts, onUpdateParts, carId }: Props) {
                 />
             )}
 
+            {/* ВЬЮШКА 2: Список подкатегорий (Фильтры, Ремни...) */}
             {category && !sub && (
                 <CarPartsSubcategoryView
                     subs={subs}
@@ -61,6 +70,7 @@ export default function CarPartsCard({ parts, onUpdateParts, carId }: Props) {
                 />
             )}
 
+            {/* ВЬЮШКА 3: Конечный список запчастей с артикулами */}
             {category && sub && (
                 <CarPartsItemsView
                     carId={carId}
@@ -70,6 +80,7 @@ export default function CarPartsCard({ parts, onUpdateParts, carId }: Props) {
                 />
             )}
 
+            {/* Модальное окно редактирования/добавления конкретной детали */}
             <EditPartModal
                 open={!!editItem}
                 item={editItem}
@@ -78,6 +89,7 @@ export default function CarPartsCard({ parts, onUpdateParts, carId }: Props) {
                 onDelete={deleteItem}
             />
 
+            {/* Модальное окно ввода названия для новой категории/подкатегории */}
             <NamePromptModal
                 open={!!namePrompt}
                 title={

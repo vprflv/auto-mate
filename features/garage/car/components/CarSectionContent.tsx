@@ -72,7 +72,7 @@ export default function CarSectionContent({
 
     if (section === 'overview') {
         return (
-            <div className="space-y-6">
+            <div className="space-y-6 bg-transparent">
                 <CarPhotosGallery
                     photos={car.photos || []}
                     onUpdatePhotos={(photos) => {
@@ -84,7 +84,8 @@ export default function CarSectionContent({
                     }}
                 />
 
-                <div className="grid gap-6 md:grid-cols-2">
+                {/* Адаптивная сетка параметров */}
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 relative z-10 bg-transparent">
                     <CarSpecs car={car} />
                     <CarExtraInfo car={car} />
                 </div>
@@ -95,6 +96,7 @@ export default function CarSectionContent({
     if (section === 'fluids') {
         return (
             <CarFluidsCard
+                /* Безопасный фоллбэк: если в localStorage структуры нет, приложение не упадет */
                 fluids={car.fluids?.items ? car.fluids : { items: [] }}
                 onUpdateFluids={(fluids: CarFluids) => {
                     onUpdateCar({
@@ -110,7 +112,8 @@ export default function CarSectionContent({
     if (section === 'parts') {
         return (
             <CarPartsCard
-                parts={car.partsCatalog}
+                /* Безопасная инициализация массива каталога запчастей */
+                parts={car.partsCatalog || []}
                 carId={car.id}
                 onUpdateParts={(partsCatalog) => {
                     onUpdateCar({
@@ -127,7 +130,7 @@ export default function CarSectionContent({
         return (
             <ServiceHistory
                 carId={car.id}
-                records={records}
+                records={records || []}
                 onUpdateRecord={onUpdateRecord}
                 onDeleteRecord={handleDeleteRecord}
             />

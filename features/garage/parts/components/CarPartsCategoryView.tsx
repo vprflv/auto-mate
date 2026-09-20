@@ -23,9 +23,9 @@ export default function CarPartsCategoryView({
                                                  onCreateCategory,
                                              }: Props) {
     return (
-        <div className="space-y-3">
+        <div className="space-y-3 bg-transparent">
             {categories.length === 0 && (
-                <p className="text-center text-[#666666] text-sm py-6">
+                <p className="text-center text-[var(--text-dim)] text-sm py-6">
                     Пока не указано
                 </p>
             )}
@@ -33,17 +33,23 @@ export default function CarPartsCategoryView({
             {categories.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {categories.map((c) => (
+                        /*
+                          Заменили фоны на bg-[var(--bg-elevated)] (пастельно-бежевый в светлой теме).
+                          Ховер-рамка теперь мягко подсвечивается в цвет активной ссылки темы.
+                        */
                         <button
                             key={c.id}
                             type="button"
                             onClick={() => onOpenCategory(c.id)}
-                            className="bg-[#0A0A0A] border border-[#2A2A2A] hover:border-[#39FF14]/40 rounded-2xl px-4 py-4 text-left transition"
+                            className="bg-[var(--bg-elevated)] border border-[var(--border)]/20 hover:border-[var(--link)]/50 rounded-2xl px-4 py-4 text-left transition-all duration-200 cursor-pointer active:scale-[0.98]"
                         >
-                            <p className="text-sm font-medium text-[#F5F5F5]">
+                            {/* Текст категории использует основной цвет текста активной темы */}
+                            <p className="text-sm font-bold text-[var(--text)]">
                                 {c.label}
                                 {c.isCustom ? ' ★' : ''}
                             </p>
-                            <p className="text-xs text-[#666666] mt-1">
+                            {/* Текст количества позиций переведён на var(--text-dim) */}
+                            <p className="text-xs text-[var(--text-dim)] mt-1.5 font-medium">
                                 {items.filter((i) => i.category === c.id).length} поз.
                             </p>
                         </button>

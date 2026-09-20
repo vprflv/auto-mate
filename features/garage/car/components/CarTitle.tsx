@@ -54,36 +54,42 @@ export default function CarTitle({ car }: Props) {
     };
 
     return (
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 mb-10">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 mb-10 bg-transparent">
             <div>
-                <h1 className="text-4xl font-bold leading-tight text-[#F5F5F5]">
+                {/* Текст полностью переведён на переменные */}
+                <h1 className="text-4xl font-bold leading-tight text-[var(--text)]">
                     {car.nickname || `${car.make} ${car.model}`}
                 </h1>
-                <p className="text-[#A3A3A3] mt-2 text-lg">
+                <p className="text-[var(--text-muted)] mt-2 text-lg">
                     {car.make} {car.model} • {car.year}
                     {car.color ? ` • ${car.color}` : ''}
                 </p>
-                <p className="font-mono text-sm text-[#666666] mt-2 tracking-wide">
-                    {car.vin}
+                <p className="font-mono text-sm text-[var(--text-dim)] mt-2 tracking-wide border border-[var(--border)]/20 inline-block px-2 py-0.5 rounded-md bg-[var(--card)]/40">
+                    {car.vin || 'НЕТ VIN'}
                 </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
                 <Link
                     href={`/garage/${car.id}/edit`}
-                    className="bg-[#1F1F1F] hover:bg-[#2A2A2A] px-5 py-3 rounded-xl text-sm font-medium text-[#F5F5F5] transition"
+                    className="bg-[var(--bg-elevated)] border border-[var(--border)]/40 hover:bg-[var(--border)]/20 px-5 py-3 rounded-xl text-sm font-medium text-[var(--text)] transition-all duration-200 cursor-pointer active:scale-95"
                 >
                     Редактировать
                 </Link>
 
+                {/*
+                  Умная кнопка каталога:
+                  Если каталог ЕСТЬ: сливается со стилем остальных кнопок на bg-[var(--bg-elevated)]
+                  Если каталога НЕТ: берёт главные акценты темы через bg-[var(--btn-primary)] (зелёный в dark, оранжевый в light)
+                */}
                 <button
                     type="button"
                     onClick={handleGenerateCatalog}
                     disabled={isGenerating}
-                    className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition disabled:opacity-60 ${
+                    className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-200 disabled:opacity-60 cursor-pointer active:scale-95 ${
                         hasCatalog
-                            ? 'bg-[#1F1F1F] hover:bg-[#2A2A2A] text-[#F5F5F5]'
-                            : 'bg-[#39FF14] hover:bg-[#57FF3A] text-black'
+                            ? 'bg-[var(--bg-elevated)] border border-[var(--border)]/40 hover:bg-[var(--border)]/20 text-[var(--text)]'
+                            : 'bg-[var(--btn-primary)] hover:bg-[var(--btn-primary-hover)] text-[var(--btn-primary-text)] [html[data-theme=dark]_&]:shadow-[0_0_16px_rgba(57,255,20,0.25)]'
                     }`}
                 >
                     {isGenerating ? (
@@ -101,7 +107,7 @@ export default function CarTitle({ car }: Props) {
 
                 <Link
                     href={`/garage/${car.id}/service/add`}
-                    className="bg-[#1F1F1F] hover:bg-[#2A2A2A] px-5 py-3 rounded-xl text-sm font-medium text-[#F5F5F5] transition"
+                    className="bg-[var(--bg-elevated)] border border-[var(--border)]/40 hover:bg-[var(--border)]/20 px-5 py-3 rounded-xl text-sm font-medium text-[var(--text)] transition-all duration-200 cursor-pointer active:scale-95"
                 >
                     + Добавить ТО
                 </Link>

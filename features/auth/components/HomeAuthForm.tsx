@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react';
 import { useAuth } from '@/features/auth/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import {Eye, EyeOff} from "lucide-react";
+import {brand} from "@/features/lib/brand";
 
 export default function HomeAuthForm() {
     const router = useRouter();
@@ -48,7 +49,7 @@ export default function HomeAuthForm() {
             <div className="max-w-md w-full">
                 <div className="text-center mb-10">
                     <h1 className="text-5xl font-bold mb-3 drop-shadow-[0_0_15px_rgba(57,255,20,0.3)]">
-                        AutoMate
+                        {brand.name}
                     </h1>
                     <p className="text-[#A3A3A3] text-lg mb-4">
                         Персональный помощник по твоему автомобилю

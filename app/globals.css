@@ -1,5 +1,53 @@
 @import "tailwindcss";
 
+:root {
+    --bg: #0a0a0a;
+    --bg-elevated: #161616;
+    --card: #161616;
+    --input: #0a0a0a;
+    --border: #2a2a2a;
+    --text: #f5f5f5;
+    --text-muted: #a3a3a3;
+    --text-dim: #666666;
+    --accent: #39ff14;
+    --accent-hover: #57ff3a;
+    --accent-text: #000000;
+    --link: #39ff14;
+    --danger: #f87171;
+
+    /* НОВЫЕ ТОКЕНЫ: Кнопка в темной теме (Неоново-зеленая) */
+    --btn-primary: #39ff14;
+    --btn-primary-hover: #57ff3a;
+    --btn-primary-text: #000000;
+}
+
+[data-theme="light"] {
+    --bg: #feffd7;
+    --bg-elevated: #f1f2cc; /* Чуть темнее подложка для кнопок и инпутов */
+    --card: #f9fae3;        /* ИСПРАВЛЕНО: Вместо #ffffff теперь мягкий, дорогой песочный тон */
+    --input: #dd6127;
+    --border: #dd6127;
+    --text: #4a2300;
+    --text-muted: #6f2b30;
+    --text-dim: #8b9188;
+    --accent: #1a1c19;
+    --accent-hover: #2a2d28;
+    --accent-text: #feffd7;
+    --link: #dd6127;
+    --danger: #c62828;
+
+    /* Кнопки (Светлая тема) */
+    --btn-primary: #dd6127;
+    --btn-primary-hover: #c4521f;
+    --btn-primary-text: #ffffff;
+}
+
+html,
+body {
+    background: var(--bg);
+    color: var(--text);
+}
+
 body {
     font-feature-settings: "kern" 1, "tnum" 1;
 }
@@ -7,6 +55,10 @@ body {
 .glass {
     background: rgba(255, 255, 255, 0.06);
     backdrop-filter: blur(12px);
+}
+
+[data-theme="light"] .glass {
+    background: rgba(255, 255, 255, 0.55);
 }
 
 input[type="number"]::-webkit-inner-spin-button,
@@ -19,5 +71,3 @@ input[type="number"] {
     -moz-appearance: textfield;
     appearance: textfield;
 }
-
-

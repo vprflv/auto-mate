@@ -18,17 +18,25 @@ export default function CarSpecs({ car }: Props) {
     ].filter((row) => row.value);
 
     return (
-        <section className="bg-[#161616] border border-[#2A2A2A] rounded-3xl p-6">
-            <h2 className="text-lg font-semibold mb-5 text-[#F5F5F5]">Характеристики</h2>
-            <div className="space-y-3 text-sm">
+        <section className="bg-[var(--card)] border border-[var(--border)]/20 rounded-3xl p-6 transition-colors duration-200">
+            {/* Заголовок блока делаем основным цветом текста */}
+            <h2 className="text-lg font-bold mb-5 text-[var(--text)]">Характеристики</h2>
+
+            <div className="space-y-3.5 text-sm">
                 {rows.map((row) => (
-                    <div key={row.label} className="flex justify-between gap-4">
-                        <span className="text-[#39FF14]">{row.label}</span>
-                        <span className="text-right text-[#39FF14]">{row.value}</span>
+                    <div key={row.label} className="flex justify-between gap-4 items-baseline border-b border-[var(--border)]/10 pb-2.5 last:border-0 last:pb-0">
+                        {/* Левая колонка — мягкий графитовый оттенок для подписей */}
+                        <span className="text-[var(--text-accent)] font-medium">{row.label}</span>
+
+                        {/* Правая колонка — ИСПРАВЛЕНО: глубокий графитовый/белый акцент для самих значений */}
+                        <span className="text-right text-[var(--link)] font-semibold truncate max-w-[65%]">
+                            {row.value}
+                        </span>
                     </div>
                 ))}
+
                 {rows.length === 0 && (
-                    <p className="text-[#A3A3A3]">Нет данных</p>
+                    <p className="text-[var(--text-dim)] text-center py-4">Нет данных</p>
                 )}
             </div>
         </section>

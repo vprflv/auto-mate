@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/features/auth/components/AuthProvider';
+import {brand} from "@/features/lib/brand";
 
 export default function GarageHeader() {
     const { user, signOut, loading } = useAuth();
@@ -13,7 +14,7 @@ export default function GarageHeader() {
                     href="/"
                     className="text-xl font-bold text-[#F5F5F5] hover:text-[#39FF14] transition"
                 >
-                    AutoMate
+                    {brand.name}
                 </Link>
 
                 <nav className="flex items-center gap-4 sm:gap-6 text-sm text-[#A3A3A3]">

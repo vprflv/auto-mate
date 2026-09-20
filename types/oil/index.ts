@@ -9,8 +9,14 @@ export type FluidCategory =
     | 'otherFluid';
 
 export type CarFluidItem = {
+    categoryLabel?: string | undefined;
     id: string;
-    category: FluidCategory;
+    /*
+      ИСПРАВЛЕНО: Добавили | (string & {})
+      Это умный трюк TypeScript: он сохраняет автодополнение системных категорий (engineOil и т.д.)
+      в IDE, но при этом официально разрешает записывать сюда абсолютно любую кастомную строку!
+    */
+    category: FluidCategory | (string & {});
     name: string;
     brand?: string;
     spec?: string;

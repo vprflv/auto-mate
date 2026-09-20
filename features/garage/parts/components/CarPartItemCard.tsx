@@ -12,7 +12,11 @@ type Props = {
 
 export default function CarPartItemCard({ carId, item, onEdit }: Props) {
     return (
-        <div className="bg-[#0A0A0A] border border-[#2A2A2A] hover:border-[#39FF14]/40 rounded-2xl overflow-hidden transition">
+        /*
+          Заменили bg-[#0A0A0A] на var(--bg-elevated) (пастельно-бежевая подложка в светлой теме).
+          Ховер-рамка теперь мягко подсвечивается в цвет активной ссылки темы var(--link)
+        */
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border)]/20 hover:border-[var(--link)]/50 rounded-2xl overflow-hidden transition-all duration-200 flex flex-col h-full group outline-none focus-within:ring-2 focus-within:ring-[var(--link)]/40">
             <div
                 role="button"
                 tabIndex={0}
@@ -23,55 +27,67 @@ export default function CarPartItemCard({ carId, item, onEdit }: Props) {
                         onEdit(item);
                     }
                 }}
-                className="cursor-pointer"
+                className="cursor-pointer flex-1 flex flex-col"
             >
-                <div className="aspect-[4/3] bg-[#161616] flex items-center justify-center">
+                {/* Окно превью фото товара или иконка-заглушка */}
+                <div className="aspect-[4/3] bg-[var(--bg)] flex items-center justify-center border-b border-[var(--border)]/10 overflow-hidden relative">
                     {item.photo ? (
                         <img
                             src={item.photo}
                             alt={item.name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                         />
                     ) : (
                         <Package
-                            className="w-10 h-10 text-[#3A3A3A]"
+                            className="w-10 h-10 text-[var(--text-dim)] transition-all duration-500 group-hover:text-[var(--link)]/40 group-hover:scale-110"
                             strokeWidth={1.5}
                         />
                     )}
                 </div>
 
-                <div className="p-3 pb-2">
-                    {item.brand && (
-                        <p className="text-xs text-[#666666] mb-0.5 truncate">
-                            {item.brand}
+                {/* Текстовый блок описания запчасти */}
+                <div className="p-3 pb-2 flex-1 flex flex-col justify-between">
+                    <div>
+                        {item.brand && (
+                            /* Бренд переведён на var(--text-accent) */
+                            <p className="text-xs text-[var(--text-accent)] font-semibold mb-0.5 truncate">
+                                {item.brand}
+                            </p>
+                        )}
+                        <p className="text-sm text-[var(--text)] font-bold leading-snug line-clamp-2">
+                            {item.quantity && item.quantity > 1
+                                ? `${item.quantity}× `
+                                : ''}
+                            {item.name}
                         </p>
-                    )}
-                    <p className="text-sm text-[#F5F5F5] font-medium leading-snug line-clamp-2">
-                        {item.quantity && item.quantity > 1
-                            ? `${item.quantity}× `
-                            : ''}
-                        {item.name}
-                    </p>
+                    </div>
                     {item.oemNumber && (
-                        <p className="text-xs font-mono text-[#A3A3A3] mt-1 truncate">
+                        /* Артикул OEM теперь использует моноширинный var(--text-dim) */
+                        <p className="text-xs font-mono text-[var(--text-dim)] mt-1.5 truncate font-medium">
                             {item.oemNumber}
                         </p>
                     )}
                 </div>
             </div>
 
-            <div className="px-3 pb-3 flex gap-2">
+            {/* Блок нижних кнопок действий */}
+            <div className="px-3 pb-3 flex gap-2 mt-auto">
                 <button
                     type="button"
                     onClick={() => onEdit(item)}
-                    className="flex-1 py-2 rounded-xl bg-[#1F1F1F] hover:bg-[#2A2A2A] text-xs font-medium text-[#F5F5F5] transition"
+                    className="flex-1 py-2 rounded-xl bg-[var(--card)] border border-[var(--border)]/40 hover:bg-[var(--border)]/20 text-xs font-semibold text-[var(--text)] transition-all duration-200 cursor-pointer active:scale-95"
                 >
                     Изменить
                 </button>
 
+                {/*
+                  Умная кнопка «Где купить»:
+                  В светлой теме она автоматически станет сочно-оранжевой, в тёмной — неоново-зелёной.
+                  Свечение shadow активируется только для тёмного режима.
+                */}
                 <Link
                     href={`/garage/${carId}/buy?name=${encodeURIComponent(item.name)}&oem=${encodeURIComponent(item.oemNumber || '')}&brand=${encodeURIComponent(item.brand || '')}&analog=${encodeURIComponent(item.analogNumber || '')}`}
-                    className="flex-1 py-2 rounded-xl bg-[#39FF14] hover:bg-[#57FF3A] text-black text-xs font-medium transition text-center"
+                    className="flex-1 py-2 rounded-xl bg-[var(--btn-primary)] text-[var(--btn-primary-text)] hover:bg-[var(--btn-primary-hover)] text-xs font-bold transition-all duration-200 text-center flex items-center justify-center cursor-pointer active:scale-95 [html[data-theme=dark]_&]:shadow-[0_0_12px_rgba(57,255,20,0.2)]"
                 >
                     Где купить
                 </Link>

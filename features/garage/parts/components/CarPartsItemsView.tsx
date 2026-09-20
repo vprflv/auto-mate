@@ -18,13 +18,15 @@ export default function CarPartsItemsView({
                                               onAdd,
                                           }: Props) {
     return (
-        <div className="space-y-3">
+        <div className="space-y-3 bg-transparent">
             {items.length === 0 ? (
-                <p className="text-center text-[#666666] text-sm py-6">
+                /* Перевели цвет текста на var(--text-dim) под нашу палитру */
+                <p className="text-center text-[var(--text-dim)] text-sm py-6 font-medium">
                     Пока нет записей
                 </p>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                /* Сетка карточек товаров на чистом прозрачном слое */
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 relative z-10">
                     {items.map((item) => (
                         <CarPartItemCard
                             key={item.id}
