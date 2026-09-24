@@ -12,60 +12,116 @@ type Params = {
     onUpdateParts?: (parts: CarParts) => void;
 };
 
-export function useCarPartsCard({ parts, onUpdateParts }: Params) {
+export function useCarPartsCard({
+                                    parts,
+                                    onUpdateParts,
+                                }: Params) {
     const items = parts?.items ?? [];
+
     const [category, setCategory] = useState<string | null>(null);
     const [sub, setSub] = useState<string | null>(null);
     const [editItem, setEditItem] = useState<CarPartItem | null>(null);
 
-    const categories = getCategoriesFor().filter((c) =>
-        c.isCustom || items.some((i) => i.category === c.id)
+    /*
+     * Системные категории показываем только если в них
+     * действительно есть хотя бы одна запчасть.
+     *
+     * Кастомные категории сохраняем даже пустыми —
+     * иначе только что созданная пользователем категория
+     * сразу исчезнет из интерфейса.
+     */
+    const categories = getCategoriesFor().filter(
+        (c) =>
+            c.isCustom ||
+            items.some((item) => item.category === c.id)
     );
 
     const inCategory = category
-        ? items.filter((i) => i.category === category)
+        ? items.filter((item) => item.category === category)
         : [];
 
-    const subs = category ? getSubcategoriesFor(category as PartCategory) : [];
+    const subs = category
+        ? getSubcategoriesFor(category as PartCategory)
+        : [];
 
     const inSub = sub
-        ? inCategory.filter((i) => (i.subcategory || 'other') === sub)
+        ? inCategory.filter(
+            (item) => (item.subcategory || 'other') === sub
+        )
         : [];
 
-    const back = () => (sub ? setSub(null) : setCategory(null));
+    const back = () => {
+        if (sub) {
+            setSub(null);
+        } else {
+            setCategory(null);
+        }
+    };
 
     const openCategory = (id: string) => {
         setCategory(id);
         setSub(null);
     };
 
+    const openSubcategory = (id: string) => {
+        setSub(id);
+    };
+
     const saveItem = (updated: CarPartItem) => {
-        const exists = items.some((i) => i.id === updated.id);
+        const exists = items.some((item) => item.id === updated.id);
+
         const next = exists
-            ? items.map((i) => (i.id === updated.id ? updated : i))
+            ? items.map((item) =>
+                item.id === updated.id ? updated : item
+            )
             : [...items, updated];
 
         onUpdateParts?.({ items: next });
     };
 
     const deleteItem = (id: string) => {
-        onUpdateParts?.({ items: items.filter((i) => i.id !== id) });
+        onUpdateParts?.({
+            items: items.filter((item) => item.id !== id),
+        });
     };
 
     const createCategory = (name: string) => {
-        const created = addUserCategory(name);
+        const trimmedName = name.trim();
+
+        if (!trimmedName) {
+            return;
+        }
+
+        const created = addUserCategory(trimmedName);
+
         setCategory(created.key);
         setSub(null);
     };
 
     const createSubcategory = (name: string) => {
-        if (!category) return;
-        const created = addUserSubcategory(category as PartCategory, name.trim());
+        if (!category) {
+            return;
+        }
+
+        const trimmedName = name.trim();
+
+        if (!trimmedName) {
+            return;
+        }
+
+        const created = addUserSubcategory(
+            category as PartCategory,
+            trimmedName
+        );
+
         setSub(created.key);
     };
 
     const addItemToSection = () => {
-        if (!category) return;
+        if (!category) {
+            return;
+        }
+
         setEditItem({
             id: crypto.randomUUID(),
             category: category as PartCategory,
@@ -77,19 +133,26 @@ export function useCarPartsCard({ parts, onUpdateParts }: Params) {
 
     return {
         items,
+
         category,
         sub,
         editItem,
+
         setEditItem,
         setSub,
+
         categories,
         inCategory,
         subs,
         inSub,
+
         back,
         openCategory,
+        openSubcategory,
+
         saveItem,
         deleteItem,
+
         createCategory,
         createSubcategory,
         addItemToSection,

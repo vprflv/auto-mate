@@ -1,9 +1,12 @@
 export default function Loading() {
     return (
-        <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+        <div className="flex min-h-screen items-center justify-center bg-[var(--bg)] transition-colors duration-200">
             <div className="flex flex-col items-center gap-4">
-                <div className="w-10 h-10 border-2 border-[#39FF14] border-t-transparent rounded-full animate-spin" />
-                <p className="text-[#A3A3A3] text-sm">Загрузка приложения...</p>
+                <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--btn-primary)] border-t-transparent" />
+
+                <p className="text-sm text-[var(--text-muted)]">
+                    Загрузка приложения...
+                </p>
             </div>
         </div>
     );

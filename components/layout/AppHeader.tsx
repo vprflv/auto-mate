@@ -69,8 +69,8 @@ const nav = [
           ИСПРАВЛЕНО 1: Убрали рамку border-b и матовую подложку.
           Делаем шапку полностью прозрачной bg-transparent, чтобы она сливалась с фоном страницы
         */
-        <header className="sticky top-0 z-50 bg-transparent w-full">
-            <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
+            <header className="sticky top-0 z-40 w-full bg-[var(--bg)]/95 backdrop-blur-md">
+                <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
 
                 {/* Логотип */}
                 <Link
@@ -178,6 +178,7 @@ const nav = [
                     </div>
                 )}
             </div>
+                <div className="mx-auto h-px w-1/3 bg-[var(--border)]/40" />
         </header>
     );
 }

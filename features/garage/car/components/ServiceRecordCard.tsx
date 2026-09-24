@@ -9,13 +9,20 @@ type Props = {
     onDelete?: (id: string) => void;
 };
 
-export default function ServiceRecordCard({ record, onEdit, onDelete }: Props) {
+export default function ServiceRecordCard({
+                                              record,
+                                              onEdit,
+                                              onDelete,
+                                          }: Props) {
     return (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+        <div className="rounded-2xl border border-[var(--border)]/30 bg-[var(--card)] p-5 transition-colors duration-200">
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                    <h3 className="font-semibold text-lg">{record.title}</h3>
-                    <p className="text-zinc-400 text-sm mt-1">
+                    <h3 className="text-lg font-semibold text-[var(--text)]">
+                        {record.title}
+                    </h3>
+
+                    <p className="mt-1 text-sm text-[var(--text-muted)]">
                         {new Date(record.date).toLocaleDateString('ru-RU')}
                         {record.mileage
                             ? ` • ${record.mileage.toLocaleString('ru-RU')} км`
@@ -23,17 +30,17 @@ export default function ServiceRecordCard({ record, onEdit, onDelete }: Props) {
                     </p>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex shrink-0 items-center gap-1">
                     {record.cost !== undefined && (
-                        <span className="text-sm font-medium whitespace-nowrap mr-2">
-              {record.cost.toLocaleString('ru-RU')} ₽
-            </span>
+                        <span className="mr-2 whitespace-nowrap text-sm font-medium text-[var(--text)]">
+                            {record.cost.toLocaleString('ru-RU')} ₽
+                        </span>
                     )}
 
                     <button
                         type="button"
                         onClick={() => onEdit(record)}
-                        className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                        className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-elevated)] hover:text-[var(--text)] active:scale-95"
                         title="Редактировать"
                     >
                         <Pencil size={16} />
@@ -43,7 +50,7 @@ export default function ServiceRecordCard({ record, onEdit, onDelete }: Props) {
                         <button
                             type="button"
                             onClick={() => onDelete(record.id)}
-                            className="p-2 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-zinc-800 transition"
+                            className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-elevated)] hover:text-[var(--danger)] active:scale-95"
                             title="Удалить"
                         >
                             <Trash2 size={16} />
@@ -53,20 +60,29 @@ export default function ServiceRecordCard({ record, onEdit, onDelete }: Props) {
             </div>
 
             {record.description && (
-                <p className="text-sm text-zinc-400 mt-3">{record.description}</p>
+                <p className="mt-3 text-sm text-[var(--text-muted)]">
+                    {record.description}
+                </p>
             )}
 
-            {record.parts && Array.isArray(record.parts) && record.parts.length > 0 && (
-                <div className="mt-3 space-y-1">
-                    {record.parts.map((part) => (
-                        <p key={part.id} className="text-sm text-zinc-500">
-                            {part.quantity}× {part.name}
-                            {part.brand ? ` (${part.brand})` : ''}
-                            {part.oemNumber ? ` • ${part.oemNumber}` : ''}
-                        </p>
-                    ))}
-                </div>
-            )}
+            {record.parts &&
+                Array.isArray(record.parts) &&
+                record.parts.length > 0 && (
+                    <div className="mt-3 space-y-1">
+                        {record.parts.map((part) => (
+                            <p
+                                key={part.id}
+                                className="text-sm text-[var(--text-dim)]"
+                            >
+                                {part.quantity}× {part.name}
+                                {part.brand ? ` (${part.brand})` : ''}
+                                {part.oemNumber
+                                    ? ` • ${part.oemNumber}`
+                                    : ''}
+                            </p>
+                        ))}
+                    </div>
+                )}
         </div>
     );
 }

@@ -1,7 +1,6 @@
 'use client';
 
-import { CarPartItem } from '@/types';
-import CarPartsDashedButton from './CarPartsDashedButton';
+import { Plus } from 'lucide-react';
 
 type CategoryOption = {
     id: string;
@@ -11,56 +10,76 @@ type CategoryOption = {
 
 type Props = {
     categories: CategoryOption[];
-    items: CarPartItem[];
+    activeCategory: string | null;
     onOpenCategory: (id: string) => void;
     onCreateCategory: () => void;
 };
 
 export default function CarPartsCategoryView({
                                                  categories,
-                                                 items,
+                                                 activeCategory,
                                                  onOpenCategory,
                                                  onCreateCategory,
                                              }: Props) {
     return (
-        <div className="space-y-3 bg-transparent">
-            {categories.length === 0 && (
-                <p className="text-center text-[var(--text-dim)] text-sm py-6">
-                    Пока не указано
-                </p>
-            )}
+        <aside className="flex h-full w-full flex-col">
+            <div className="flex-1 p-3">
+                {categories.length === 0 ? (
+                    <p className="px-3 py-6 text-center text-sm text-[var(--text-dim)]">
+                        Пока нет категорий
+                    </p>
+                ) : (
+                    <div className="flex flex-col gap-1">
+                        {categories.map((category) => {
+                            const isActive =
+                                activeCategory === category.id;
 
-            {categories.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {categories.map((c) => (
-                        /*
-                          Заменили фоны на bg-[var(--bg-elevated)] (пастельно-бежевый в светлой теме).
-                          Ховер-рамка теперь мягко подсвечивается в цвет активной ссылки темы.
-                        */
-                        <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => onOpenCategory(c.id)}
-                            className="bg-[var(--bg-elevated)] border border-[var(--border)]/20 hover:border-[var(--link)]/50 rounded-2xl px-4 py-4 text-left transition-all duration-200 cursor-pointer active:scale-[0.98]"
-                        >
-                            {/* Текст категории использует основной цвет текста активной темы */}
-                            <p className="text-sm font-bold text-[var(--text)]">
-                                {c.label}
-                                {c.isCustom ? ' ★' : ''}
-                            </p>
-                            {/* Текст количества позиций переведён на var(--text-dim) */}
-                            <p className="text-xs text-[var(--text-dim)] mt-1.5 font-medium">
-                                {items.filter((i) => i.category === c.id).length} поз.
-                            </p>
-                        </button>
-                    ))}
-                </div>
-            )}
+                            return (
+                                <button
+                                    key={category.id}
+                                    type="button"
+                                    onClick={() =>
+                                        onOpenCategory(category.id)
+                                    }
+                                    className={[
+                                        'flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all',
+                                        isActive
+                                            ? 'bg-[var(--btn-primary)] text-[var(--btn-primary-text)]'
+                                            : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]',
+                                    ].join(' ')}
+                                >
+                                    {category.isCustom && (
+                                        <span
+                                            className={
+                                                isActive
+                                                    ? 'opacity-100'
+                                                    : 'text-[var(--text-accent)]'
+                                            }
+                                        >
+                                            ★
+                                        </span>
+                                    )}
 
-            <CarPartsDashedButton
-                label="Добавить категорию"
-                onClick={onCreateCategory}
-            />
-        </div>
+                                    <span className="truncate">
+                                        {category.label}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            <div className="border-t border-[var(--border)] p-3">
+                <button
+                    type="button"
+                    onClick={onCreateCategory}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border)] px-3 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--btn-primary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]"
+                >
+                    <Plus size={17} />
+                    Создать категорию
+                </button>
+            </div>
+        </aside>
     );
 }

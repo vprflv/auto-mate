@@ -20,32 +20,49 @@ export default function NamePromptModal({
                                             onSubmit,
                                         }: Props) {
     const [value, setValue] = useState('');
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         if (!open) return;
+
         setValue('');
-        const t = window.setTimeout(() => inputRef.current?.focus(), 50);
-        return () => window.clearTimeout(t);
+
+        const timeout = window.setTimeout(() => {
+            inputRef.current?.focus();
+        }, 50);
+
+        return () => window.clearTimeout(timeout);
     }, [open]);
 
     if (!open) return null;
 
     const submit = () => {
         const name = value.trim();
+
         if (!name) return;
+
         onSubmit(name);
         onClose();
     };
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
-            <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+                onClick={onClose}
+            />
 
-            <div className="relative w-full max-w-sm bg-[#161616] border border-[#2A2A2A] rounded-3xl p-5 shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
-                <h3 className="text-base font-semibold text-[#F5F5F5] mb-4">{title}</h3>
+            {/* Modal */}
+            <div className="relative w-full max-w-sm rounded-3xl border border-[var(--border)]/30 bg-[var(--card)] p-5 shadow-[0_12px_40px_rgba(0,0,0,0.25)] transition-colors duration-200">
+                <h3 className="mb-4 text-base font-semibold text-[var(--text)]">
+                    {title}
+                </h3>
 
-                <label className="block text-xs text-[#39FF14] mb-1.5">Название</label>
+                <label className="mb-1.5 block text-xs font-medium text-[var(--text-accent)]">
+                    Название
+                </label>
+
                 <input
                     ref={inputRef}
                     value={value}
@@ -55,24 +72,30 @@ export default function NamePromptModal({
                             e.preventDefault();
                             submit();
                         }
+
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            onClose();
+                        }
                     }}
                     placeholder={placeholder}
-                    className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl px-3 py-2.5 text-sm text-[#F5F5F5] placeholder:text-[#666666] outline-none focus:border-[#39FF14]"
+                    className="w-full rounded-xl border border-[var(--border)]/40 bg-[var(--bg-elevated)] px-3 py-2.5 text-sm text-[var(--text)] outline-none transition placeholder:text-[var(--text-dim)] focus:border-[var(--btn-primary)]"
                 />
 
-                <div className="flex gap-3 mt-5">
+                <div className="mt-5 flex gap-3">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 py-2.5 rounded-xl bg-[#1F1F1F] hover:bg-[#2A2A2A] text-sm text-[#F5F5F5] transition"
+                        className="flex-1 rounded-xl bg-[var(--bg-elevated)] py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--text)] active:scale-[0.98]"
                     >
                         Отмена
                     </button>
+
                     <button
                         type="button"
                         onClick={submit}
                         disabled={!value.trim()}
-                        className="flex-1 py-2.5 rounded-xl bg-[#39FF14] hover:bg-[#57FF3A] disabled:opacity-40 text-sm font-medium text-black transition"
+                        className="flex-1 rounded-xl bg-[var(--btn-primary)] py-2.5 text-sm font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         {confirmLabel}
                     </button>

@@ -1,7 +1,7 @@
 'use client';
 
+import { Plus } from 'lucide-react';
 import { CarPartItem } from '@/types';
-import CarPartsDashedButton from './CarPartsDashedButton';
 
 type SubOption = {
     id: string;
@@ -22,43 +22,89 @@ export default function CarPartsSubcategoryView({
                                                     onOpenSub,
                                                     onCreateSub,
                                                 }: Props) {
-    return (
-        <div className="space-y-3 bg-transparent">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {subs.map((s) => {
-                    const count = inCategory.filter(
-                        (i) => (i.subcategory || 'other') === s.id
-                    ).length;
+    const activeSubs = subs.filter((sub) => {
+        if (sub.isCustom) {
+            return true;
+        }
 
-                    return (
-                        /*
-                          Заменили фоны на bg-[var(--bg-elevated)] (пастельно-бежевый в светлой теме).
-                          Ховер-рамка теперь мягко подсвечивается в цвет активной ссылки темы.
-                        */
-                        <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => onOpenSub(s.id)}
-                            className="bg-[var(--bg-elevated)] border border-[var(--border)]/20 hover:border-[var(--link)]/50 rounded-2xl px-4 py-4 text-left transition-all duration-200 cursor-pointer active:scale-[0.98]"
-                        >
-                            {/* Текст подкатегории использует основной цвет текста активной темы */}
-                            <p className="text-sm font-bold text-[var(--text)]">
-                                {s.label}
-                                {s.isCustom ? ' ★' : ''}
+        return inCategory.some(
+            (item) => (item.subcategory || 'other') === sub.id
+        );
+    });
+
+    return (
+        <div className="flex min-h-[280px] flex-col">
+            <div className="flex-1">
+                {activeSubs.length === 0 ? (
+                    <div className="flex min-h-[220px] items-center justify-center">
+                        <div className="text-center">
+                            <p className="text-sm font-medium text-[var(--text)]">
+                                Подкатегорий пока нет
                             </p>
-                            {/* Текст количества позиций переведён на var(--text-dim) */}
-                            <p className="text-xs text-[var(--text-dim)] mt-1.5 font-medium">
-                                {count > 0 ? `${count} поз.` : 'пусто'}
+
+                            <p className="mt-1 text-sm text-[var(--text-muted)]">
+                                Создайте первую подкатегорию для этой категории
                             </p>
-                        </button>
-                    );
-                })}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {activeSubs.map((sub) => {
+                            const count = inCategory.filter(
+                                (item) =>
+                                    (item.subcategory || 'other') ===
+                                    sub.id
+                            ).length;
+
+                            return (
+                                <button
+                                    key={sub.id}
+                                    type="button"
+                                    onClick={() => onOpenSub(sub.id)}
+                                    className="group rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4 text-left transition-all hover:border-[var(--btn-primary)] active:scale-[0.98]"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <p className="text-sm font-semibold text-[var(--text)]">
+                                            {sub.isCustom && (
+                                                <span className="mr-1 text-[var(--text-accent)]">
+                                                    ★
+                                                </span>
+                                            )}
+
+                                            {sub.label}
+                                        </p>
+
+                                        <span className="shrink-0 text-xs font-medium text-[var(--text-dim)]">
+                                            {count}
+                                        </span>
+                                    </div>
+
+                                    <p className="mt-2 text-xs text-[var(--text-dim)]">
+                                        {count === 0
+                                            ? 'Пусто'
+                                            : count === 1
+                                                ? '1 позиция'
+                                                : count < 5
+                                                    ? `${count} позиции`
+                                                    : `${count} позиций`}
+                                    </p>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
-            <CarPartsDashedButton
-                label="Добавить подкатегорию"
-                onClick={onCreateSub}
-            />
+            <div className="mt-6">
+                <button
+                    type="button"
+                    onClick={onCreateSub}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border)] px-3 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--btn-primary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]"
+                >
+                    <Plus size={17} />
+                    Создать подкатегорию
+                </button>
+            </div>
         </div>
     );
 }

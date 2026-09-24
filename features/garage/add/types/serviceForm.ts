@@ -1,18 +1,21 @@
+import { PartCategory, ServicePart } from '@/types';
+import { FluidCategory } from '@/types/oil';
+
 export type PartForm = {
     id: string;
     oemNumber: string;
     brand: string;
     name: string;
     quantity: string;
-    itemType: 'fluid' | 'part';
-    fluidCategory: string;
-    partCategory: string;
+    itemType: ServicePart['itemType'];
+    fluidCategory: FluidCategory;
+    partCategory: PartCategory;
     subcategory: string;
 };
 
 export function createEmptyPart(): PartForm {
     return {
-        id: Date.now().toString() + Math.random(),
+        id: crypto.randomUUID(),
         oemNumber: '',
         brand: '',
         name: '',

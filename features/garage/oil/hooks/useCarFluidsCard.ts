@@ -10,27 +10,40 @@ type UseCarFluidsCardProps = {
 };
 
 const SYSTEM_ORDER: FluidCategory[] = FLUID_CATEGORY_OPTIONS.map((o) => o.value);
+
 const SYSTEM_LABELS = Object.fromEntries(
     FLUID_CATEGORY_OPTIONS.map((o) => [o.value, o.label])
 ) as Record<FluidCategory, string>;
 
-export function useCarFluidsCard({ fluids, onUpdateFluids }: UseCarFluidsCardProps) {
+export function useCarFluidsCard({
+                                     fluids,
+                                     onUpdateFluids,
+                                 }: UseCarFluidsCardProps) {
     const items = fluids?.items ?? [];
+
     const [category, setCategory] = useState<string | null>(null);
     const [editItem, setEditItem] = useState<CarFluidItem | null>(null);
     const [isCreating, setIsCreating] = useState(false);
 
-    const [customCategories, setCustomCategories] = useState<{ id: string; label: string }[]>([]);
-    const [showNamePrompt, setShowNamePrompt] = useState(false);
+    const [customCategories, setCustomCategories] = useState<
+        { id: string; label: string }[]
+    >([]);
 
-    // Собираем все доступные категории (системные + кастомные)
     useEffect(() => {
         const existingCustomIds = Array.from(
-            new Set(items.map((i) => i.category).filter((cat) => !SYSTEM_ORDER.includes(cat as FluidCategory)))
+            new Set(
+                items
+                    .map((item) => item.category)
+                    .filter(
+                        (cat) =>
+                            !SYSTEM_ORDER.includes(cat as FluidCategory)
+                    )
+            )
         );
 
         const customCats = existingCustomIds.map((id) => {
-            const foundItem = items.find((i) => i.category === id);
+            const foundItem = items.find((item) => item.category === id);
+
             return {
                 id,
                 label: foundItem?.categoryLabel || id,
@@ -40,67 +53,96 @@ export function useCarFluidsCard({ fluids, onUpdateFluids }: UseCarFluidsCardPro
         setCustomCategories(customCats);
     }, [items]);
 
-    // Получение человеческого названия категории
     const getCategoryLabel = (catId: string) => {
         if (SYSTEM_LABELS[catId as FluidCategory]) {
             return SYSTEM_LABELS[catId as FluidCategory];
         }
-        const custom = customCategories.find((c) => c.id === catId);
+
+        const custom = customCategories.find((item) => item.id === catId);
+
         return custom ? custom.label : catId;
     };
 
-    // Список активных категорий
     const activeCategories = [
-        ...SYSTEM_ORDER.filter((c) => items.some((i) => i.category === c)),
-        ...customCategories.map((c) => c.id)
+        ...SYSTEM_ORDER.filter((cat) =>
+            items.some((item) => item.category === cat)
+        ),
+        ...customCategories.map((cat) => cat.id),
     ];
 
-    const inCategory = category ? items.filter((i) => i.category === category) : [];
-    const displayItems = inCategory.filter(i => i.name !== 'Маркер категории');
-    const title = category ? getCategoryLabel(category) : 'Масла и техжидкости';
+    const inCategory = category
+        ? items.filter((item) => item.category === category)
+        : [];
+
+    const displayItems = inCategory.filter(
+        (item) => item.name !== 'Маркер категории'
+    );
+
+    const title = category
+        ? getCategoryLabel(category)
+        : 'Масла и техжидкости';
 
     const saveItem = (updated: CarFluidItem) => {
-        const exists = items.some((i) => i.id === updated.id);
+        const exists = items.some((item) => item.id === updated.id);
 
         if (!SYSTEM_LABELS[updated.category as FluidCategory]) {
             updated.categoryLabel = getCategoryLabel(updated.category);
         }
 
         const next = exists
-            ? items.map((i) => (i.id === updated.id ? updated : i))
+            ? items.map((item) =>
+                item.id === updated.id ? updated : item
+            )
             : [...items, updated];
 
         onUpdateFluids?.({ items: next });
     };
 
     const deleteItem = (id: string) => {
-        onUpdateFluids?.({ items: items.filter((i) => i.id !== id) });
+        onUpdateFluids?.({
+            items: items.filter((item) => item.id !== id),
+        });
     };
 
     const openCreate = (cat?: string) => {
         setEditItem({
             id: crypto.randomUUID(),
-            category: (cat || 'engineOil') as any,
+            category: cat ?? 'engineOil',
             name: '',
         });
+
         setIsCreating(true);
     };
 
-    const handleCreateCategory = (name: string) => {
-        if (!name.trim()) return;
+    /**
+     * Создаёт новую пользовательскую категорию и
+     * возвращает её ID, чтобы dropdown мог сразу
+     * выбрать её в текущей форме.
+     */
+    const handleCreateCategory = (name: string): string | null => {
+        const trimmedName = name.trim();
+
+        if (!trimmedName) {
+            return null;
+        }
+
         const newId = `custom_${crypto.randomUUID()}`;
 
         const placeholderItem: CarFluidItem = {
             id: crypto.randomUUID(),
-            category: newId, // Идеально совпадает по типам!
-            categoryLabel: name.trim(),
+            category: newId,
+            categoryLabel: trimmedName,
             name: 'Маркер категории',
-            spec: 'Служебная запись'
+            spec: 'Служебная запись',
         };
 
-        onUpdateFluids?.({ items: [...items, placeholderItem] });
+        onUpdateFluids?.({
+            items: [...items, placeholderItem],
+        });
+
         setCategory(newId);
-        setShowNamePrompt(false);
+
+        return newId;
     };
 
     return {
@@ -111,11 +153,13 @@ export function useCarFluidsCard({ fluids, onUpdateFluids }: UseCarFluidsCardPro
         setEditItem,
         isCreating,
         setIsCreating,
-        showNamePrompt,
-        setShowNamePrompt,
+
+        customCategories,
+
         activeCategories,
         displayItems,
         title,
+
         getCategoryLabel,
         saveItem,
         deleteItem,

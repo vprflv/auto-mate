@@ -9,7 +9,6 @@ export const FLUID_CATEGORY_OPTIONS: { value: FluidCategory; label: string }[] =
     { value: 'coolant', label: 'Антифриз' },
     { value: 'brakeFluid', label: 'Тормозная жидкость' },
     { value: 'powerSteeringFluid', label: 'ГУР' },
-    { value: 'otherFluid', label: 'Другая жидкость' },
 ];
 
 export const PART_CATEGORY_OPTIONS: { value: PartCategory; label: string }[] = [

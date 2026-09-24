@@ -19,29 +19,39 @@ export default function ServiceHistory({
                                            onUpdateRecord,
                                            onDeleteRecord,
                                        }: Props) {
-    const [editRecord, setEditRecord] = useState<ServiceRecord | null>(null);
+    const [editRecord, setEditRecord] =
+        useState<ServiceRecord | null>(null);
 
     const sorted = [...records].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        (a, b) =>
+            new Date(b.date).getTime() -
+            new Date(a.date).getTime()
     );
 
     return (
         <section className="mb-10">
-            <div className="flex items-center justify-between mb-5">
-                <h2 className="text-2xl font-bold text-[#F5F5F5]">История обслуживания</h2>
+            <div className="mb-5 flex items-center justify-between gap-4">
+                <h2 className="text-2xl font-bold text-[var(--text)]">
+                    История обслуживания
+                </h2>
+
                 <Link
                     href={`/garage/${carId}/service/add`}
-                    className="text-sm text-[#39FF14] hover:text-[#57FF3A] transition"
+                    className="text-sm text-[var(--text-accent)] transition hover:text-[var(--btn-primary-hover)]"
                 >
                     + Добавить запись
                 </Link>
             </div>
 
             {sorted.length === 0 ? (
-                <div className="bg-[#161616]/70 border border-[#2A2A2A] rounded-3xl p-10 text-center">
-                    <p className="text-[#A3A3A3] mb-2">Пока нет записей</p>
-                    <p className="text-sm text-[#666666]">
-                        Добавь первое ТО — масло, фильтры, колодки и т.д.
+                <div className="rounded-3xl border border-[var(--border)]/30 bg-[var(--card)] p-10 text-center transition-colors duration-200">
+                    <p className="mb-2 text-[var(--text-muted)]">
+                        Пока нет записей
+                    </p>
+
+                    <p className="text-sm text-[var(--text-dim)]">
+                        Добавь первое ТО — масло, фильтры,
+                        колодки и т.д.
                     </p>
                 </div>
             ) : (
