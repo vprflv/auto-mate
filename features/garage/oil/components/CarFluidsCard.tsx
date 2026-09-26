@@ -1,9 +1,14 @@
 'use client';
 
-import { Package, Plus } from 'lucide-react';
+import { Package, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+
 import { useCarFluidsCard } from '../hooks/useCarFluidsCard';
 import EditFluidModal from './EditFluidModal';
+
+
 import { CarFluids } from '@/types/oil';
+import ConfirmDeleteCategoryModal from "@/features/garage/components/ConfirmDeleteCategoryModal";
 
 type CarFluidsCardProps = {
     fluids?: CarFluids;
@@ -14,7 +19,10 @@ export default function CarFluidsCard({
                                           fluids,
                                           onUpdateFluids,
                                       }: CarFluidsCardProps) {
+    const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
     const {
+        items,
         category,
         setCategory,
         editItem,
@@ -28,22 +36,35 @@ export default function CarFluidsCard({
         getCategoryLabel,
         saveItem,
         deleteItem,
+        deleteCategory,
         openCreate,
         handleCreateCategory,
-    } = useCarFluidsCard({
-        fluids,
-        onUpdateFluids,
-    });
+    } = useCarFluidsCard({ fluids, onUpdateFluids });
 
     const handleCloseModal = () => {
         setEditItem(null);
         setIsCreating(false);
     };
 
+    const handleDeleteCategory = () => {
+        if (!deleteTarget) return;
+
+        deleteCategory(deleteTarget);
+        setDeleteTarget(null);
+    };
+
+    const deleteItemCount = deleteTarget
+        ? items.filter(
+            (item) =>
+                item.category === deleteTarget &&
+                item.name !== 'Маркер категории'
+        ).length
+        : 0;
+
     return (
-        <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+        <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)]">
             {/* Header */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--border)]">
+            <div className="flex items-center gap-3 border-b border-[var(--border)] px-5 py-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-accent)]">
                     <Package size={20} />
                 </div>
@@ -62,25 +83,48 @@ export default function CarFluidsCard({
             {/* Mobile categories */}
             <div className="border-b border-[var(--border)] px-4 py-3 md:hidden">
                 <div className="flex gap-2 overflow-x-auto pb-1">
-                    {activeCategories.map((cat) => {
-                        const isActive = category === cat;
-                        const isCustom = cat.startsWith('custom_');
+                    {activeCategories.map((c) => {
+                        const count = items.filter(
+                            (item) =>
+                                item.category === c &&
+                                item.name !== 'Маркер категории'
+                        ).length;
+
+                        const isCustom = c.startsWith('custom_');
 
                         return (
-                            <button
-                                key={cat}
-                                type="button"
-                                onClick={() => setCategory(cat)}
-                                className={[
-                                    'shrink-0 rounded-xl px-3 py-2 text-sm font-medium transition',
-                                    isActive
-                                        ? 'bg-[var(--btn-primary)] text-[var(--btn-primary-text)]'
-                                        : 'bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text)]',
-                                ].join(' ')}
+                            <div
+                                key={c}
+                                className="flex shrink-0 items-stretch gap-1"
                             >
-                                {isCustom && '★ '}
-                                {getCategoryLabel(cat)}
-                            </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setCategory(c)}
+                                    className="min-w-0 rounded-2xl border border-[var(--border)]/20 bg-[var(--bg-elevated)] px-4 py-4 text-left transition duration-200 hover:border-[var(--link)]/50 active:scale-[0.98]"
+                                >
+                                    <p className="text-sm font-bold text-[var(--text)]">
+                                        {getCategoryLabel(c)}
+                                        {isCustom ? ' ★' : ''}
+                                    </p>
+
+                                    <p className="mt-1.5 text-xs font-medium text-[var(--text-dim)]">
+                                        {count} поз.
+                                    </p>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        setDeleteTarget(c);
+                                    }}
+                                    className="flex w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--border)]/20 bg-[var(--bg-elevated)] text-[var(--text-dim)] transition hover:border-[var(--danger)]/30 hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] active:scale-95"
+                                    title={`Удалить категорию ${getCategoryLabel(c)}`}
+                                    aria-label={`Удалить категорию ${getCategoryLabel(c)}`}
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
                         );
                     })}
 
@@ -106,33 +150,54 @@ export default function CarFluidsCard({
                                 const isCustom = cat.startsWith('custom_');
 
                                 return (
-                                    <button
+                                    <div
                                         key={cat}
-                                        type="button"
-                                        onClick={() => setCategory(cat)}
                                         className={[
-                                            'flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition',
+                                            'flex w-full items-center gap-1 rounded-xl transition',
                                             isActive
                                                 ? 'bg-[var(--btn-primary)] text-[var(--btn-primary-text)]'
                                                 : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]',
                                         ].join(' ')}
                                     >
-                                        {isCustom && (
-                                            <span
-                                                className={
-                                                    isActive
-                                                        ? 'opacity-100'
-                                                        : 'text-[var(--text-accent)]'
-                                                }
-                                            >
-                                                ★
-                                            </span>
-                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => setCategory(cat)}
+                                            className="min-w-0 flex-1 rounded-xl px-3 py-2.5 text-left text-sm font-medium"
+                                        >
+                                            <span className="flex min-w-0 items-center gap-2">
+                                                {isCustom && (
+                                                    <span
+                                                        className={
+                                                            isActive
+                                                                ? 'opacity-100'
+                                                                : 'text-[var(--text-accent)]'
+                                                        }
+                                                    >
+                                                        ★
+                                                    </span>
+                                                )}
 
-                                        <span className="truncate">
-                                            {getCategoryLabel(cat)}
-                                        </span>
-                                    </button>
+                                                <span className="truncate">
+                                                    {getCategoryLabel(cat)}
+                                                </span>
+                                            </span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setDeleteTarget(cat)}
+                                            className={[
+                                                'mr-1 shrink-0 rounded-lg p-1.5 transition active:scale-95',
+                                                isActive
+                                                    ? 'text-[var(--btn-primary-text)]/70 hover:bg-black/10 hover:text-[var(--btn-primary-text)]'
+                                                    : 'text-[var(--text-dim)] hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]',
+                                            ].join(' ')}
+                                            title={`Удалить категорию ${getCategoryLabel(cat)}`}
+                                            aria-label={`Удалить категорию ${getCategoryLabel(cat)}`}
+                                        >
+                                            <Trash2 size={15} />
+                                        </button>
+                                    </div>
                                 );
                             })}
                         </div>
@@ -198,6 +263,7 @@ export default function CarFluidsCard({
                                     className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--btn-primary)] px-3 py-2 text-sm font-semibold text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)]"
                                 >
                                     <Plus size={17} />
+
                                     <span className="hidden sm:inline">
                                         Добавить
                                     </span>
@@ -259,9 +325,7 @@ export default function CarFluidsCard({
 
                                         <button
                                             type="button"
-                                            onClick={() =>
-                                                openCreate(category)
-                                            }
+                                            onClick={() => openCreate(category)}
                                             className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--btn-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)]"
                                         >
                                             <Plus size={17} />
@@ -275,6 +339,7 @@ export default function CarFluidsCard({
                 </div>
             </div>
 
+            {/* Edit fluid modal */}
             <EditFluidModal
                 open={!!editItem}
                 item={isCreating ? null : editItem}
@@ -283,6 +348,19 @@ export default function CarFluidsCard({
                 onDelete={deleteItem}
                 customCategories={customCategories}
                 onCreateCategory={handleCreateCategory}
+            />
+
+            {/* Delete category confirmation */}
+            <ConfirmDeleteCategoryModal
+                open={deleteTarget !== null}
+                categoryName={
+                    deleteTarget
+                        ? getCategoryLabel(deleteTarget)
+                        : ''
+                }
+                itemCount={deleteItemCount}
+                onClose={() => setDeleteTarget(null)}
+                onConfirm={handleDeleteCategory}
             />
         </section>
     );

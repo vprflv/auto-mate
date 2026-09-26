@@ -1,108 +1,286 @@
 import {
     Car,
-    ServicePart,
-    CarFluids,
-    CarParts,
-
     CarPartItem,
-
+    CarParts,
+    ServicePart,
 } from '@/types';
-import { getGarageCars, saveGarageCars } from '@/features/garage/add/lib/storage';
+
+import {
+    getGarageCars,
+    saveGarageCars,
+} from '@/features/garage/add/lib/storage';
+
 import { detectSubcategory } from '@/features/garage/lib/detectSubcategory';
-import {CarFluidItem, FluidCategory} from "@/types/oil";
+
+import {
+    CarFluidItem,
+    CarFluids,
+} from '@/types/oil';
+
+import {
+    getFluidCategoryLabel,
+} from '@/features/garage/lib/getFluidCategories';
 
 function upsertFluid(
     fluids: CarFluids,
-    category: FluidCategory,
     part: ServicePart
 ): CarFluids {
-    const items = [...(fluids.items || [])];
+    /*
+     * Для жидкости категория обязательна.
+     */
+    if (!part.fluidCategory || !part.name.trim()) {
+        return fluids;
+    }
+
+    const items = [
+        ...(fluids.items || []),
+    ];
+
+    const category = part.fluidCategory;
+    const name = part.name.trim();
 
     const newItem: CarFluidItem = {
         id: part.id,
         category,
-        name: part.name,
-        brand: part.brand,
-        spec: part.oemNumber || part.name,
-        volume: part.quantity ? `${part.quantity}` : undefined,
+        categoryLabel:
+            getFluidCategoryLabel(category),
+        name,
+        brand:
+            part.brand?.trim() || undefined,
+        spec:
+            part.oemNumber?.trim() || undefined,
+        volume:
+            part.quantity > 0
+                ? String(part.quantity)
+                : undefined,
     };
 
-    // Ищем по id или по названию + категории
-    const idx = items.findIndex(
-        (f) =>
-            f.id === part.id ||
-            (f.category === category &&
-                f.name.toLowerCase() === part.name.toLowerCase())
-    );
+    const normalizedName =
+        name.toLowerCase();
 
-    if (idx >= 0) {
-        items[idx] = { ...items[idx], ...newItem };
+    const index = items.findIndex((item) => {
+        /*
+         * Если это та же запись ТО —
+         * обновляем её.
+         */
+        if (item.id === part.id) {
+            return true;
+        }
+
+        /*
+         * Если такая жидкость уже есть
+         * в этой категории — обновляем её.
+         */
+        return (
+            item.category === category &&
+            item.name
+                .trim()
+                .toLowerCase() ===
+            normalizedName
+        );
+    });
+
+    if (index >= 0) {
+        items[index] = {
+            ...items[index],
+            ...newItem,
+            categoryLabel:
+                newItem.categoryLabel ||
+                items[index].categoryLabel,
+        };
     } else {
         items.push(newItem);
     }
 
-    return { items };
+    return {
+        items,
+    };
 }
 
-function upsertPart(parts: CarParts, part: ServicePart): CarParts {
-    const category = part.partCategory || 'other';
-    const items = [...(parts.items || [])];
+function upsertPart(
+    parts: CarParts,
+    part: ServicePart
+): CarParts {
+    const category =
+        part.partCategory || 'other';
+
+    const name =
+        part.name.trim();
+
+    if (!name) {
+        return parts;
+    }
 
     const subcategory =
-        part.subcategory || detectSubcategory(category, part.name);
+        part.subcategory?.trim() ||
+        detectSubcategory(
+            category,
+            name
+        ) ||
+        'other';
+
+    const items = [
+        ...(parts.items || []),
+    ];
 
     const newItem: CarPartItem = {
         id: part.id,
         category,
         subcategory,
-        name: part.name,
-        brand: part.brand,
-        oemNumber: part.oemNumber,
-        quantity: part.quantity,
+        name,
+        brand:
+            part.brand?.trim() || undefined,
+        oemNumber:
+            part.oemNumber?.trim() || undefined,
+        quantity:
+            part.quantity > 0
+                ? part.quantity
+                : 1,
     };
 
-    const idx = items.findIndex((p) => {
-        if (part.oemNumber && p.oemNumber) {
-            return p.oemNumber.toLowerCase() === part.oemNumber.toLowerCase();
+    const normalizedName =
+        name.toLowerCase();
+
+    const normalizedOem =
+        newItem.oemNumber?.toLowerCase();
+
+    const index = items.findIndex(
+        (item) => {
+            if (
+                item.id === newItem.id
+            ) {
+                return true;
+            }
+
+            if (
+                normalizedOem &&
+                item.oemNumber
+            ) {
+                return (
+                    item.oemNumber
+                        .trim()
+                        .toLowerCase() ===
+                    normalizedOem
+                );
+            }
+
+            return (
+                item.category ===
+                category &&
+                item.name
+                    .trim()
+                    .toLowerCase() ===
+                normalizedName
+            );
         }
-        return (
-            p.name.toLowerCase() === part.name.toLowerCase() &&
-            p.category === category
-        );
-    });
+    );
 
-    if (idx >= 0) items[idx] = { ...items[idx], ...newItem };
-    else items.push(newItem);
+    if (index >= 0) {
+        items[index] = {
+            ...items[index],
+            ...newItem,
+        };
+    } else {
+        items.push(newItem);
+    }
 
-    return { items };
+    return {
+        items,
+    };
 }
 
-export function syncServicePartsToCar(carId: string, parts: ServicePart[]) {
-    const cars = getGarageCars();
-    const index = cars.findIndex((c) => c.id === carId);
-    if (index < 0) return;
+export function syncServicePartsToCar(
+    carId: string,
+    parts: ServicePart[]
+): Car | null {
+    const cars =
+        getGarageCars();
 
-    let car: Car = { ...cars[index] };
-    let fluids: CarFluids = { items: [...(car.fluids?.items || [])] };
-    let partsCatalog: CarParts = { items: [...(car.partsCatalog?.items || [])] };
+    const carIndex =
+        cars.findIndex(
+            (car) =>
+                car.id === carId
+        );
+
+    if (carIndex < 0) {
+        return null;
+    }
+
+    const currentCar =
+        cars[carIndex];
+
+    let fluids: CarFluids = {
+        items: [
+            ...(currentCar.fluids?.items ||
+                []),
+        ],
+    };
+
+    let partsCatalog: CarParts = {
+        items: [
+            ...(currentCar.partsCatalog
+                ?.items || []),
+        ],
+    };
 
     for (const part of parts) {
-        if (part.itemType === 'fluid' && part.fluidCategory) {
-            fluids = upsertFluid(fluids, part.fluidCategory, part);
+        /*
+         * ВАЖНО:
+         * жидкость обрабатываем только здесь.
+         */
+        if (
+            part.itemType === 'fluid'
+        ) {
+            fluids =
+                upsertFluid(
+                    fluids,
+                    part
+                );
+
+            continue;
         }
 
-        if (part.itemType === 'part') {
-            partsCatalog = upsertPart(partsCatalog, part);
+        /*
+         * Запчасть обрабатываем только
+         * как part.
+         */
+        if (
+            part.itemType === 'part'
+        ) {
+            partsCatalog =
+                upsertPart(
+                    partsCatalog,
+                    part
+                );
         }
     }
 
-    car = {
-        ...car,
+    const updatedCar: Car = {
+        ...currentCar,
+
         fluids,
+
         partsCatalog,
-        updatedAt: new Date().toISOString(),
+
+        updatedAt:
+            new Date().toISOString(),
     };
 
-    cars[index] = car;
+    cars[carIndex] =
+        updatedCar;
+
     saveGarageCars(cars);
+
+    if (
+        typeof window !==
+        'undefined'
+    ) {
+        window.dispatchEvent(
+            new Event(
+                'automate:garage-updated'
+            )
+        );
+    }
+
+    return updatedCar;
 }

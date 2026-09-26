@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { CarPartItem, CarParts, PartCategory } from '@/types';
 import { getSubcategoriesFor } from '@/features/garage/lib/getSubcategories';
-import { addUserSubcategory } from '@/features/garage/lib/userSubcategories';
-import { addUserCategory } from '@/features/garage/lib/userCategories';
+import {addUserSubcategory, getUserSubcategories, saveUserSubcategories} from '@/features/garage/lib/userSubcategories';
+import {addUserCategory, getUserCategories, saveUserCategories} from '@/features/garage/lib/userCategories';
 import { getCategoriesFor } from '@/features/garage/lib/getCategories';
 
 type Params = {
@@ -117,6 +117,38 @@ export function useCarPartsCard({
         setSub(created.key);
     };
 
+    const deleteCategory = (categoryId: string) => {
+        const nextItems = items.filter(
+            (item) => item.category !== categoryId
+        );
+
+        onUpdateParts?.({
+            items: nextItems,
+        });
+
+        const userCategories = getUserCategories();
+
+        saveUserCategories(
+            userCategories.filter(
+                (item) => item.key !== categoryId
+            )
+        );
+
+        const userSubcategories = getUserSubcategories();
+
+        saveUserSubcategories(
+            userSubcategories.filter(
+                (item) => item.category !== categoryId
+            )
+        );
+
+        if (category === categoryId) {
+            setCategory(null);
+            setSub(null);
+            setEditItem(null);
+        }
+    };
+
     const addItemToSection = () => {
         if (!category) {
             return;
@@ -152,6 +184,7 @@ export function useCarPartsCard({
 
         saveItem,
         deleteItem,
+        deleteCategory,
 
         createCategory,
         createSubcategory,

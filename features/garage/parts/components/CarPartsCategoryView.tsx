@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 
 type CategoryOption = {
     id: string;
@@ -13,6 +13,7 @@ type Props = {
     activeCategory: string | null;
     onOpenCategory: (id: string) => void;
     onCreateCategory: () => void;
+    onDeleteCategory: (id: string) => void;
 };
 
 export default function CarPartsCategoryView({
@@ -20,6 +21,7 @@ export default function CarPartsCategoryView({
                                                  activeCategory,
                                                  onOpenCategory,
                                                  onCreateCategory,
+                                                 onDeleteCategory,
                                              }: Props) {
     return (
         <aside className="flex h-full w-full flex-col">
@@ -35,35 +37,56 @@ export default function CarPartsCategoryView({
                                 activeCategory === category.id;
 
                             return (
-                                <button
+                                <div
                                     key={category.id}
-                                    type="button"
-                                    onClick={() =>
-                                        onOpenCategory(category.id)
-                                    }
                                     className={[
-                                        'flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all',
+                                        'flex w-full items-center gap-1 rounded-xl transition-all',
                                         isActive
                                             ? 'bg-[var(--btn-primary)] text-[var(--btn-primary-text)]'
                                             : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]',
                                     ].join(' ')}
                                 >
-                                    {category.isCustom && (
-                                        <span
-                                            className={
-                                                isActive
-                                                    ? 'opacity-100'
-                                                    : 'text-[var(--text-accent)]'
-                                            }
-                                        >
-                                            ★
-                                        </span>
-                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            onOpenCategory(category.id)
+                                        }
+                                        className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium"
+                                    >
+                                        {category.isCustom && (
+                                            <span
+                                                className={
+                                                    isActive
+                                                        ? 'opacity-100'
+                                                        : 'text-[var(--text-accent)]'
+                                                }
+                                            >
+                                                ★
+                                            </span>
+                                        )}
 
-                                    <span className="truncate">
-                                        {category.label}
-                                    </span>
-                                </button>
+                                        <span className="truncate">
+                                            {category.label}
+                                        </span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            onDeleteCategory(category.id)
+                                        }
+                                        className={[
+                                            'mr-1 rounded-lg p-1.5 transition active:scale-95',
+                                            isActive
+                                                ? 'text-[var(--btn-primary-text)]/70 hover:bg-black/10 hover:text-[var(--btn-primary-text)]'
+                                                : 'text-[var(--text-dim)] hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]',
+                                        ].join(' ')}
+                                        title="Удалить категорию"
+                                        aria-label={`Удалить категорию ${category.label}`}
+                                    >
+                                        <Trash2 size={15} />
+                                    </button>
+                                </div>
                             );
                         })}
                     </div>

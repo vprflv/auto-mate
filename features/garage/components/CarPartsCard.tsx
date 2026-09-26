@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { CarParts } from '@/types';
+import {CarParts, PartCategory} from '@/types';
 import EditPartModal from '@/features/garage/parts/components/EditPartModal';
 import NamePromptModal from '@/features/garage/parts/components/NamePromptModal';
 import { useCarPartsCard } from '@/features/garage/parts/hooks/useCarPartsCard';
 import CarPartsCategoryView from '@/features/garage/parts/components/CarPartsCategoryView';
 import CarPartsSubcategoryView from '@/features/garage/parts/components/CarPartsSubcategoryView';
 import CarPartsItemsView from '@/features/garage/parts/components/CarPartsItemsView';
+import {getSubcategoriesFor} from "@/features/garage/lib/getSubcategories";
+import ConfirmDeleteCategoryModal from "@/features/garage/components/ConfirmDeleteCategoryModal";
 
 type Props = {
     carId: string;
@@ -24,6 +26,9 @@ export default function CarPartsCard({
         'category' | 'subcategory' | null
     >(null);
 
+    const [deleteCategoryId, setDeleteCategoryId] =
+        useState<string | null>(null);
+
     const {
         category,
         sub,
@@ -38,6 +43,7 @@ export default function CarPartsCard({
         back,
         saveItem,
         deleteItem,
+        deleteCategory,
         createCategory,
         createSubcategory,
         addItemToSection,
@@ -53,6 +59,23 @@ export default function CarPartsCard({
     const selectedSubcategory = subs.find(
         (item) => item.id === sub
     );
+
+    const categoryToDelete = categories.find(
+        (item) => item.id === deleteCategoryId
+    );
+
+    const deleteCategoryItemsCount = deleteCategoryId
+        ? (parts?.items ?? []).filter(
+            (item) =>
+                item.category === deleteCategoryId
+        ).length
+        : 0;
+
+    const deleteCategorySubcategoryCount = deleteCategoryId
+        ? getSubcategoriesFor(
+            deleteCategoryId as PartCategory
+        ).filter((item) => item.isCustom).length
+        : 0;
 
     return (
         <section className="overflow-hidden rounded-3xl border border-[var(--border)]/20 bg-[var(--card)] transition-colors duration-200">
@@ -119,6 +142,7 @@ export default function CarPartsCard({
                         onCreateCategory={() =>
                             setNamePrompt('category')
                         }
+                        onDeleteCategory={setDeleteCategoryId}
                     />
                 </div>
 
@@ -207,6 +231,22 @@ export default function CarPartsCard({
                     }
 
                     setNamePrompt(null);
+                }}
+            />
+
+            <ConfirmDeleteCategoryModal
+                open={!!deleteCategoryId}
+                categoryName={categoryToDelete?.label ?? ''}
+                itemCount={deleteCategoryItemsCount}
+                subcategoryCount={deleteCategorySubcategoryCount}
+                onClose={() =>
+                    setDeleteCategoryId(null)
+                }
+                onConfirm={() => {
+                    if (!deleteCategoryId) return;
+
+                    deleteCategory(deleteCategoryId);
+                    setDeleteCategoryId(null);
                 }}
             />
         </section>

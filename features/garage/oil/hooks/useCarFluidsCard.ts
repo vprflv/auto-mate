@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { CarFluidItem, CarFluids, FluidCategory } from '@/types/oil';
 import { FLUID_CATEGORY_OPTIONS } from '@/features/garage/lib/config/serviceItemCategories';
+import {getUserFluidCategories, saveUserFluidCategories} from "@/features/garage/lib/userFluidCategories";
 
 type UseCarFluidsCardProps = {
     fluids?: CarFluids;
@@ -104,6 +105,29 @@ export function useCarFluidsCard({
         });
     };
 
+    const deleteCategory = (categoryId: string) => {
+        onUpdateFluids?.({
+            items: items.filter(
+                (item) => item.category !== categoryId
+            ),
+        });
+
+        const userCategories =
+            getUserFluidCategories();
+
+        saveUserFluidCategories(
+            userCategories.filter(
+                (item) => item.key !== categoryId
+            )
+        );
+
+        if (category === categoryId) {
+            setCategory(null);
+            setEditItem(null);
+            setIsCreating(false);
+        }
+    };
+
     const openCreate = (cat?: string) => {
         setEditItem({
             id: crypto.randomUUID(),
@@ -158,6 +182,7 @@ export function useCarFluidsCard({
 
         activeCategories,
         displayItems,
+        deleteCategory,
         title,
 
         getCategoryLabel,
