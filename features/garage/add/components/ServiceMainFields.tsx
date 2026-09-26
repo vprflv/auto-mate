@@ -1,3 +1,4 @@
+
 type Props = {
     title: string;
     date: string;
@@ -12,27 +13,57 @@ type Props = {
 };
 
 const inputClass =
-    'w-full bg-[#161616] border border-[#2A2A2A] rounded-2xl px-5 py-4 text-[#F5F5F5] placeholder:text-[#666666] focus:outline-none focus:border-[#39FF14] transition';
+    'w-full rounded-2xl border border-[var(--border)]/40 bg-[var(--bg-elevated)] px-5 py-3.5 text-[var(--text)] placeholder:text-[var(--text-dim)] transition-all duration-200 hover:border-[var(--border)]/60 focus:border-[var(--link)] focus:outline-none focus:ring-2 focus:ring-[var(--link)]/10';
+
+const labelClass =
+    'mb-2 block text-sm font-medium text-[var(--text-muted)]';
 
 export default function ServiceMainFields({
-                                              title,
-                                              date,
-                                              mileage,
-                                              description,
-                                              cost,
-                                              onTitleChange,
-                                              onDateChange,
-                                              onMileageChange,
-                                              onDescriptionChange,
-                                              onCostChange,
-                                          }: Props) {
+    title,
+    date,
+    mileage,
+    description,
+    cost,
+    onTitleChange,
+    onDateChange,
+    onMileageChange,
+    onDescriptionChange,
+    onCostChange,
+}: Props) {
+    const handleMileageChange = (
+        value: string
+    ) => {
+        const normalized = value.replace(
+            /[^0-9]/g,
+            ''
+        );
+
+        onMileageChange(normalized);
+    };
+
+    const handleCostChange = (
+        value: string
+    ) => {
+        const normalized = value
+            .replace(',', '.')
+            .replace(/[^0-9.]/g, '')
+            .replace(/(\..*)\./g, '$1');
+
+        onCostChange(normalized);
+    };
+
     return (
-        <div className="bg-[#161616] border border-[#2A2A2A] rounded-3xl p-6 space-y-5">
+        <div className="space-y-5 rounded-3xl border border-[var(--border)]/30 bg-[var(--card)] p-5 transition-colors duration-200 sm:p-6">
             <div>
-                <label className="block text-sm text-[#39FF14] mb-2">Название работы</label>
+                <label className={labelClass}>
+                    Название работы
+                </label>
+
                 <input
                     value={title}
-                    onChange={(e) => onTitleChange(e.target.value)}
+                    onChange={(e) =>
+                        onTitleChange(e.target.value)
+                    }
                     required
                     placeholder="Замена масла, колодки, диагностика..."
                     className={inputClass}
@@ -41,21 +72,44 @@ export default function ServiceMainFields({
 
             <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                    <label className="block text-sm text-[#39FF14] mb-2">Дата</label>
+                    <label className={labelClass}>
+                        Дата
+                    </label>
+
                     <input
                         type="date"
                         value={date}
-                        onChange={(e) => onDateChange(e.target.value)}
+                        onChange={(e) =>
+                            onDateChange(e.target.value)
+                        }
                         required
                         className={inputClass}
                     />
                 </div>
+
                 <div>
-                    <label className="block text-sm text-[#39FF14] mb-2">Пробег (км)</label>
+                    <label className={labelClass}>
+                        Пробег (км)
+                    </label>
+
                     <input
                         type="number"
+                        min="0"
+                        step="1"
+                        inputMode="numeric"
                         value={mileage}
-                        onChange={(e) => onMileageChange(e.target.value)}
+                        onChange={(e) =>
+                            handleMileageChange(e.target.value)
+                        }
+                        onKeyDown={(e) => {
+                            if (
+                                e.key === '-' ||
+                                e.key === '+' ||
+                                e.key.toLowerCase() === 'e'
+                            ) {
+                                e.preventDefault();
+                            }
+                        }}
                         placeholder="125000"
                         className={inputClass}
                     />
@@ -63,10 +117,17 @@ export default function ServiceMainFields({
             </div>
 
             <div>
-                <label className="block text-sm text-[#39FF14] mb-2">Комментарий</label>
+                <label className={labelClass}>
+                    Комментарий
+                </label>
+
                 <textarea
                     value={description}
-                    onChange={(e) => onDescriptionChange(e.target.value)}
+                    onChange={(e) =>
+                        onDescriptionChange(
+                            e.target.value
+                        )
+                    }
                     rows={3}
                     placeholder="Что ещё важно помнить..."
                     className={`${inputClass} resize-none`}
@@ -74,15 +135,34 @@ export default function ServiceMainFields({
             </div>
 
             <div>
-                <label className="block text-sm text-[#39FF14] mb-2">Стоимость (₽)</label>
+                <label className={labelClass}>
+                    Стоимость (₽)
+                </label>
+
                 <input
                     type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
                     value={cost}
-                    onChange={(e) => onCostChange(e.target.value)}
+                    onChange={(e) =>
+                        handleCostChange(e.target.value)
+                    }
+                    onKeyDown={(e) => {
+                        if (
+                            e.key === '-' ||
+                            e.key === '+' ||
+                            e.key.toLowerCase() === 'e'
+                        ) {
+                            e.preventDefault();
+                        }
+                    }}
                     placeholder="4500"
                     className={inputClass}
                 />
+
             </div>
         </div>
     );
 }
+

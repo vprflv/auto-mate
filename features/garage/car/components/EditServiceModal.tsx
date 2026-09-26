@@ -10,6 +10,7 @@ import {
     createEmptyPart,
 } from '@/features/garage/add/types/serviceForm';
 import ServicePhotosSection from '@/features/garage/add/components/ServicePhotosSection';
+import {toast} from "sonner";
 
 type Props = {
     record: ServiceRecord | null;
@@ -147,7 +148,7 @@ export default function EditServiceModal({
 
     const handleSave = () => {
         if (!title.trim()) {
-            alert('Укажи название работы');
+            toast.error('Укажите название работы');
             return;
         }
 
@@ -156,7 +157,7 @@ export default function EditServiceModal({
             title: title.trim(),
             date,
             mileage: mileage
-                ? parseInt(mileage)
+                ? parseInt(mileage, 10)
                 : undefined,
             photos: photos.length ? photos : undefined,
             description:

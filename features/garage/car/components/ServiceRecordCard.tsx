@@ -1,7 +1,9 @@
+
 'use client';
 
 import { ServiceRecord } from '@/types';
 import { Pencil, Trash2 } from 'lucide-react';
+import ServicePhotoViewer from './ServicePhotoViewer';
 
 type Props = {
     record: ServiceRecord;
@@ -10,10 +12,10 @@ type Props = {
 };
 
 export default function ServiceRecordCard({
-                                              record,
-                                              onEdit,
-                                              onDelete,
-                                          }: Props) {
+    record,
+    onEdit,
+    onDelete,
+}: Props) {
     return (
         <div className="rounded-2xl border border-[var(--border)]/30 bg-[var(--card)] p-5 transition-colors duration-200">
             <div className="flex items-start justify-between gap-4">
@@ -23,9 +25,13 @@ export default function ServiceRecordCard({
                     </h3>
 
                     <p className="mt-1 text-sm text-[var(--text-muted)]">
-                        {new Date(record.date).toLocaleDateString('ru-RU')}
+                        {new Date(
+                            record.date
+                        ).toLocaleDateString('ru-RU')}
                         {record.mileage
-                            ? ` • ${record.mileage.toLocaleString('ru-RU')} км`
+                            ? ` • ${record.mileage.toLocaleString(
+    'ru-RU'
+)} км`
                             : ''}
                     </p>
                 </div>
@@ -33,7 +39,10 @@ export default function ServiceRecordCard({
                 <div className="flex shrink-0 items-center gap-1">
                     {record.cost !== undefined && (
                         <span className="mr-2 whitespace-nowrap text-sm font-medium text-[var(--text)]">
-                            {record.cost.toLocaleString('ru-RU')} ₽
+                            {record.cost.toLocaleString(
+                                'ru-RU'
+                            )}{' '}
+                            ₽
                         </span>
                     )}
 
@@ -49,7 +58,9 @@ export default function ServiceRecordCard({
                     {onDelete && (
                         <button
                             type="button"
-                            onClick={() => onDelete(record.id)}
+                            onClick={() =>
+                                onDelete(record.id)
+                            }
                             className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-elevated)] hover:text-[var(--danger)] active:scale-95"
                             title="Удалить"
                         >
@@ -75,7 +86,9 @@ export default function ServiceRecordCard({
                                 className="text-sm text-[var(--text-dim)]"
                             >
                                 {part.quantity}× {part.name}
-                                {part.brand ? ` (${part.brand})` : ''}
+                                {part.brand
+                                    ? ` (${part.brand})`
+                                    : ''}
                                 {part.oemNumber
                                     ? ` • ${part.oemNumber}`
                                     : ''}
@@ -83,6 +96,15 @@ export default function ServiceRecordCard({
                         ))}
                     </div>
                 )}
+
+            {record.photos &&
+                Array.isArray(record.photos) &&
+                record.photos.length > 0 && (
+                    <ServicePhotoViewer
+                        photos={record.photos}
+                    />
+                )}
         </div>
     );
 }
+

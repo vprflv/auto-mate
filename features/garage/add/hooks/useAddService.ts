@@ -1,13 +1,17 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+
 import { Car, ServiceRecord, ServicePart } from '@/types';
-import {createEmptyPart, PartForm} from "@/features/garage/add/types/serviceForm";
-import {STORAGE_KEYS} from "@/features/garage/add/lib/config/storage";
-import {syncServicePartsToCar} from "@/features/garage/lib/syncServiceToCar";
-
-
+import {
+    createEmptyPart,
+    PartForm,
+} from '@/features/garage/add/types/serviceForm';
+import { STORAGE_KEYS } from '@/features/garage/add/lib/config/storage';
+import { syncServicePartsToCar } from '@/features/garage/lib/syncServiceToCar';
 
 export function useAddService(carId: string) {
     const router = useRouter();
@@ -17,12 +21,13 @@ export function useAddService(carId: string) {
     const [saving, setSaving] = useState(false);
 
     const [title, setTitle] = useState('');
-    const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+    const [date, setDate] = useState(
+        new Date().toISOString().slice(0, 10)
+    );
     const [mileage, setMileage] = useState('');
     const [description, setDescription] = useState('');
     const [cost, setCost] = useState('');
     const [parts, setParts] = useState<PartForm[]>([]);
-
     const [photos, setPhotos] = useState<string[]>([]);
 
     useEffect(() => {
@@ -30,7 +35,9 @@ export function useAddService(carId: string) {
 
         if (data) {
             const cars: Car[] = JSON.parse(data);
-            const found = cars.find((c) => c.id === carId) || null;
+            const found =
+                cars.find((c) => c.id === carId) || null;
+
             setCar(found);
 
             if (found?.currentMileage) {
@@ -45,28 +52,41 @@ export function useAddService(carId: string) {
         setParts((prev) => [...prev, createEmptyPart()]);
     };
 
-    const updatePart = (id: string, field: keyof PartForm, value: string) => {
+    const updatePart = (
+        id: string,
+        field: keyof PartForm,
+        value: string
+    ) => {
         setParts((prev) =>
-            prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
+            prev.map((p) =>
+                p.id === id
+                    ? { ...p, [field]: value }
+                    : p
+            )
         );
     };
 
     const removePart = (id: string) => {
-        setParts((prev) => prev.filter((p) => p.id !== id));
+        setParts((prev) =>
+            prev.filter((p) => p.id !== id)
+        );
     };
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
+
         if (!car) return;
 
         if (!title.trim()) {
-            alert('Укажи название работы');
+            toast.error('Укажите название работы');
             return;
         }
 
         for (const part of parts) {
             if (!part.name.trim()) {
-                alert('У каждого расходника должно быть название');
+                toast.error(
+                    'У каждого расходника должно быть название'
+                );
                 return;
             }
         }
@@ -78,63 +98,89 @@ export function useAddService(carId: string) {
             oemNumber: p.oemNumber.trim() || undefined,
             brand: p.brand.trim() || undefined,
             name: p.name.trim(),
-            quantity: parseInt(p.quantity) || 1,
+            quantity: parseInt(p.quantity, 10) || 1,
             itemType: p.itemType,
             fluidCategory:
                 p.itemType === 'fluid'
-                    ? (p.fluidCategory as ServicePart['fluidCategory'])
+                    ? p.fluidCategory
                     : undefined,
             partCategory:
                 p.itemType === 'part'
-                    ? (p.partCategory as ServicePart['partCategory'])
+                    ? p.partCategory
                     : undefined,
-            subcategory: p.itemType === 'part' ? p.subcategory : undefined,
+            subcategory:
+                p.itemType === 'part'
+                    ? p.subcategory
+                    : undefined,
         }));
 
         const newRecord: ServiceRecord = {
-            id: Date.now().toString(),
+            id: crypto.randomUUID(),
             carId,
             date,
-            mileage: mileage ? parseInt(mileage) : undefined,
+            mileage: mileage
+                ? parseInt(mileage, 10)
+                : undefined,
             title: title.trim(),
-            description: description.trim() || undefined,
+            description:
+                description.trim() || undefined,
             parts: serviceParts,
-            cost: cost ? parseFloat(cost) : undefined,
-            photos: photos.length > 0 ? photos : undefined,
+            cost: cost
+                ? parseFloat(cost)
+                : undefined,
+            photos:
+                photos.length > 0
+                    ? photos
+                    : undefined,
             createdAt: new Date().toISOString(),
         };
 
-        const serviceData = localStorage.getItem('automate-service');
-        const records: ServiceRecord[] = serviceData ? JSON.parse(serviceData) : [];
+        const serviceData =
+            localStorage.getItem('automate-service');
+
+        const records: ServiceRecord[] = serviceData
+            ? JSON.parse(serviceData)
+            : [];
+
         records.push(newRecord);
-        localStorage.setItem('automate-service', JSON.stringify(records));
 
-        // синхронизация в каталог масел/запчастей
-        try {
-            syncServicePartsToCar(carId, serviceParts);
-        } catch {
-            // если функции ещё нет — не ломаем сохранение ТО
-        }
+        localStorage.setItem(
+            'automate-service',
+            JSON.stringify(records)
+        );
 
-        // обновляем пробег
+        syncServicePartsToCar(carId, serviceParts);
+
         if (mileage) {
-            const garageData = localStorage.getItem('automate-garage');
+            const garageData =
+                localStorage.getItem('automate-garage');
+
             if (garageData) {
                 const cars: Car[] = JSON.parse(garageData);
+
                 const updatedCars = cars.map((c) =>
                     c.id === carId
                         ? {
-                            ...c,
-                            currentMileage: parseInt(mileage),
-                            updatedAt: new Date().toISOString(),
-                        }
+                              ...c,
+                              currentMileage:
+                                  parseInt(mileage, 10),
+                              updatedAt:
+                                  new Date().toISOString(),
+                          }
                         : c
                 );
-                localStorage.setItem('automate-garage', JSON.stringify(updatedCars));
+
+                localStorage.setItem(
+                    'automate-garage',
+                    JSON.stringify(updatedCars)
+                );
             }
         }
 
         setSaving(false);
+
+        toast.success('Запись ТО добавлена');
+
         router.push(`/garage/${carId}`);
     };
 
@@ -161,3 +207,4 @@ export function useAddService(carId: string) {
         setPhotos,
     };
 }
+
