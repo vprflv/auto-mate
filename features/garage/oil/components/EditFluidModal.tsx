@@ -1,11 +1,14 @@
 'use client';
 
-import { X, Trash2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useEditFluidModal } from '../hooks/useEditFluidModal';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { CarFluidItem } from '@/types/oil';
-import { FLUID_CATEGORY_OPTIONS } from '@/features/garage/lib/config/serviceItemCategories';
-import FluidCategorySelect from "@/features/garage/oil/components/FluidCategorySelect";
-
+import FluidCategorySelect from '@/features/garage/oil/components/FluidCategorySelect';
+import EditFluidField from './EditFluidField';
+import EditFluidPhoto from './EditFluidPhoto';
+import EditFluidModalActions from './EditFluidModalActions';
+import EditFluidPhotoGallery from "@/features/garage/oil/components/EditFluidPhotoGallery";
 
 type EditFluidModalProps = {
     open: boolean;
@@ -42,169 +45,155 @@ export default function EditFluidModal({
         setVolume,
         category,
         setCategory,
+        photo,
+        handlePhotoChange,
+        removePhoto,
+        isProcessingPhoto,
         isDropdownOpen,
         setIsDropdownOpen,
         dropdownRef,
         handleSubmit,
+        photos,
+        activePhotoIndex,
+        selectPhoto,
     } = useEditFluidModal({
         open,
         item,
         onClose,
         onSave,
+
     });
+
+    useBodyScrollLock(open);
 
     if (!open) {
         return null;
     }
 
-    const currentOption = FLUID_CATEGORY_OPTIONS.find(
-        (option) => option.value === category
-    );
-
-    const displayLabel =
-        currentOption?.label ||
-        customCategories.find((option) => option.id === category)?.label ||
-        'Кастомная категория';
-
     const handleDelete = () => {
-        if (item?.id && onDelete) {
-            onDelete(item.id);
-            onClose();
+        if (!item?.id || !onDelete) {
+            return;
         }
+
+        onDelete(item.id);
+        onClose();
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="w-full max-w-lg rounded-2xl bg-[var(--card)] shadow-2xl">
-                <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
-                    <h2 className="text-lg font-semibold text-[var(--text)]">
-                        {item ? 'Редактирование жидкости' : 'Новая жидкость'}
-                    </h2>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
+            {/* Overlay */}
+            <div
+                className="absolute inset-0 z-0 bg-black/50 backdrop-blur-[2px]"
+                onClick={onClose}
+            />
+
+            {/* Modal */}
+            <div
+                className="relative z-10 flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-[var(--border)]/30 bg-[var(--card)] shadow-[0_20px_60px_rgba(0,0,0,0.25)]"
+                onClick={(event) => event.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)]/20 px-5 py-4">
+                    <h3 className="text-lg font-semibold text-[var(--text)]">
+                        {item
+                            ? 'Редактирование жидкости'
+                            : 'Новая жидкость'}
+                    </h3>
 
                     <button
                         type="button"
-                        onClick={onClose}
-                        className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onClose();
+                        }}
+                        className="relative z-20 rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-elevated)] hover:text-[var(--text)] active:scale-95"
                         aria-label="Закрыть"
                     >
                         <X size={20} />
                     </button>
                 </div>
 
-                <form
-                    onSubmit={handleSubmit}
-                    className="flex flex-col gap-4 p-5"
-                >
-                    <div className="flex flex-col gap-1.5">
-                        <label
-                            htmlFor="fluid-name"
-                            className="text-sm font-medium text-[var(--text-accent)]"
-                        >
-                            Название
-                        </label>
-
-                        <input
-                            id="fluid-name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="Например: Моторное масло"
-                            className="rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2.5 text-[var(--text)] outline-none transition placeholder:text-[var(--text-dim)] focus:border-[var(--btn-primary)]"
-                        />
-                    </div>
-
-                    <FluidCategorySelect
-                        category={category}
-                        setCategory={setCategory}
-                        isDropdownOpen={isDropdownOpen}
-                        setIsDropdownOpen={setIsDropdownOpen}
-                        dropdownRef={dropdownRef}
-                        customCategories={customCategories}
-                        onCreateCategory={onCreateCategory}
-                    />
-
-                    <div className="flex flex-col gap-1.5">
-                        <label
-                            htmlFor="fluid-brand"
-                            className="text-sm font-medium text-[var(--text-accent)]"
-                        >
-                            Бренд
-                        </label>
-
-                        <input
-                            id="fluid-brand"
-                            value={brand}
-                            onChange={(e) => setBrand(e.target.value)}
-                            placeholder="Например: Motul"
-                            className="rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2.5 text-[var(--text)] outline-none transition placeholder:text-[var(--text-dim)] focus:border-[var(--btn-primary)]"
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <label
-                            htmlFor="fluid-spec"
-                            className="text-sm font-medium text-[var(--text-accent)]"
-                        >
-                            Спецификация
-                        </label>
-
-                        <input
-                            id="fluid-spec"
-                            value={spec}
-                            onChange={(e) => setSpec(e.target.value)}
-                            placeholder="Например: 5W-30, API SP"
-                            className="rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2.5 text-[var(--text)] outline-none transition placeholder:text-[var(--text-dim)] focus:border-[var(--btn-primary)]"
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <label
-                            htmlFor="fluid-volume"
-                            className="text-sm font-medium text-[var(--text-accent)]"
-                        >
-                            Объём
-                        </label>
-
-                        <input
-                            id="fluid-volume"
-                            value={volume}
-                            onChange={(e) => setVolume(e.target.value)}
-                            placeholder="Например: 4.5 л"
-                            className="rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2.5 text-[var(--text)] outline-none transition placeholder:text-[var(--text-dim)] focus:border-[var(--btn-primary)]"
-                        />
-                    </div>
-
-                    <div className="mt-2 flex items-center justify-between gap-3">
-                        {item && onDelete ? (
-                            <button
-                                type="button"
-                                onClick={handleDelete}
-                                className="inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--danger)] transition hover:bg-[var(--danger)]/10"
-                            >
-                                <Trash2 size={17} />
-                                Удалить
-                            </button>
-                        ) : (
-                            <div />
+                {/* Scrollable content */}
+                <div className="min-h-0 flex-1 overflow-y-auto p-5">
+                    <form
+                        id="edit-fluid-form"
+                        onSubmit={handleSubmit}
+                        className="space-y-4"
+                    >
+                        {item && (
+                            <EditFluidPhotoGallery
+                                name={name}
+                                photos={photos}
+                                activePhotoIndex={activePhotoIndex}
+                                isProcessingPhoto={isProcessingPhoto}
+                                onSelectPhoto={selectPhoto}
+                                onPhotoChange={handlePhotoChange}
+                                onRemovePhoto={removePhoto}
+                            />
                         )}
 
-                        <div className="flex gap-2">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="rounded-xl border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]"
-                            >
-                                Отмена
-                            </button>
+                        <EditFluidField
+                            id="fluid-name"
+                            label="Название"
+                            value={name}
+                            onChange={(event) =>
+                                setName(event.target.value)
+                            }
+                            placeholder="Например: Моторное масло"
+                        />
 
-                            <button
-                                type="submit"
-                                className="rounded-xl bg-[var(--btn-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] [html[data-theme=dark]_&]:shadow-[0_0_12px_rgba(57,255,20,0.2)]"
-                            >
-                                Сохранить
-                            </button>
-                        </div>
-                    </div>
-                </form>
+                        <FluidCategorySelect
+                            category={category}
+                            setCategory={setCategory}
+                            isDropdownOpen={isDropdownOpen}
+                            setIsDropdownOpen={setIsDropdownOpen}
+                            dropdownRef={dropdownRef}
+                            customCategories={customCategories}
+                            onCreateCategory={onCreateCategory}
+                        />
+
+                        <EditFluidField
+                            id="fluid-brand"
+                            label="Бренд"
+                            value={brand}
+                            onChange={(event) =>
+                                setBrand(event.target.value)
+                            }
+                            placeholder="Например: Motul"
+                        />
+
+                        <EditFluidField
+                            id="fluid-spec"
+                            label="Спецификация"
+                            value={spec}
+                            onChange={(event) =>
+                                setSpec(event.target.value)
+                            }
+                            placeholder="Например: 5W-30, API SP"
+                        />
+
+                        <EditFluidField
+                            id="fluid-volume"
+                            label="Объём"
+                            value={volume}
+                            onChange={(event) =>
+                                setVolume(event.target.value)
+                            }
+                            placeholder="Например: 4.5 л"
+                        />
+                    </form>
+                </div>
+
+                {/* Footer */}
+                <div className="flex shrink-0 gap-3 border-t border-[var(--border)]/20 bg-[var(--card)] px-5 py-4">
+                    <EditFluidModalActions
+                        isEditing={Boolean(item)}
+                        canDelete={Boolean(onDelete)}
+                        isProcessingPhoto={isProcessingPhoto}
+                        onDelete={handleDelete}
+                        onClose={onClose}
+                    />
+                </div>
             </div>
         </div>
     );

@@ -31,11 +31,10 @@ const triggerClass =
     'w-full rounded-xl border border-[var(--border)]/40 bg-[var(--bg)] px-3 py-2.5 text-sm text-[var(--text)] shadow-none transition-all duration-200 hover:border-[var(--border)]/60 hover:bg-[var(--bg)] focus:border-[var(--link)] focus:ring-2 focus:ring-[var(--link)]/10 data-[placeholder]:text-[var(--text-dim)]';
 
 const contentClass =
-    'z-[250] rounded-xl border border-[var(--border)]/40 bg-[var(--card)] p-1.5 text-[var(--text)] shadow-xl';
+    'z-[250] rounded-xl border border-[var(--dropdown-border)] bg-[var(--card)] p-1.5 text-[var(--text)] shadow-xl';
 
 const itemClass =
-    'cursor-pointer rounded-lg px-3 py-2 text-sm text-[var(--text-muted)] outline-none transition-colors focus:bg-[var(--bg-elevated)] focus:text-[var(--text)] data-[state=checked]:bg-[var(--bg-elevated)] data-[state=checked]:text-[var(--link)]';
-
+    'cursor-pointer rounded-lg px-3 py-2 text-sm text-[var(--text-muted)] outline-none transition-colors hover:text-[var(--text)] focus:bg-[var(--bg-elevated)] focus:text-[var(--text)] data-[state=checked]:bg-[var(--bg-elevated)] data-[state=checked]:text-[var(--link)]';
 const labelClass =
     'mb-1.5 block text-xs font-medium text-[var(--text-muted)]';
 

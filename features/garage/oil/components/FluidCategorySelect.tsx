@@ -118,7 +118,7 @@ export default function FluidCategorySelect({
 
             {/* Выпадающее меню */}
             {isDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 z-50 max-h-72 overflow-y-auto bg-[var(--bg-elevated)] border border-[var(--border)]/20 border-t-0 rounded-b-2xl shadow-xl p-1.5 space-y-0.5 scrollbar-none animate-in fade-in slide-in-from-top-0.5 duration-100">
+                <div className="absolute top-full left-0 right-0 z-50 max-h-72 overflow-y-auto bg-[var(--bg-elevated)] border border-[var(--dropdown-border)] border-t-0 rounded-b-2xl shadow-xl p-1.5 space-y-0.5 scrollbar-none animate-in fade-in slide-in-from-top-0.5 duration-100">
 
                     {!isCreatingCategory ? (
                         <>
@@ -236,7 +236,7 @@ export default function FluidCategorySelect({
                                 }
                                 onKeyDown={handleInputKeyDown}
                                 placeholder="Например: Омывайка"
-                                className="w-full px-3 py-2.5 rounded-xl bg-[var(--card)] border border-[var(--border)]/20 text-[var(--text)] text-sm outline-none focus:border-[var(--link)] transition placeholder-[var(--text-dim)]/50"
+                                className="w-full px-3 py-2.5 rounded-xl bg-[var(--card)] border border-[var(--dropdown-border)] text-[var(--text)] text-sm outline-none focus:border-[var(--link)] transition placeholder-[var(--text-dim)]/50"
                             />
 
                             <div className="flex gap-2">
