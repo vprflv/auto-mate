@@ -13,7 +13,12 @@ import {
     ServiceRecord,
 } from '@/types';
 
-import { STORAGE_KEYS } from '@/features/garage/add/lib/config/storage';
+import {
+    STORAGE_KEYS,
+} from '@/features/garage/add/lib/config/storage';
+import {syncServicePartsToCar} from "@/features/garage/lib/syncServiceToCar";
+
+
 
 export function useCar(id: string) {
     const router = useRouter();
@@ -230,6 +235,11 @@ export function useCar(id: string) {
         localStorage.setItem(
             STORAGE_KEYS.service,
             JSON.stringify(next)
+        );
+
+        syncServicePartsToCar(
+            updated.carId,
+            updated.parts
         );
 
         setRecords(

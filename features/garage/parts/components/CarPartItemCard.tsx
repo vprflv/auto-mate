@@ -71,11 +71,11 @@ export default function CarPartItemCard({ carId, item, onEdit }: Props) {
             </div>
 
             {/* Блок нижних кнопок действий */}
-            <div className="px-3 pb-3 flex gap-2 mt-auto">
+            <div className="mt-auto grid grid-cols-2 gap-2 px-3 pb-3">
                 <button
                     type="button"
                     onClick={() => onEdit(item)}
-                    className="flex-1 py-2 rounded-xl bg-[var(--card)] border border-[var(--border)]/40 hover:bg-[var(--border)]/20 text-xs font-semibold text-[var(--text)] transition-all duration-200 cursor-pointer active:scale-95"
+                    className="min-w-0 whitespace-nowrap rounded-xl border border-[var(--border)]/40 bg-[var(--card)] py-2 text-xs font-semibold text-[var(--text)] transition-all duration-200 hover:bg-[var(--border)]/20 cursor-pointer active:scale-95"
                 >
                     Изменить
                 </button>
@@ -87,7 +87,7 @@ export default function CarPartItemCard({ carId, item, onEdit }: Props) {
                 */}
                 <Link
                     href={`/garage/${carId}/buy?name=${encodeURIComponent(item.name)}&oem=${encodeURIComponent(item.oemNumber || '')}&brand=${encodeURIComponent(item.brand || '')}&analog=${encodeURIComponent(item.analogNumber || '')}`}
-                    className="flex-1 py-2 rounded-xl bg-[var(--btn-primary)] text-[var(--btn-primary-text)] hover:bg-[var(--btn-primary-hover)] text-xs font-bold transition-all duration-200 text-center flex items-center justify-center cursor-pointer active:scale-95 [html[data-theme=dark]_&]:shadow-[0_0_12px_rgba(57,255,20,0.2)]"
+                    className="flex min-w-0 items-center justify-center whitespace-nowrap rounded-xl bg-[var(--btn-primary)] py-2 text-center text-xs font-bold text-[var(--btn-primary-text)] transition-all duration-200 hover:bg-[var(--btn-primary-hover)] cursor-pointer active:scale-95 [html[data-theme=dark]_&]:shadow-[0_0_12px_rgba(57,255,20,0.2)]"
                 >
                     Где купить
                 </Link>

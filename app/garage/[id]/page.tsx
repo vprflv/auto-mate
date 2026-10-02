@@ -48,7 +48,7 @@ export default function CarPage() {
         <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] relative w-full overflow-x-hidden transition-colors duration-200">
             <CarHeader />
 
-            <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 relative z-10 bg-transparent">
+            <main className="mx-auto max-w-[1440px] bg-transparent px-4 py-8 relative z-10 sm:px-6">
                 <div className="mb-6">
                     <CarTitle car={car} />
                 </div>

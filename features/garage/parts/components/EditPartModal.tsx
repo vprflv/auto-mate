@@ -1,19 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { CarPartItem, PartCategory } from '@/types';
-import {
-    PART_CATEGORY_LABELS,
-    PART_CATEGORY_ORDER,
-} from '@/features/garage/lib/config/partCategories';
-import {
-    PART_SUBCATEGORY_LABELS,
-    PART_SUBCATEGORY_ORDER,
-} from '@/features/garage/lib/config/partSubcategories';
-import {Package} from "lucide-react";
-import {addUserSubcategory, learnKeywords} from "@/features/garage/lib/userSubcategories";
-import {getSubcategoriesFor} from "@/features/garage/lib/getSubcategories";
-import NamePromptModal from "@/features/garage/parts/components/NamePromptModal";
+import { Package } from 'lucide-react';
+import { CarPartItem } from '@/types';
+
+import { useEditPartModal } from '@/features/garage/parts/hooks/useEditPartModal';
+import PartCategorySelect from '@/features/garage/parts/components/PartCategorySelect';
+import PartSubcategorySelect from '@/features/garage/parts/components/PartSubcategorySelect';
 
 type Props = {
     item: CarPartItem | null;
@@ -30,84 +22,87 @@ export default function EditPartModal({
                                           onSave,
                                           onDelete,
                                       }: Props) {
-    const [form, setForm] = useState<CarPartItem | null>(null);
-    const [newSubOpen, setNewSubOpen] = useState(false);
-    useEffect(() => {
-        if (item) setForm(structuredClone(item));
-    }, [item]);
+    const {
+        form,
+        set,
+        newSubOpen,
+        setNewSubOpen,
+        openDropdown,
+        dropdownRef,
+        handleSave,
+        handlePhotoChange,
+        removePhoto,
+        closeDropdown,
+        toggleDropdown,
+    } = useEditPartModal({
+        item,
+        onSave,
+        onClose,
+    });
 
     if (!open || !form) return null;
 
-    const subs = getSubcategoriesFor(form.category);
-
-    const set = (patch: Partial<CarPartItem>) =>
-        setForm((prev) => (prev ? { ...prev, ...patch } : prev));
-
-    const handleSave = () => {
-        if (form.subcategory?.startsWith('custom_')) {
-            learnKeywords(form.subcategory, form.name);
-        }
-
-        if (!form.name.trim()) return;
-        onSave({
-            ...form,
-            name: form.name.trim(),
-            brand: form.brand?.trim() || undefined,
-            oemNumber: form.oemNumber?.trim() || undefined,
-            analogNumber: form.analogNumber?.trim() || undefined,
-            notes: form.notes?.trim() || undefined,
-            quantity: form.quantity && form.quantity > 0 ? form.quantity : 1,
-            subcategory: form.subcategory || 'other',
-        });
-        onClose();
-    };
-
     return (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+            <div
+                className="absolute inset-0 bg-black/60"
+                onClick={onClose}
+            />
 
-            <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-3xl p-5 space-y-4">
+            <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl border border-[var(--border)]/30 bg-[var(--card)] p-5 space-y-4 shadow-[0_20px_60px_rgba(0,0,0,0.25)] sm:rounded-3xl">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Редактировать</h3>
-                    <button type="button" onClick={onClose} className="text-zinc-400 text-sm">
+                    <h3 className="text-lg font-semibold text-[var(--text)]">
+                        Редактировать
+                    </h3>
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="text-sm text-[var(--text-muted)] transition hover:text-[var(--text)]"
+                    >
                         Закрыть
                     </button>
                 </div>
 
                 {/* Фото */}
                 <div>
-                    <label className="block text-xs text-zinc-400 mb-2">Фото</label>
+                    <label className="mb-2 block text-xs text-[var(--text-muted)]">
+                        Фото
+                    </label>
 
                     <div className="flex items-center gap-4">
-                        {/* Превью */}
-                        <div className="w-20 h-20 rounded-xl bg-zinc-950 border border-zinc-700 overflow-hidden flex items-center justify-center shrink-0">
+                        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]">
                             {form.photo ? (
                                 <img
                                     src={form.photo}
                                     alt=""
-                                    className="w-full h-full object-cover"
+                                    className="h-full w-full object-cover"
                                 />
                             ) : (
-                                <Package className="w-8 h-8 text-zinc-600" strokeWidth={1.5} />
+                                <Package
+                                    className="h-8 w-8 text-[var(--text-dim)]"
+                                    strokeWidth={1.5}
+                                />
                             )}
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <label className="cursor-pointer text-sm text-blue-400 hover:text-blue-300">
-                                {form.photo ? 'Заменить фото' : 'Добавить фото'}
+                            <label className="cursor-pointer text-sm text-[var(--link)] transition hover:text-[var(--btn-primary-hover)]">
+                                {form.photo
+                                    ? 'Заменить фото'
+                                    : 'Добавить фото'}
+
                                 <input
                                     type="file"
                                     accept="image/*"
                                     className="hidden"
                                     onChange={(e) => {
-                                        const file = e.target.files?.[0];
+                                        const file =
+                                            e.target.files?.[0];
+
                                         if (!file) return;
 
-                                        const reader = new FileReader();
-                                        reader.onload = () => {
-                                            set({ photo: reader.result as string });
-                                        };
-                                        reader.readAsDataURL(file);
+                                        handlePhotoChange(file);
                                     }}
                                 />
                             </label>
@@ -115,8 +110,8 @@ export default function EditPartModal({
                             {form.photo && (
                                 <button
                                     type="button"
-                                    onClick={() => set({ photo: undefined })}
-                                    className="text-sm text-red-400 hover:text-red-300 text-left"
+                                    onClick={removePhoto}
+                                    className="text-left text-sm text-[var(--danger)] transition hover:opacity-80"
                                 >
                                     Удалить фото
                                 </button>
@@ -125,113 +120,147 @@ export default function EditPartModal({
                     </div>
                 </div>
 
-                {/* Перенос */}
-                <div className="grid grid-cols-2 gap-3">
-                    <div>
-                        <label className="block text-xs text-zinc-400 mb-1">Категория</label>
-                        <select
-                            value={form.category}
+                {/* Категория / подраздел */}
+                <div
+                    className="grid grid-cols-2 gap-3"
+                    ref={dropdownRef}
+                >
+                    <PartCategorySelect
+                        category={form.category}
+                        open={openDropdown === 'category'}
+                        onToggle={() =>
+                            toggleDropdown('category')
+                        }
+                        onClose={closeDropdown}
+                        onChange={set}
+                    />
 
-                            onChange={(e) => {
-                                const category = e.target.value as PartCategory;
-                                const firstSub = getSubcategoriesFor(category)[0]?.id || 'other';
-                                set({ category, subcategory: firstSub });
-                            }}
-
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
-                        >
-                            {PART_CATEGORY_ORDER.map((c) => (
-                                <option key={c} value={c}>
-                                    {PART_CATEGORY_LABELS[c]}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-xs text-zinc-400 mb-1">Подраздел</label>
-                        <select
-                            value={form.subcategory || 'other'}
-                            onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === '__new__') {
-                                    setNewSubOpen(true);
-                                    return;
-                                }
-                                set({ subcategory: value });
-                            }}
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
-                        >
-                            {subs.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                    {s.label}
-                                    {s.isCustom ? ' ★' : ''}
-                                </option>
-                            ))}
-                            <option value="__new__">+ Создать свою...</option>
-                        </select>
-                    </div>
-                </div>
-
-
-
-                <div>
-                    <label className="block text-xs text-zinc-400 mb-1">Название *</label>
-                    <input
-                        value={form.name}
-                        onChange={(e) => set({ name: e.target.value })}
-                        className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+                    <PartSubcategorySelect
+                        category={form.category}
+                        subcategory={form.subcategory}
+                        open={
+                            openDropdown === 'subcategory'
+                        }
+                        newSubOpen={newSubOpen}
+                        onToggle={() =>
+                            toggleDropdown('subcategory')
+                        }
+                        onClose={closeDropdown}
+                        onChange={set}
+                        onNewSubOpen={setNewSubOpen}
                     />
                 </div>
 
+                {/* Название */}
+                <div>
+                    <label className="mb-1 block text-xs text-[var(--text-muted)]">
+                        Название *
+                    </label>
+
+                    <input
+                        value={form.name}
+                        onChange={(e) =>
+                            set({ name: e.target.value })
+                        }
+                        className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--btn-primary)]"
+                    />
+                </div>
+
+                {/* Бренд / количество */}
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label className="block text-xs text-zinc-400 mb-1">Бренд</label>
+                        <label className="mb-1 block text-xs text-[var(--text-muted)]">
+                            Бренд
+                        </label>
+
                         <input
                             value={form.brand || ''}
-                            onChange={(e) => set({ brand: e.target.value })}
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+                            onChange={(e) =>
+                                set({
+                                    brand: e.target.value,
+                                })
+                            }
+                            className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--btn-primary)]"
                         />
                     </div>
+
                     <div>
-                        <label className="block text-xs text-zinc-400 mb-1">Кол-во</label>
+                        <label className="mb-1 block text-xs text-[var(--text-muted)]">
+                            Кол-во
+                        </label>
+
                         <input
                             type="number"
                             min={1}
                             value={form.quantity ?? 1}
-                            onChange={(e) => set({ quantity: Number(e.target.value) || 1 })}
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+                            onChange={(e) =>
+                                set({
+                                    quantity:
+                                        Number(
+                                            e.target.value
+                                        ) || 1,
+                                })
+                            }
+                            className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--btn-primary)]"
                         />
                     </div>
                 </div>
 
+                {/* OEM / аналог */}
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label className="block text-xs text-zinc-400 mb-1">Ориг. номер</label>
+                        <label className="mb-1 block text-xs text-[var(--text-muted)]">
+                            Ориг. номер
+                        </label>
+
                         <input
                             value={form.oemNumber || ''}
-                            onChange={(e) => set({ oemNumber: e.target.value })}
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+                            onChange={(e) =>
+                                set({
+                                    oemNumber:
+                                    e.target.value,
+                                })
+                            }
+                            className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--btn-primary)]"
                         />
                     </div>
+
                     <div>
-                        <label className="block text-xs text-zinc-400 mb-1">Аналог</label>
+                        <label className="mb-1 block text-xs text-[var(--text-muted)]">
+                            Аналог
+                        </label>
+
                         <input
                             value={form.analogNumber || ''}
-                            onChange={(e) => set({ analogNumber: e.target.value })}
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+                            onChange={(e) =>
+                                set({
+                                    analogNumber:
+                                    e.target.value,
+                                })
+                            }
+                            className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--btn-primary)]"
                         />
                     </div>
                 </div>
 
+                {/* Заметка */}
                 <div>
-                    <label className="block text-xs text-zinc-400 mb-1">Заметка</label>
+                    <label className="mb-1 block text-xs text-[var(--text-muted)]">
+                        Заметка
+                    </label>
+
                     <input
                         value={form.notes || ''}
-                        onChange={(e) => set({ notes: e.target.value })}
-                        className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+                        onChange={(e) =>
+                            set({
+                                notes: e.target.value,
+                            })
+                        }
+                        className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] outline-none transition focus:border-[var(--btn-primary)]"
                     />
                 </div>
 
+                {/* Кнопки */}
                 <div className="flex gap-3 pt-2">
                     {onDelete && (
                         <button
@@ -240,38 +269,29 @@ export default function EditPartModal({
                                 onDelete(form.id);
                                 onClose();
                             }}
-                            className="px-4 py-3 rounded-2xl text-red-400 text-sm border border-red-900/50"
+                            className="rounded-2xl border border-[var(--danger)]/40 px-4 py-3 text-sm text-[var(--danger)] transition hover:bg-[var(--danger)]/10 active:scale-[0.98]"
                         >
                             Удалить
                         </button>
                     )}
+
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 py-3 rounded-2xl bg-zinc-800 text-sm"
+                        className="flex-1 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] py-3 text-sm text-[var(--text-muted)] transition hover:text-[var(--text)] active:scale-[0.98]"
                     >
                         Отмена
                     </button>
+
                     <button
                         type="button"
                         onClick={handleSave}
-                        className="flex-1 py-3 rounded-2xl bg-blue-600 text-white text-sm"
+                        className="flex-1 rounded-2xl bg-[var(--btn-primary)] py-3 text-sm text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] active:scale-[0.98]"
                     >
                         Сохранить
                     </button>
                 </div>
             </div>
-
-            <NamePromptModal
-                open={newSubOpen}
-                title="Новая подкатегория"
-                placeholder="Колодки, диски…"
-                onClose={() => setNewSubOpen(false)}
-                onSubmit={(name) => {
-                    const created = addUserSubcategory(form.category, name);
-                    set({ subcategory: created.key });
-                }}
-            />
         </div>
     );
 }

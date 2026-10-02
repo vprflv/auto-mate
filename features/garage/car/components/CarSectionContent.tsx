@@ -112,8 +112,7 @@ export default function CarSectionContent({
     if (section === 'parts') {
         return (
             <CarPartsCard
-                /* Безопасная инициализация массива каталога запчастей */
-                parts={car.partsCatalog || []}
+                parts={car.partsCatalog || { items: [] }}
                 carId={car.id}
                 onUpdateParts={(partsCatalog) => {
                     onUpdateCar({

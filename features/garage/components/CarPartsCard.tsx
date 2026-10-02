@@ -134,7 +134,7 @@ export default function CarPartsCard({
             {/* Desktop layout */}
             <div className="flex min-h-[360px]">
                 {/* Categories sidebar */}
-                <div className="hidden w-56 shrink-0 border-r border-[var(--border)] bg-[var(--bg-elevated)]/30 md:block">
+                <div className="hidden w-48 shrink-0 border-r border-[var(--border)] bg-[var(--bg-elevated)]/30 md:block">
                     <CarPartsCategoryView
                         categories={categories}
                         activeCategory={category}
