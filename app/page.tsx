@@ -5,6 +5,8 @@ import { useGarage } from '@/features/garage/hooks/useGarage';
 import GarageEmpty from '@/features/garage/components/GarageEmpty';
 import HomeCarCard from '@/features/home/HomeCarCard';
 import { brand } from '@/features/lib/brand';
+import {Plus} from "lucide-react";
+import Link from "next/link";
 
 export default function Home() {
     const { cars, loading } = useGarage();
@@ -39,12 +41,13 @@ export default function Home() {
                 <img
                     src="/images/decor/sedan.jpg"
                     alt=""
-                    className="absolute right-[100px] top-[120px] w-[400px] max-w-none opacity-30"
+                    className="absolute right-[600px] top-[50px] w-[400px] max-w-none opacity-30"
                 />
+
                 <img
                     src="/images/decor/sedan-3.png"
                     alt=""
-                    className="absolute left-[90px] top-[120px] w-[400px] max-w-none opacity-30"
+                    className="absolute left-[300px] top-[120px] w-[400px] max-w-none opacity-30"
                 />
             </div>
 
@@ -77,10 +80,33 @@ export default function Home() {
                         <h2 className="text-2xl font-semibold mb-5 text-[var(--text)]">
                             Добавленные авто
                         </h2>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
                             {cars.map((car) => (
                                 <HomeCarCard key={car.id} car={car} />
                             ))}
+
+                            <Link
+                                href="/garage/add"
+                                className="group overflow-hidden rounded-2xl border-2 border-dashed border-[var(--border)] bg-transparent transition-colors hover:border-[var(--link)]/60"
+                            >
+                                <div className="flex aspect-[16/10] items-center justify-center">
+                                    <div className="flex flex-col items-center gap-2 text-[var(--text-muted)] transition-colors group-hover:text-[var(--link)]">
+                                        <Plus className="h-8 w-8" />
+                                        <span className="text-sm font-medium">
+                    Добавить автомобиль
+                </span>
+                                    </div>
+                                </div>
+
+                                <div className="px-4 py-3">
+                                    <p className="text-sm font-medium text-[var(--text-muted)]">
+                                        Новый автомобиль
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-[var(--text-dim)]">
+                                        Добавить в гараж
+                                    </p>
+                                </div>
+                            </Link>
                         </div>
                     </section>
                 )}

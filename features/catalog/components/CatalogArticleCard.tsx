@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Check } from 'lucide-react';
+
 import { CatalogArticle } from '@/types/catalog/catalog';
 
 type Props = {
@@ -15,30 +16,37 @@ export default function CatalogArticleCard({
                                                article,
                                                alreadyAdded,
                                                onAdd,
-                                               onRemove
+                                               onRemove,
                                            }: Props) {
     return (
-        <div className="group bg-[#161616] border border-[#2A2A2A] hover:border-[#39FF14]/40 rounded-2xl p-4 transition">
-            <div className="flex items-start justify-between gap-2 mb-2">
-                <span className="text-xs font-mono text-[#A3A3A3] bg-[#0A0A0A] px-2 py-0.5 rounded-md">
+        <div className="group rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4 transition-colors hover:border-[var(--link)]/40">
+            <div className="mb-2 flex items-start justify-between gap-2">
+                <span className="rounded-md bg-[var(--bg)] px-2 py-0.5 font-mono text-xs text-[var(--text-muted)]">
                     {article.oem}
                 </span>
+
                 {article.brand && (
-                    <span className="text-xs text-[#666666] shrink-0">{article.brand}</span>
+                    <span className="shrink-0 text-xs text-[var(--text-dim)]">
+                        {article.brand}
+                    </span>
                 )}
             </div>
 
-            <h3 className="font-medium text-[15px] leading-snug mb-1 text-[#F5F5F5]">
+            <h3 className="mb-1 text-[15px] font-medium leading-snug text-[var(--text)]">
                 {article.name}
             </h3>
 
             {article.note && (
-                <p className="text-xs text-[#666666] mb-3">{article.note}</p>
+                <p className="mb-3 text-xs text-[var(--text-dim)]">
+                    {article.note}
+                </p>
             )}
 
-            <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-[#2A2A2A]">
-                <div className="text-xs text-[#666666]">
-                    {article.quantity ? `${article.quantity} шт.` : '—'}
+            <div className="mt-4 flex items-center justify-between gap-2 border-t border-[var(--border)] pt-3">
+                <div className="text-xs text-[var(--text-dim)]">
+                    {article.quantity
+                        ? `${article.quantity} шт.`
+                        : '—'}
                 </div>
 
                 <Link
@@ -50,7 +58,7 @@ export default function CatalogArticleCard({
                             brand: article.brand || '',
                         },
                     }}
-                    className="px-4 py-1.5 rounded-xl bg-[#1F1F1F] hover:bg-[#2A2A2A] text-sm font-medium text-[#F5F5F5] transition"
+                    className="rounded-xl bg-[var(--bg)] px-4 py-1.5 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[var(--border)]"
                 >
                     Где купить
                 </Link>
@@ -59,7 +67,7 @@ export default function CatalogArticleCard({
                     <button
                         type="button"
                         onClick={onRemove}
-                        className="px-3 py-1.5 rounded-xl bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-white text-sm font-medium transition"
+                        className="rounded-xl bg-[var(--danger)]/15 px-3 py-1.5 text-sm font-medium text-[var(--danger)] transition-colors hover:bg-[var(--danger)] hover:text-[var(--btn-primary-text)]"
                     >
                         Убрать
                     </button>
@@ -67,7 +75,7 @@ export default function CatalogArticleCard({
                     <button
                         type="button"
                         onClick={onAdd}
-                        className="px-4 py-1.5 rounded-xl bg-[#39FF14] hover:bg-[#57FF3A] text-black text-sm font-medium transition"
+                        className="rounded-xl bg-[var(--btn-primary)] px-4 py-1.5 text-sm font-medium text-[var(--btn-primary-text)] transition-colors hover:bg-[var(--btn-primary-hover)]"
                     >
                         В мой каталог
                     </button>

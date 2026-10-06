@@ -1,5 +1,11 @@
 import Link from 'next/link';
-import { ArrowLeft, RefreshCw, Search } from 'lucide-react';
+
+import {
+    ArrowLeft,
+    RefreshCw,
+    Search,
+} from 'lucide-react';
+
 import { Car } from '@/types';
 
 type Props = {
@@ -20,20 +26,25 @@ export default function CatalogHeader({
                                           showDisclaimer,
                                       }: Props) {
     return (
-        <div className="sticky top-0 z-10 bg-[#0A0A0A]/90 backdrop-blur border-b border-[#2A2A2A] px-4 py-3">
+        <div className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--bg)]/90 px-4 py-3 backdrop-blur">
             <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex min-w-0 items-center gap-3">
                     <Link
                         href={`/garage/${car.id}`}
-                        className="text-[#A3A3A3] hover:text-[#39FF14] transition"
+                        className="text-[var(--text-muted)] transition-colors hover:text-[var(--link)]"
                     >
                         <ArrowLeft size={20} />
                     </Link>
+
                     <div className="min-w-0">
-                        <h1 className="font-semibold truncate text-[#F5F5F5]">
-                            Каталог · {car.make} {car.model}
+                        <h1 className="truncate font-semibold text-[var(--text)]">
+                            Каталог · {car.make}{' '}
+                            {car.model}
                         </h1>
-                        <p className="text-xs text-[#666666]">{car.year} г.</p>
+
+                        <p className="text-xs text-[var(--text-dim)]">
+                            {car.year} г.
+                        </p>
                     </div>
                 </div>
 
@@ -41,34 +52,50 @@ export default function CatalogHeader({
                     type="button"
                     onClick={onRefresh}
                     disabled={isFetching}
-                    className="p-2 rounded-lg hover:bg-[#1F1F1F] text-[#A3A3A3] hover:text-[#39FF14] disabled:opacity-50 transition"
+                    className="rounded-lg p-2 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--link)] disabled:opacity-50"
                     title="Обновить каталог"
                 >
-                    <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
+                    <RefreshCw
+                        size={18}
+                        className={
+                            isFetching
+                                ? 'animate-spin'
+                                : ''
+                        }
+                    />
                 </button>
             </div>
 
-            <div className="mt-3 relative">
+            <div className="relative mt-3">
                 <Search
                     size={16}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666666]"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]"
                 />
+
                 <input
                     type="text"
                     placeholder="Поиск по названию или артикулу..."
                     value={search}
-                    onChange={(e) => onSearch(e.target.value)}
-                    className="w-full bg-[#161616] border border-[#2A2A2A] rounded-xl py-2.5 pl-10 pr-4 text-sm text-[#F5F5F5] placeholder:text-[#666666] focus:outline-none focus:border-[#39FF14] transition"
+                    onChange={(e) =>
+                        onSearch(e.target.value)
+                    }
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] py-2.5 pl-10 pr-4 text-sm text-[var(--text)] placeholder:text-[var(--text-dim)] transition-colors focus:border-[var(--link)] focus:outline-none"
                 />
             </div>
 
             {showDisclaimer && (
-                <div className="mt-3 rounded-2xl border border-[#2A2A2A] bg-[#161616] px-4 py-3 text-sm text-[#A3A3A3]">
-                    <p className="font-medium text-[#F5F5F5]">Справочный каталог</p>
+                <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-3 text-sm text-[var(--text-muted)]">
+                    <p className="font-medium text-[var(--text)]">
+                        Справочный каталог
+                    </p>
+
                     <p className="mt-1">
-                        Подбор выполнен автоматически и может содержать неточности.
-                        Перед покупкой обязательно проверяйте применимость по VIN
-                        и оригинальным каталогам производителя.
+                        Подбор выполнен автоматически и
+                        может содержать неточности.
+                        Перед покупкой обязательно
+                        проверяйте применимость по VIN
+                        и оригинальным каталогам
+                        производителя.
                     </p>
                 </div>
             )}

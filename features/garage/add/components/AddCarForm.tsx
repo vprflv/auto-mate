@@ -4,6 +4,7 @@ import VinDecodeForm from './VinDecodeForm';
 import DecodedCarCard from './DecodedCarCard';
 import ManualCarForm from './ManualCarForm';
 import { useAddCar } from '@/features/garage/add/hooks/useAddCar';
+import {Pencil} from "lucide-react";
 
 export default function AddCarForm() {
     const {
@@ -25,9 +26,12 @@ export default function AddCarForm() {
     } = useAddCar();
 
     return (
-        <div className="max-w-xl mx-auto">
-            <h1 className="text-3xl font-bold mb-2 text-[#F5F5F5]">Добавить автомобиль</h1>
-            <p className="text-[#A3A3A3] mb-8">
+        <div className="mx-auto max-w-xl">
+            <h1 className="mb-2 text-3xl font-bold text-[var(--text)]">
+                Добавить автомобиль
+            </h1>
+
+            <p className="mb-8 text-[var(--text-muted)]">
                 Введи VIN — расшифруем автоматически. Если не найдём — добавишь вручную.
             </p>
 
@@ -45,9 +49,10 @@ export default function AddCarForm() {
                         <button
                             type="button"
                             onClick={enableManualMode}
-                            className="w-full text-sm text-[#666666] hover:text-[#39FF14] transition mb-8"
+                            className="mb-8 flex w-full items-center justify-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] px-5 py-4 text-sm font-medium text-[var(--text-muted)] transition-colors hover:border-[var(--link)]/50 hover:bg-[var(--bg-elevated)] hover:text-[var(--link)]"
                         >
-                            Добавить вручную без расшифровки
+                            <Pencil className="h-4 w-4" />
+                            <span>Добавить автомобиль вручную</span>
                         </button>
                     )}
                 </>

@@ -95,29 +95,30 @@
 }
 
 
-/* Scrollbar — Dark theme */
-[data-theme="dark"] {
-    scrollbar-color: #39ff14 transparent;
+/* Scrollbar */
+html {
+    scrollbar-color: var(--btn-primary) transparent;
     scrollbar-width: thin;
 }
 
-[data-theme="dark"]::-webkit-scrollbar {
+html::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
-[data-theme="dark"]::-webkit-scrollbar-track {
+html::-webkit-scrollbar-track {
     background: transparent;
 }
 
-[data-theme="dark"]::-webkit-scrollbar-thumb {
-    background: #39ff14;
+html::-webkit-scrollbar-thumb {
+    background: var(--btn-primary);
     border-radius: 999px;
 }
 
-[data-theme="dark"]::-webkit-scrollbar-thumb:hover {
-    background: #57ff3a;
+html::-webkit-scrollbar-thumb:hover {
+    background: var(--btn-primary-hover);
 }
+
 
 html,
 body {

@@ -2,7 +2,9 @@ type Props = {
     label: string;
     name: string;
     value: string;
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+    onChange: (
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => void;
     placeholder?: string;
     type?: string;
     maxLength?: number;
@@ -12,7 +14,7 @@ type Props = {
 };
 
 const inputClass =
-    'w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl px-4 py-3 text-[#F5F5F5] placeholder:text-[#666666] focus:outline-none focus:border-[#39FF14] transition';
+    'w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-[var(--text)] placeholder:text-[var(--text-dim)] transition-colors focus:border-[var(--link)] focus:outline-none';
 
 export default function Field({
                                   label,
@@ -28,7 +30,10 @@ export default function Field({
                               }: Props) {
     return (
         <div className={className}>
-            <label className="block text-sm text-[#39FF14] mb-2">{label}</label>
+            <label className="mb-2 block text-sm text-[var(--link)]">
+                {label}
+            </label>
+
             {textarea ? (
                 <textarea
                     name={name}
@@ -46,7 +51,9 @@ export default function Field({
                     onChange={onChange}
                     placeholder={placeholder}
                     maxLength={maxLength}
-                    className={`${inputClass} ${mono ? 'font-mono tracking-wide' : ''}`}
+                    className={`${inputClass} ${
+                        mono ? 'font-mono tracking-wide' : ''
+                    }`}
                 />
             )}
         </div>

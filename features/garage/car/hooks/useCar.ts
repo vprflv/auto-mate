@@ -16,9 +16,14 @@ import {
 import {
     STORAGE_KEYS,
 } from '@/features/garage/add/lib/config/storage';
-import {syncServicePartsToCar} from "@/features/garage/lib/syncServiceToCar";
 
+import {
+    syncServicePartsToCar,
+} from '@/features/garage/lib/syncServiceToCar';
 
+import {
+    syncCurrentMileageFromLatestService,
+} from '@/features/garage/lib/syncCurrentMileageFromLatestService';
 
 export function useCar(id: string) {
     const router = useRouter();
@@ -220,8 +225,7 @@ export function useCar(id: string) {
 
         if (!serviceData) return;
 
-        const allRecords:
-            ServiceRecord[] =
+        const allRecords: ServiceRecord[] =
             JSON.parse(serviceData);
 
         const next =
@@ -237,9 +241,23 @@ export function useCar(id: string) {
             JSON.stringify(next)
         );
 
+        /*
+         * Синхронизируем запчасти и жидкости
+         * изменённого ТО с накопительным каталогом.
+         */
         syncServicePartsToCar(
             updated.carId,
             updated.parts
+        );
+
+        /*
+         * Пробег обновляем только если
+         * отредактированное ТО является
+         * последним по дате.
+         */
+        syncCurrentMileageFromLatestService(
+            updated.carId,
+            updated.id
         );
 
         setRecords(
@@ -260,8 +278,7 @@ export function useCar(id: string) {
 
         if (!serviceData) return;
 
-        const allRecords:
-            ServiceRecord[] =
+        const allRecords: ServiceRecord[] =
             JSON.parse(serviceData);
 
         const next =
@@ -274,6 +291,15 @@ export function useCar(id: string) {
             STORAGE_KEYS.service,
             JSON.stringify(next)
         );
+
+        /*
+         * При удалении ТО текущий пробег
+         * автомобиля НЕ меняем.
+         *
+         * Даже если удалено последнее
+         * ТО по дате — пробег остаётся
+         * таким, каким был.
+         */
 
         setRecords(
             next.filter(

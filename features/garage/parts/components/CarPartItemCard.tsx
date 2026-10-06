@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Package } from 'lucide-react';
+
 import { CarPartItem } from '@/types';
 
 type Props = {
@@ -10,13 +11,28 @@ type Props = {
     onEdit: (item: CarPartItem) => void;
 };
 
-export default function CarPartItemCard({ carId, item, onEdit }: Props) {
+export default function CarPartItemCard({
+                                            carId,
+                                            item,
+                                            onEdit,
+                                        }: Props) {
     return (
-        /*
-          Заменили bg-[#0A0A0A] на var(--bg-elevated) (пастельно-бежевая подложка в светлой теме).
-          Ховер-рамка теперь мягко подсвечивается в цвет активной ссылки темы var(--link)
-        */
-        <div className="bg-[var(--bg-elevated)] border border-[var(--border)]/20 hover:border-[var(--link)]/50 rounded-2xl overflow-hidden transition-all duration-200 flex flex-col h-full group outline-none focus-within:ring-2 focus-within:ring-[var(--link)]/40">
+        <div
+            className="
+                flex h-full flex-col overflow-hidden
+                rounded-2xl
+                border border-[var(--border)]
+                bg-[var(--card)]
+                text-left
+                transition
+                hover:border-[var(--btn-primary)]
+                hover:bg-[var(--bg-elevated)]
+                outline-none
+                focus-within:ring-2
+                focus-within:ring-[var(--link)]/40
+            "
+        >
+            {/* Карточка запчасти */}
             <div
                 role="button"
                 tabIndex={0}
@@ -27,67 +43,99 @@ export default function CarPartItemCard({ carId, item, onEdit }: Props) {
                         onEdit(item);
                     }
                 }}
-                className="cursor-pointer flex-1 flex flex-col"
+                className="flex flex-1 cursor-pointer flex-col"
             >
-                {/* Окно превью фото товара или иконка-заглушка */}
-                <div className="aspect-[4/3] bg-[var(--bg)] flex items-center justify-center border-b border-[var(--border)]/10 overflow-hidden relative">
+                {/* Фото */}
+                <div className="flex aspect-[4/3] w-full shrink-0 items-center justify-center overflow-hidden bg-[var(--bg-elevated)]">
                     {item.photo ? (
                         <img
                             src={item.photo}
                             alt={item.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                            className="
+                                h-full w-full
+                                object-contain
+                                transition-transform duration-500
+                                group-hover:scale-105
+                            "
                         />
                     ) : (
-                        <Package
-                            className="w-10 h-10 text-[var(--text-dim)] transition-all duration-500 group-hover:text-[var(--link)]/40 group-hover:scale-110"
-                            strokeWidth={1.5}
-                        />
+                        <div className="flex flex-col items-center gap-2 text-[var(--text-dim)]">
+                            <Package className="h-10 w-10" />
+                            <span className="text-xs">Нет фотографии</span>
+                        </div>
                     )}
                 </div>
 
-                {/* Текстовый блок описания запчасти */}
-                <div className="p-3 pb-2 flex-1 flex flex-col justify-between">
-                    <div>
+                {/* Информация */}
+                <div className="flex flex-1 flex-col p-4">
+                    <div className="min-w-0">
                         {item.brand && (
-                            /* Бренд переведён на var(--text-accent) */
-                            <p className="text-xs text-[var(--text-accent)] font-semibold mb-0.5 truncate">
+                            <p className="mb-1 truncate text-xs font-semibold text-[var(--text-accent)]">
                                 {item.brand}
                             </p>
                         )}
-                        <p className="text-sm text-[var(--text)] font-bold leading-snug line-clamp-2">
+
+                        <p className="line-clamp-2 text-sm font-bold leading-snug text-[var(--text)]">
                             {item.quantity && item.quantity > 1
                                 ? `${item.quantity}× `
                                 : ''}
                             {item.name}
                         </p>
                     </div>
+
                     {item.oemNumber && (
-                        /* Артикул OEM теперь использует моноширинный var(--text-dim) */
-                        <p className="text-xs font-mono text-[var(--text-dim)] mt-1.5 truncate font-medium">
+                        <p className="mt-2 truncate font-mono text-xs font-medium text-[var(--text-dim)]">
                             {item.oemNumber}
                         </p>
                     )}
                 </div>
             </div>
 
-            {/* Блок нижних кнопок действий */}
-            <div className="mt-auto grid grid-cols-2 gap-2 px-3 pb-3">
+            {/* Кнопки */}
+            <div className="mt-auto grid grid-cols-2 gap-2 px-4 pb-4">
                 <button
                     type="button"
                     onClick={() => onEdit(item)}
-                    className="min-w-0 whitespace-nowrap rounded-xl border border-[var(--border)]/40 bg-[var(--card)] py-2 text-xs font-semibold text-[var(--text)] transition-all duration-200 hover:bg-[var(--border)]/20 cursor-pointer active:scale-95"
+                    className="
+                        min-w-0 whitespace-nowrap
+                        rounded-xl
+                        border border-[var(--border)]
+                        bg-[var(--card)]
+                        py-2
+                        text-xs font-semibold
+                        text-[var(--text)]
+                        transition
+                        hover:bg-[var(--bg-elevated)]
+                        active:scale-95
+                    "
                 >
                     Изменить
                 </button>
 
-                {/*
-                  Умная кнопка «Где купить»:
-                  В светлой теме она автоматически станет сочно-оранжевой, в тёмной — неоново-зелёной.
-                  Свечение shadow активируется только для тёмного режима.
-                */}
                 <Link
-                    href={`/garage/${carId}/buy?name=${encodeURIComponent(item.name)}&oem=${encodeURIComponent(item.oemNumber || '')}&brand=${encodeURIComponent(item.brand || '')}&analog=${encodeURIComponent(item.analogNumber || '')}`}
-                    className="flex min-w-0 items-center justify-center whitespace-nowrap rounded-xl bg-[var(--btn-primary)] py-2 text-center text-xs font-bold text-[var(--btn-primary-text)] transition-all duration-200 hover:bg-[var(--btn-primary-hover)] cursor-pointer active:scale-95 [html[data-theme=dark]_&]:shadow-[0_0_12px_rgba(57,255,20,0.2)]"
+                    href={`/garage/${carId}/buy?name=${encodeURIComponent(
+                        item.name,
+                    )}&oem=${encodeURIComponent(
+                        item.oemNumber || '',
+                    )}&brand=${encodeURIComponent(
+                        item.brand || '',
+                    )}&analog=${encodeURIComponent(
+                        item.analogNumber || '',
+                    )}`}
+                    className="
+                        flex min-w-0 items-center justify-center
+                        whitespace-nowrap
+                        rounded-xl
+                        bg-[var(--btn-primary)]
+                        py-2
+                        text-center
+                        text-xs font-bold
+                        text-[var(--btn-primary-text)]
+                        transition
+                        hover:bg-[var(--btn-primary-hover)]
+                        active:scale-95
+                        [html[data-theme=dark]_&]:shadow-[0_0_12px_rgba(57,255,20,0.2)]
+                    "
                 >
                     Где купить
                 </Link>

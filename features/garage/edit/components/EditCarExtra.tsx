@@ -3,13 +3,18 @@ import { EditCarFormValues } from '../types';
 
 type Props = {
     form: EditCarFormValues;
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+    onChange: (
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => void;
 };
 
 export default function EditCarExtra({ form, onChange }: Props) {
     return (
-        <section className="bg-[#161616] border border-[#2A2A2A] rounded-3xl p-6 space-y-5">
-            <h2 className="text-lg font-semibold text-[#F5F5F5]">Дополнительно (вручную)</h2>
+        <section className="space-y-5 rounded-3xl border border-[var(--border)] bg-[var(--bg-elevated)] p-6">
+            <h2 className="text-lg font-semibold text-[var(--text)]">
+                Дополнительно (вручную)
+            </h2>
+
             <div className="grid gap-5 sm:grid-cols-2">
                 <Field
                     label="Прозвище"
@@ -18,6 +23,7 @@ export default function EditCarExtra({ form, onChange }: Props) {
                     onChange={onChange}
                     placeholder="Например: Белая стрела"
                 />
+
                 <Field
                     label="Цвет"
                     name="color"
@@ -25,6 +31,7 @@ export default function EditCarExtra({ form, onChange }: Props) {
                     onChange={onChange}
                     placeholder="Чёрный, белый..."
                 />
+
                 <Field
                     label="Текущий пробег (км)"
                     name="currentMileage"
@@ -34,6 +41,7 @@ export default function EditCarExtra({ form, onChange }: Props) {
                     placeholder="125000"
                 />
             </div>
+
             <Field
                 label="Заметки"
                 name="notes"

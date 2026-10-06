@@ -1,4 +1,5 @@
 import { Car } from '@/types';
+import {CircleHelp} from "lucide-react";
 
 type Props = {
     car: Car;
@@ -16,10 +17,26 @@ export default function CarExtraInfo({ car }: Props) {
             <div className="space-y-3.5 text-sm">
                 {car.currentMileage !== undefined && (
                     <div className="flex justify-between gap-4 items-baseline border-b border-[var(--border)]/10 pb-2.5 last:border-0 last:pb-0">
-                        <span className="text-[var(--text-accent)] font-medium">Пробег</span>
+                        <div className="flex items-center gap-1.5">
+        <span className="text-[var(--text-accent)] font-medium">
+            Пробег
+        </span>
+
+                            <div className="relative group">
+                                <CircleHelp
+                                    size={15}
+                                    className="text-[var(--text-muted)] cursor-help"
+                                />
+
+                                <div className="absolute left-0 bottom-full mb-2 hidden w-64 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]/20 p-3 text-xs leading-relaxed text-[var(--text-muted)] shadow-lg group-hover:block z-10">
+                                    Пробег обновляется из записей ТО. При необходимости его можно изменить вручную.
+                                </div>
+                            </div>
+                        </div>
+
                         <span className="text-right text-[var(--link)] font-semibold">
-                            {car.currentMileage.toLocaleString('ru-RU')} км
-                        </span>
+        {car.currentMileage.toLocaleString('ru-RU')} км
+    </span>
                     </div>
                 )}
                 {car.color && (

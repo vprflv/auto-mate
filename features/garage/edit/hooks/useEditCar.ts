@@ -58,7 +58,10 @@ export function useEditCar() {
                 plantCountry: found.plantCountry || '',
                 color: found.color || '',
                 nickname: found.nickname || '',
-                currentMileage: found.currentMileage ? String(found.currentMileage) : '',
+                currentMileage:
+                    found.currentMileage !== undefined
+                        ? String(found.currentMileage)
+                        : '',
                 notes: found.notes || '',
             });
         }

@@ -7,7 +7,11 @@ import CatalogEmpty from './CatalogEmpty';
 import CatalogArticleCard from './CatalogArticleCard';
 import { useCatalogPage } from '@/features/catalog/hooks/useCatalogPage';
 
-export default function CatalogPageView({ carId }: { carId: string }) {
+export default function CatalogPageView({
+                                            carId,
+                                        }: {
+    carId: string;
+}) {
     const {
         car,
         catalog,
@@ -27,7 +31,7 @@ export default function CatalogPageView({ carId }: { carId: string }) {
 
     if (!car) {
         return (
-            <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center text-[#A3A3A3]">
+            <div className="flex min-h-screen items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
                 Машина не найдена
             </div>
         );
@@ -35,7 +39,7 @@ export default function CatalogPageView({ carId }: { carId: string }) {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center text-[#A3A3A3]">
+            <div className="flex min-h-screen items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
                 Загружаем каталог...
             </div>
         );
@@ -43,28 +47,32 @@ export default function CatalogPageView({ carId }: { carId: string }) {
 
     if (!catalog) {
         return (
-            <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center text-[#A3A3A3]">
+            <div className="flex min-h-screen items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
                 Не удалось загрузить каталог
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#0A0A0A] text-[#F5F5F5]">
+        <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
             <CatalogHeader
                 car={car}
                 search={search}
                 onSearch={setSearch}
                 onRefresh={refresh}
                 isFetching={isFetching}
-                showDisclaimer={catalog.source === 'ai' || catalog.source === 'mock'}
+                showDisclaimer={
+                    catalog.source === 'ai' ||
+                    catalog.source === 'mock'
+                }
             />
 
             <div className="flex flex-col md:flex-row">
-                <aside className="md:w-72 bg-[#0A0A0A] border-b md:border-b-0 md:border-r border-[#2A2A2A] p-4 overflow-y-auto max-h-[40vh] md:max-h-none">
-                    <p className="text-xs text-[#666666] mb-3 uppercase tracking-wider">
+                <aside className="max-h-[40vh] overflow-y-auto border-b border-[var(--border)] bg-[var(--bg)] p-4 md:max-h-none md:w-72 md:border-b-0 md:border-r">
+                    <p className="mb-3 text-xs uppercase tracking-wider text-[var(--text-dim)]">
                         Разделы
                     </p>
+
                     <CatalogTree
                         nodes={catalog.nodes}
                         selectedNodeId={selectedNodeId}
@@ -74,27 +82,46 @@ export default function CatalogPageView({ carId }: { carId: string }) {
 
                 <main className="flex-1 p-4 md:p-6">
                     <CatalogArticlesHeader
-                        title={selectedNodeName || 'Все запчасти'}
+                        title={
+                            selectedNodeName ||
+                            'Все запчасти'
+                        }
                         count={filteredArticles.length}
                     />
 
                     {filteredArticles.length === 0 ? (
                         <CatalogEmpty
                             search={search}
-                            onClear={search ? () => setSearch('') : undefined}
+                            onClear={
+                                search
+                                    ? () => setSearch('')
+                                    : undefined
+                            }
                         />
                     ) : (
                         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                            {filteredArticles.map((art) => (
-                                <CatalogArticleCard
-                                    key={art.id}
-                                    carId={carId}
-                                    article={art}
-                                    alreadyAdded={isAlreadyAdded(art.oem)}
-                                    onAdd={() => addToPersonal(art)}
-                                    onRemove={() => removeFromPersonal(art)}
-                                />
-                            ))}
+                            {filteredArticles.map(
+                                (art) => (
+                                    <CatalogArticleCard
+                                        key={art.id}
+                                        carId={carId}
+                                        article={art}
+                                        alreadyAdded={isAlreadyAdded(
+                                            art.oem
+                                        )}
+                                        onAdd={() =>
+                                            addToPersonal(
+                                                art
+                                            )
+                                        }
+                                        onRemove={() =>
+                                            removeFromPersonal(
+                                                art
+                                            )
+                                        }
+                                    />
+                                )
+                            )}
                         </div>
                     )}
                 </main>

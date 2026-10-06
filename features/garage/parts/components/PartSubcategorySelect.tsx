@@ -1,9 +1,12 @@
 'use client';
 
 import { Check, ChevronDown } from 'lucide-react';
+
 import { CarPartItem } from '@/types';
+
 import { getSubcategoriesFor } from '@/features/garage/lib/getSubcategories';
 import { addUserSubcategory } from '@/features/garage/lib/userSubcategories';
+
 import NamePromptModal from '@/features/garage/parts/components/NamePromptModal';
 
 type Props = {
@@ -43,7 +46,7 @@ export default function PartSubcategorySelect({
                 <button
                     type="button"
                     onClick={onToggle}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-sm text-[var(--text)] outline-none transition-all duration-150 text-left cursor-pointer hover:border-[var(--link)]/50 focus:border-[var(--link)] ${
+                    className={`flex w-full cursor-pointer items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-left text-sm text-[var(--text)] outline-none transition-all duration-150 hover:border-[var(--link)]/50 focus:border-[var(--link)] ${
                         open
                             ? 'rounded-b-none border-b-transparent'
                             : ''
@@ -64,7 +67,7 @@ export default function PartSubcategorySelect({
                 </button>
 
                 {open && (
-                    <div className="absolute top-full left-0 right-0 z-50 max-h-72 overflow-y-auto bg-[var(--bg-elevated)] border border-[var(--dropdown-border)] border-t-0 rounded-b-2xl shadow-xl p-1.5 space-y-0.5 scrollbar-none animate-in fade-in slide-in-from-top-0.5 duration-100">
+                    <div className="absolute left-0 right-0 top-full z-50 max-h-72 space-y-0.5 overflow-y-auto rounded-b-2xl border border-[var(--dropdown-border)] border-t-0 bg-[var(--bg-elevated)] p-1.5 shadow-xl scrollbar-none animate-in fade-in slide-in-from-top-0.5 duration-100">
                         {subs.map((sub) => {
                             const isSelected =
                                 sub.id ===
@@ -76,13 +79,14 @@ export default function PartSubcategorySelect({
                                     type="button"
                                     onClick={() => {
                                         onChange({
-                                            subcategory: sub.id,
+                                            subcategory:
+                                            sub.id,
                                         });
                                         onClose();
                                     }}
-                                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150 text-left cursor-pointer ${
+                                    className={`flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors duration-150 ${
                                         isSelected
-                                            ? 'bg-[var(--btn-primary)] text-[var(--btn-primary-text)] font-bold'
+                                            ? 'bg-[var(--btn-primary)] font-bold text-[var(--btn-primary-text)]'
                                             : 'text-[var(--text-muted)] hover:bg-[var(--card)] hover:text-[var(--text)]'
                                     }`}
                                 >
@@ -111,7 +115,7 @@ export default function PartSubcategorySelect({
                                 onClose();
                                 onNewSubOpen(true);
                             }}
-                            className="w-full px-3 py-2.5 rounded-xl text-sm font-semibold text-[var(--link)] hover:bg-[var(--card)] transition-colors duration-150 text-left cursor-pointer"
+                            className="w-full cursor-pointer rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[var(--link)] transition-colors duration-150 hover:bg-[var(--card)]"
                         >
                             + Создать свою...
                         </button>
@@ -125,10 +129,11 @@ export default function PartSubcategorySelect({
                 placeholder="Колодки, диски…"
                 onClose={() => onNewSubOpen(false)}
                 onSubmit={(name) => {
-                    const created = addUserSubcategory(
-                        category,
-                        name
-                    );
+                    const created =
+                        addUserSubcategory(
+                            category,
+                            name
+                        );
 
                     onChange({
                         subcategory: created.key,

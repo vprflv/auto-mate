@@ -9,6 +9,7 @@ import EditFluidModal from './EditFluidModal';
 
 import { CarFluids } from '@/types/oil';
 import ConfirmDeleteCategoryModal from "@/features/garage/components/ConfirmDeleteCategoryModal";
+import FluidCard from "@/features/garage/oil/components/FluidCard";
 
 type CarFluidsCardProps = {
     fluids?: CarFluids;
@@ -271,69 +272,15 @@ export default function CarFluidsCard({
                             </div>
 
                             {/* Items */}
-                            {displayItems.length > 0 ? (
-                                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                                    {displayItems.map((item) => (
-                                        <button
-                                            key={item.id}
-                                            type="button"
-                                            onClick={() => setEditItem(item)}
-                                            className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 text-left transition hover:border-[var(--btn-primary)] hover:bg-[var(--bg-elevated)]"
-                                        >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0">
-                                                    <h4 className="truncate font-medium text-[var(--text)]">
-                                                        {item.name}
-                                                    </h4>
-
-                                                    {item.brand && (
-                                                        <p className="mt-1 text-sm text-[var(--text-muted)]">
-                                                            {item.brand}
-                                                        </p>
-                                                    )}
-                                                </div>
-
-                                                {item.volume && (
-                                                    <span className="shrink-0 text-sm font-medium text-[var(--text-accent)]">
-                                                        {item.volume}
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            {item.spec && (
-                                                <p className="mt-3 line-clamp-2 text-sm text-[var(--text-muted)]">
-                                                    {item.spec}
-                                                </p>
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-elevated)]/30">
-                                    <div className="text-center">
-                                        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-muted)]">
-                                            <Package size={19} />
-                                        </div>
-
-                                        <p className="text-sm font-medium text-[var(--text)]">
-                                            В категории пока пусто
-                                        </p>
-
-                                        <p className="mt-1 text-sm text-[var(--text-muted)]">
-                                            Добавьте первую жидкость
-                                        </p>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => openCreate(category)}
-                                            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--btn-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)]"
-                                        >
-                                            <Plus size={17} />
-                                            Добавить жидкость
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                {displayItems.map((item) => (
+                                    <FluidCard
+                                        key={item.id}
+                                        item={item}
+                                        onClick={() => setEditItem(item)}
+                                    />
+                                ))}
+                            </div>
                         </>
                     )}
                 </div>

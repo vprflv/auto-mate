@@ -1,17 +1,22 @@
 'use client';
 
 import Link from 'next/link';
+
 import ServiceFormHeader from './ServiceFormHeader';
 import ServiceMainFields from './ServiceMainFields';
 import ServicePartsSection from './ServicePartsSection';
+
 import { useAddService } from '@/features/garage/add/hooks/useAddService';
+
 import ServicePhotosSection from '@/features/garage/add/components/ServicePhotosSection';
 
 type Props = {
     carId: string;
 };
 
-export default function AddServiceForm({ carId }: Props) {
+export default function AddServiceForm({
+                                           carId,
+                                       }: Props) {
     const {
         car,
         loading,
@@ -37,17 +42,25 @@ export default function AddServiceForm({ carId }: Props) {
 
     if (loading) {
         return (
-            <div className="min-h-[60vh] flex items-center justify-center">
-                <p className="text-[#A3A3A3]">Загрузка...</p>
+            <div className="flex min-h-[60vh] items-center justify-center">
+                <p className="text-[var(--text-muted)]">
+                    Загрузка...
+                </p>
             </div>
         );
     }
 
     if (!car) {
         return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
-                <p className="text-[#A3A3A3]">Автомобиль не найден</p>
-                <Link href="/garage" className="text-[#39FF14] underline hover:text-[#57FF3A]">
+            <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
+                <p className="text-[var(--text-muted)]">
+                    Автомобиль не найден
+                </p>
+
+                <Link
+                    href="/garage"
+                    className="text-[var(--link)] underline transition-colors hover:text-[var(--btn-primary-hover)]"
+                >
                     Вернуться в гараж
                 </Link>
             </div>
@@ -55,16 +68,22 @@ export default function AddServiceForm({ carId }: Props) {
     }
 
     return (
-        <div className="min-h-screen bg-[#0A0A0A] text-[#F5F5F5]">
+        <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
             <ServiceFormHeader carId={carId} />
 
-            <main className="max-w-2xl mx-auto px-6 py-10">
-                <h1 className="text-3xl font-bold mb-2 text-[#F5F5F5]">Добавить ТО</h1>
-                <p className="text-[#A3A3A3] mb-8">
+            <main className="mx-auto max-w-2xl px-6 py-10">
+                <h1 className="mb-2 text-3xl font-bold text-[var(--text)]">
+                    Добавить ТО
+                </h1>
+
+                <p className="mb-8 text-[var(--text-muted)]">
                     {car.make} {car.model} • {car.year}
                 </p>
 
-                <form onSubmit={submit} className="space-y-6">
+                <form
+                    onSubmit={submit}
+                    className="space-y-6"
+                >
                     <ServiceMainFields
                         title={title}
                         date={date}
@@ -74,7 +93,9 @@ export default function AddServiceForm({ carId }: Props) {
                         onTitleChange={setTitle}
                         onDateChange={setDate}
                         onMileageChange={setMileage}
-                        onDescriptionChange={setDescription}
+                        onDescriptionChange={
+                            setDescription
+                        }
                         onCostChange={setCost}
                     />
 
@@ -85,19 +106,25 @@ export default function AddServiceForm({ carId }: Props) {
                         onRemove={removePart}
                     />
 
-                    <ServicePhotosSection photos={photos} onChange={setPhotos} />
+                    <ServicePhotosSection
+                        photos={photos}
+                        onChange={setPhotos}
+                    />
 
                     <div className="flex gap-4 pt-2">
                         <button
                             type="submit"
                             disabled={saving}
-                            className="flex-1 bg-[#39FF14] hover:bg-[#57FF3A] text-black font-medium py-4 rounded-2xl transition disabled:opacity-50"
+                            className="flex-1 rounded-2xl bg-[var(--btn-primary)] py-4 font-medium text-[var(--btn-primary-text)] transition-colors hover:bg-[var(--btn-primary-hover)] disabled:opacity-50"
                         >
-                            {saving ? 'Сохраняем...' : 'Сохранить запись'}
+                            {saving
+                                ? 'Сохраняем...'
+                                : 'Сохранить запись'}
                         </button>
+
                         <Link
                             href={`/garage/${carId}`}
-                            className="flex-1 text-center bg-[#1F1F1F] hover:bg-[#2A2A2A] py-4 rounded-2xl font-medium text-[#F5F5F5] transition"
+                            className="flex-1 rounded-2xl bg-[var(--bg-elevated)] py-4 text-center font-medium text-[var(--text)] transition-colors hover:border-[var(--border)] hover:bg-[var(--border)]"
                         >
                             Отмена
                         </Link>

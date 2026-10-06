@@ -24,17 +24,7 @@ export default function GaragePage() {
         /* Основной контейнер использует глобальный цвет фона и текста */
         <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] relative w-full overflow-x-hidden transition-colors duration-200">
 
-            {/* ДЕКОР СВЕТЛОЙ ТЕМЫ: Навешиваем mix-blend-multiply, чтобы силуэт красиво сливался с кремовым фоном #feffd7 */}
-            <div
-                className="pointer-events-none absolute inset-0 z-0 hidden [html[data-theme=light]_&]:block overflow-hidden"
-                aria-hidden
-            >
-                <img
-                    src="/images/decor/sedan-3.png"
-                    alt=""
-                    className="absolute right-[-50px] bottom-[50px] w-[500px] max-w-none opacity-15 mix-blend-multiply"
-                />
-            </div>
+
 
             {/* КОНТЕНТ ГАРАЖА: Поднят на z-10 и полностью прозрачен по умолчанию */}
             <div className="relative z-10 w-full bg-transparent">

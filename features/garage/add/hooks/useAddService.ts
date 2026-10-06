@@ -160,7 +160,8 @@ export function useAddService(carId: string) {
                     part.brand.trim() ||
                     undefined,
 
-                name: part.name.trim(),
+                name:
+                    part.name.trim(),
 
                 quantity:
                     parseInt(
@@ -191,18 +192,13 @@ export function useAddService(carId: string) {
             }));
 
         /*
-         * Сначала обновляем автомобиль:
-         * - запчасти
-         * - жидкости
-         * - пробег
-         *
-         * Всё сохраняется одной операцией.
+         * Синхронизируем запчасти и жидкости
+         * с накопительным каталогом автомобиля.
          */
         const updatedCar =
             syncServicePartsToCar(
                 carId,
-                serviceParts,
-                parsedMileage
+                serviceParts
             );
 
         if (!updatedCar) {
@@ -266,7 +262,60 @@ export function useAddService(carId: string) {
             JSON.stringify(records)
         );
 
-        setCar(updatedCar);
+        /*
+         * При создании нового ТО его пробег
+         * становится текущим пробегом автомобиля.
+         *
+         * Если пробег в ТО не указан —
+         * текущий пробег автомобиля не меняем.
+         */
+        let finalCar = updatedCar;
+
+        if (
+            parsedMileage !== undefined
+        ) {
+            finalCar = {
+                ...updatedCar,
+
+                currentMileage:
+                parsedMileage,
+
+                updatedAt:
+                    new Date().toISOString(),
+            };
+
+            const carsData =
+                localStorage.getItem(
+                    STORAGE_KEYS.garage
+                );
+
+            if (carsData) {
+                const cars: Car[] =
+                    JSON.parse(carsData);
+
+                const nextCars =
+                    cars.map(
+                        (item) =>
+                            item.id === carId
+                                ? finalCar
+                                : item
+                    );
+
+                localStorage.setItem(
+                    STORAGE_KEYS.garage,
+                    JSON.stringify(nextCars)
+                );
+
+                window.dispatchEvent(
+                    new Event(
+                        'automate:garage-updated'
+                    )
+                );
+            }
+        }
+
+        setCar(finalCar);
+
         setSaving(false);
 
         toast.success(

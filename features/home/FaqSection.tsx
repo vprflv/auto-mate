@@ -57,12 +57,13 @@ export default function FaqSection() {
                 <img
                     src="/images/decor/sedan-4.png"
                     alt=""
-                    className="absolute right-[120px] top-[80px] w-[300px] max-w-none opacity-30"
+                    className="absolute right-[550px] top-[150px] w-[300px] max-w-none opacity-30"
                 />
+
                 <img
                     src="/images/decor/sedan-2.png"
                     alt=""
-                    className="absolute left-[120px] top-[20px] w-[320px] max-w-none opacity-25"
+                    className="absolute left-[500px] top-[250px] w-[320px] max-w-none opacity-25"
                 />
             </div>
 
