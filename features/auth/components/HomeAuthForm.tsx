@@ -3,8 +3,9 @@
 import { FormEvent, useState } from 'react';
 import { useAuth } from '@/features/auth/components/AuthProvider';
 import { useRouter } from 'next/navigation';
-import {Eye, EyeOff} from "lucide-react";
-import {brand} from "@/features/lib/brand";
+import { Eye, EyeOff } from 'lucide-react';
+import { brand } from '@/features/lib/brand';
+import { systemStore } from '@/features/admin/lib/systemStore';
 
 export default function HomeAuthForm() {
     const router = useRouter();
@@ -33,6 +34,11 @@ export default function HomeAuthForm() {
             setError(res.error);
             return;
         }
+
+        // Синхронизируем пользователя с реестром админки
+        const fallbackName = name.trim() || email.split('@')[0];
+        const userId = (res as { user?: { id?: string } })?.user?.id;
+        systemStore.createUser(fallbackName, email, userId);
 
         router.push('/garage');
     };
@@ -176,7 +182,6 @@ export default function HomeAuthForm() {
                         Продолжить без входа →
                     </button>
                 </p>
-
             </div>
         </section>
     );

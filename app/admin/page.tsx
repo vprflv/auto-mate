@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
     ArrowRight,
     CarFront,
@@ -48,27 +49,27 @@ export default function AdminPage() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {stats.map(({ label, value, icon: Icon, href }) => (
-                    <a
+                    <Link
                         key={href}
                         href={href}
-                        className="group rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 transition-colors hover:border-[var(--btn-primary)]"
+                        className="group rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 transition-all hover:border-[var(--border-strong,var(--text-dim))] hover:bg-[var(--card-hover,var(--card))]"
                     >
                         <div className="flex items-start justify-between gap-4">
                             <div>
-                                <p className="text-sm text-[var(--text-muted)]">
+                                <p className="text-sm font-medium text-[var(--text-muted)]">
                                     {label}
                                 </p>
 
-                                <p className="mt-2 text-3xl font-bold text-[var(--text)]">
+                                <p className="mt-2 text-3xl font-bold tracking-tight text-[var(--text)]">
                                     {value}
                                 </p>
                             </div>
 
-                            <div className="rounded-xl bg-[var(--bg-elevated)] p-2.5 text-[var(--text-muted)] transition-colors group-hover:text-[var(--btn-primary)]">
+                            <div className="rounded-xl bg-[var(--bg-elevated)] p-2.5 text-[var(--text-muted)] transition-colors group-hover:text-[var(--text)]">
                                 <Icon className="h-5 w-5" />
                             </div>
                         </div>
-                    </a>
+                    </Link>
                 ))}
             </div>
 
@@ -112,13 +113,13 @@ function DashboardSection({
                 </h3>
 
                 {href && (
-                    <a
+                    <Link
                         href={href}
-                        className="flex items-center gap-1 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--link)]"
+                        className="flex items-center gap-1 text-sm font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--link)]"
                     >
                         Все
                         <ArrowRight className="h-4 w-4" />
-                    </a>
+                    </Link>
                 )}
             </div>
 
@@ -131,7 +132,7 @@ function DashboardSection({
 
 function EmptyState({ text }: { text: string }) {
     return (
-        <div className="flex min-h-32 items-center justify-center rounded-xl bg-[var(--bg-elevated)]">
+        <div className="flex min-h-32 items-center justify-center rounded-xl bg-[var(--bg-elevated)]/50 border border-dashed border-[var(--border)]/60">
             <p className="text-sm text-[var(--text-dim)]">
                 {text}
             </p>

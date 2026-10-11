@@ -10,12 +10,12 @@ import {
     mapDecodedToManualForm,
     mapManualFormToCar
 } from "@/features/garage/add/lib/manualForm";
-import {fetchVinData, mapNhtsaToDecodedCar} from "@/features/garage/add/lib/decodeVin";
-import {isValidVin, normalizeVin} from "@/features/garage/add/lib/config/vin";
-import {addCarToGarage} from "@/features/garage/add/lib/storage";
+import { fetchVinData, mapNhtsaToDecodedCar } from "@/features/garage/add/lib/decodeVin";
+import { isValidVin, normalizeVin } from "@/features/garage/add/lib/config/vin";
+import { addCarToGarage } from "@/features/garage/add/lib/storage";
 
-
-
+// Импортируем глобальный стор админки
+import { systemStore } from '@/features/admin/lib/systemStore';
 
 export function useAddCar() {
     const router = useRouter();
@@ -29,7 +29,6 @@ export function useAddCar() {
     );
 
     const [editingDecoded, setEditingDecoded] = useState(false);
-
 
     const editDecodedCar = () => {
         if (!decoded) return;
@@ -88,21 +87,18 @@ export function useAddCar() {
     };
 
     const enableManualMode = () => {
-
         setEditingDecoded(false);
-
         setManualMode(true);
         setDecoded(null);
         setManualForm(createEmptyManualForm(normalizeVin(vin)));
         setError('');
     };
 
-
-
     const updateManualField = (field: keyof ManualCarForm, value: string) => {
         setManualForm((prev) => ({ ...prev, [field]: value }));
     };
 
+    // Синхронизация расшифрованного авто с админкой
     const saveDecodedCar = () => {
         if (!decoded) return;
 
@@ -112,9 +108,24 @@ export function useAddCar() {
             addedAt: new Date().toISOString(),
         });
 
+        // Отправляем в админку
+        const currentUser = systemStore.getState().users[0]; // Берем текущего юзера
+        if (currentUser) {
+            systemStore.addCar({
+                userId: currentUser.id,
+                brand: decoded.make,
+                model: decoded.model,
+                year: Number(decoded.year),
+                vin: decoded.vin,
+                mileage: 0,
+                engine: decoded.engine || `${decoded.displacementL || ''} ${decoded.fuel || ''}`.trim(),
+            });
+        }
+
         router.push('/garage');
     };
 
+    // Синхронизация ручного авто с админкой
     const saveManualCar = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -124,6 +135,21 @@ export function useAddCar() {
         }
 
         addCarToGarage(mapManualFormToCar(manualForm));
+
+        // Отправляем в админку
+        const currentUser = systemStore.getState().users[0];
+        if (currentUser) {
+            systemStore.addCar({
+                userId: currentUser.id,
+                brand: manualForm.make,
+                model: manualForm.model,
+                year: Number(manualForm.year),
+                vin: manualForm.vin,
+                mileage: 0,
+                engine: manualForm.engine || `${manualForm.displacementL || ''} ${manualForm.fuel || ''}`.trim(),
+            });
+        }
+
         router.push('/garage');
     };
 
