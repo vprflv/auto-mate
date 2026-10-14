@@ -63,23 +63,25 @@ export function CatalogInboxScreen() {
 
             <div className="space-y-4">
                 {filteredItems.length > 0 ? (
-                    filteredItems.map((item) =>
-                        item.type === 'car_model' ? (
-                            <CarInboxCard
-                                key={item.id}
-                                item={item}
-                                onApprove={handleApprove}
-                                onReject={handleReject}
-                            />
-                        ) : (
-                            <PartInboxCard
-                                key={item.id}
-                                item={item}
-                                onApprove={handleApprove}
-                                onReject={handleReject}
-                            />
-                        )
-                    )
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                        {filteredItems.map((item) =>
+                            item.type === 'car_model' ? (
+                                <CarInboxCard
+                                    key={item.id}
+                                    item={item}
+                                    onApprove={handleApprove}
+                                    onReject={handleReject}
+                                />
+                            ) : (
+                                <PartInboxCard
+                                    key={item.id}
+                                    item={item}
+                                    onApprove={handleApprove}
+                                    onReject={handleReject}
+                                />
+                            )
+                        )}
+                    </div>
                 ) : (
                     <InboxEmptyState />
                 )}

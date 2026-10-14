@@ -32,17 +32,31 @@ export default function AdminCatalogIndexPage() {
             }
 
             const brandEntry = brandMap.get(m.brandSlug)!;
+
+            // Находим все узлы для этой конкретной модели
             const relatedNodes = state.catalogNodes.filter(
                 (n) => n.brandSlug === m.brandSlug && n.modelSlug === m.modelSlug
             );
+
+            // Считаем общее количество запчастей
             const totalParts = relatedNodes.reduce((acc, n) => acc + n.items.length, 0);
+
+            // Считаем количество ВЕРИФИЦИРОВАННЫХ запчастей
+            const verifiedParts = relatedNodes.reduce((acc, n) => {
+                return acc + n.items.filter((item) => item.isVerified).length;
+            }, 0);
+
+            // Высчитываем реальный процент доверия базе
+            const calculatedPercent = totalParts > 0
+                ? Math.round((verifiedParts / totalParts) * 100)
+                : 0;
 
             brandEntry.models.push({
                 slug: m.modelSlug,
                 name: m.modelName,
                 years: m.years,
                 partsCount: totalParts,
-                verifiedPercent: totalParts > 0 ? 92 : 0,
+                verifiedPercent: calculatedPercent, // Теперь здесь честная математика!
             });
         });
 

@@ -1,18 +1,28 @@
 'use client';
 
 import { useState } from 'react';
-import {CarParts, PartCategory} from '@/types';
+import { CarParts, PartCategory } from '@/types';
 import EditPartModal from '@/features/garage/parts/components/EditPartModal';
 import NamePromptModal from '@/features/garage/parts/components/NamePromptModal';
 import { useCarPartsCard } from '@/features/garage/parts/hooks/useCarPartsCard';
 import CarPartsCategoryView from '@/features/garage/parts/components/CarPartsCategoryView';
 import CarPartsSubcategoryView from '@/features/garage/parts/components/CarPartsSubcategoryView';
 import CarPartsItemsView from '@/features/garage/parts/components/CarPartsItemsView';
-import {getSubcategoriesFor} from "@/features/garage/lib/getSubcategories";
-import ConfirmDeleteCategoryModal from "@/features/garage/components/ConfirmDeleteCategoryModal";
+import { getSubcategoriesFor } from '@/features/garage/lib/getSubcategories';
+import ConfirmDeleteCategoryModal from '@/features/garage/components/ConfirmDeleteCategoryModal';
+
+export type CarSummaryInfo = {
+    id: string;
+    brand: string;
+    model: string;
+    year?: number;
+    vin?: string;
+    engine?: string;
+};
 
 type Props = {
     carId: string;
+    carInfo?: CarSummaryInfo;
     parts?: CarParts;
     onUpdateParts?: (parts: CarParts) => void;
 };
@@ -21,6 +31,7 @@ export default function CarPartsCard({
                                          parts,
                                          onUpdateParts,
                                          carId,
+                                         carInfo,
                                      }: Props) {
     const [namePrompt, setNamePrompt] = useState<
         'category' | 'subcategory' | null
@@ -48,6 +59,8 @@ export default function CarPartsCard({
         createSubcategory,
         addItemToSection,
     } = useCarPartsCard({
+        carId,
+        carInfo,
         parts,
         onUpdateParts,
     });
@@ -66,8 +79,7 @@ export default function CarPartsCard({
 
     const deleteCategoryItemsCount = deleteCategoryId
         ? (parts?.items ?? []).filter(
-            (item) =>
-                item.category === deleteCategoryId
+            (item) => item.category === deleteCategoryId
         ).length
         : 0;
 
@@ -239,9 +251,7 @@ export default function CarPartsCard({
                 categoryName={categoryToDelete?.label ?? ''}
                 itemCount={deleteCategoryItemsCount}
                 subcategoryCount={deleteCategorySubcategoryCount}
-                onClose={() =>
-                    setDeleteCategoryId(null)
-                }
+                onClose={() => setDeleteCategoryId(null)}
                 onConfirm={() => {
                     if (!deleteCategoryId) return;
 

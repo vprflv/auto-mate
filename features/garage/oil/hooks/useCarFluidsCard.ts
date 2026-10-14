@@ -3,9 +3,13 @@
 import { useState, useEffect } from 'react';
 import { CarFluidItem, CarFluids, FluidCategory } from '@/types/oil';
 import { FLUID_CATEGORY_OPTIONS } from '@/features/garage/lib/config/serviceItemCategories';
-import {getUserFluidCategories, saveUserFluidCategories} from "@/features/garage/lib/userFluidCategories";
+import { getUserFluidCategories, saveUserFluidCategories } from '@/features/garage/lib/userFluidCategories';
+import { systemStore } from '@/features/admin/lib/systemStore';
+import { CarSummaryInfo } from '@/features/garage/components/CarPartsCard';
 
 type UseCarFluidsCardProps = {
+    carId?: string;
+    carInfo?: CarSummaryInfo;
     fluids?: CarFluids;
     onUpdateFluids?: (fluids: CarFluids) => void;
 };
@@ -17,6 +21,8 @@ const SYSTEM_LABELS = Object.fromEntries(
 ) as Record<FluidCategory, string>;
 
 export function useCarFluidsCard({
+                                     carId,
+                                     carInfo,
                                      fluids,
                                      onUpdateFluids,
                                  }: UseCarFluidsCardProps) {
@@ -97,6 +103,33 @@ export function useCarFluidsCard({
             : [...items, updated];
 
         onUpdateFluids?.({ items: next });
+
+        const targetCarId = carId || carInfo?.id;
+        if (targetCarId && updated.name.trim() && updated.name !== 'Маркер категории') {
+            const categoryTitle = getCategoryLabel(updated.category);
+            const brand = (updated as any).brand || (updated as any).manufacturer || 'Не указан';
+            const article = (updated as any).article || (updated as any).oemNumber || (updated as any).spec || '—';
+            const specInfo = (updated as any).spec ? ` (Допуск: ${(updated as any).spec})` : '';
+
+            systemStore.addUserPart({
+                carId: targetCarId,
+                carBrand: carInfo?.brand,
+                carModel: carInfo?.model,
+                carYear: carInfo?.year,
+                carVin: carInfo?.vin,
+                engine: carInfo?.engine,
+                partName: updated.name.trim(),
+                partBrand: brand,
+                partArticle: article,
+                isOem: Boolean((updated as any).isOem),
+                itemType: 'Техническая жидкость',
+                category: categoryTitle,
+                quantity: (updated as any).volume || (updated as any).quantity || 1,
+                price: (updated as any).price,
+                source: 'user_manual',
+                note: `Добавлено вручную в раздел "${categoryTitle}"${specInfo}`,
+            });
+        }
     };
 
     const deleteItem = (id: string) => {
@@ -112,8 +145,7 @@ export function useCarFluidsCard({
             ),
         });
 
-        const userCategories =
-            getUserFluidCategories();
+        const userCategories = getUserFluidCategories();
 
         saveUserFluidCategories(
             userCategories.filter(
@@ -138,11 +170,6 @@ export function useCarFluidsCard({
         setIsCreating(true);
     };
 
-    /**
-     * Создаёт новую пользовательскую категорию и
-     * возвращает её ID, чтобы dropdown мог сразу
-     * выбрать её в текущей форме.
-     */
     const handleCreateCategory = (name: string): string | null => {
         const trimmedName = name.trim();
 
@@ -177,14 +204,11 @@ export function useCarFluidsCard({
         setEditItem,
         isCreating,
         setIsCreating,
-
         customCategories,
-
         activeCategories,
         displayItems,
         deleteCategory,
         title,
-
         getCategoryLabel,
         saveItem,
         deleteItem,

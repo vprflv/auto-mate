@@ -6,17 +6,21 @@ import { useState } from 'react';
 import { useCarFluidsCard } from '../hooks/useCarFluidsCard';
 import EditFluidModal from './EditFluidModal';
 
-
 import { CarFluids } from '@/types/oil';
-import ConfirmDeleteCategoryModal from "@/features/garage/components/ConfirmDeleteCategoryModal";
-import FluidCard from "@/features/garage/oil/components/FluidCard";
+import ConfirmDeleteCategoryModal from '@/features/garage/components/ConfirmDeleteCategoryModal';
+import FluidCard from '@/features/garage/oil/components/FluidCard';
+import { CarSummaryInfo } from '@/features/garage/components/CarPartsCard';
 
 type CarFluidsCardProps = {
+    carId: string;
+    carInfo?: CarSummaryInfo;
     fluids?: CarFluids;
     onUpdateFluids?: (fluids: CarFluids) => void;
 };
 
 export default function CarFluidsCard({
+                                          carId,
+                                          carInfo,
                                           fluids,
                                           onUpdateFluids,
                                       }: CarFluidsCardProps) {
@@ -40,7 +44,7 @@ export default function CarFluidsCard({
         deleteCategory,
         openCreate,
         handleCreateCategory,
-    } = useCarFluidsCard({ fluids, onUpdateFluids });
+    } = useCarFluidsCard({ carId, carInfo, fluids, onUpdateFluids });
 
     const handleCloseModal = () => {
         setEditItem(null);
@@ -301,9 +305,7 @@ export default function CarFluidsCard({
             <ConfirmDeleteCategoryModal
                 open={deleteTarget !== null}
                 categoryName={
-                    deleteTarget
-                        ? getCategoryLabel(deleteTarget)
-                        : ''
+                    deleteTarget ? getCategoryLabel(deleteTarget) : ''
                 }
                 itemCount={deleteItemCount}
                 onClose={() => setDeleteTarget(null)}

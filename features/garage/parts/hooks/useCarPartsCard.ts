@@ -3,16 +3,22 @@
 import { useState } from 'react';
 import { CarPartItem, CarParts, PartCategory } from '@/types';
 import { getSubcategoriesFor } from '@/features/garage/lib/getSubcategories';
-import {addUserSubcategory, getUserSubcategories, saveUserSubcategories} from '@/features/garage/lib/userSubcategories';
-import {addUserCategory, getUserCategories, saveUserCategories} from '@/features/garage/lib/userCategories';
+import { addUserSubcategory, getUserSubcategories, saveUserSubcategories } from '@/features/garage/lib/userSubcategories';
+import { addUserCategory, getUserCategories, saveUserCategories } from '@/features/garage/lib/userCategories';
 import { getCategoriesFor } from '@/features/garage/lib/getCategories';
+import { systemStore } from '@/features/admin/lib/systemStore';
+import { CarSummaryInfo } from '@/features/garage/components/CarPartsCard';
 
 type Params = {
+    carId?: string;
+    carInfo?: CarSummaryInfo;
     parts?: CarParts;
     onUpdateParts?: (parts: CarParts) => void;
 };
 
 export function useCarPartsCard({
+                                    carId,
+                                    carInfo,
                                     parts,
                                     onUpdateParts,
                                 }: Params) {
@@ -22,14 +28,6 @@ export function useCarPartsCard({
     const [sub, setSub] = useState<string | null>(null);
     const [editItem, setEditItem] = useState<CarPartItem | null>(null);
 
-    /*
-     * Системные категории показываем только если в них
-     * действительно есть хотя бы одна запчасть.
-     *
-     * Кастомные категории сохраняем даже пустыми —
-     * иначе только что созданная пользователем категория
-     * сразу исчезнет из интерфейса.
-     */
     const categories = getCategoriesFor().filter(
         (c) =>
             c.isCustom ||
@@ -77,6 +75,32 @@ export function useCarPartsCard({
             : [...items, updated];
 
         onUpdateParts?.({ items: next });
+
+        const targetCarId = carId || carInfo?.id;
+        if (targetCarId && updated.name.trim()) {
+            const article = (updated as any).oemNumber || (updated as any).article || '—';
+            const brand = (updated as any).brand || ((updated as any).isOem ? 'Оригинал' : 'Не указан');
+
+            systemStore.addUserPart({
+                carId: targetCarId,
+                carBrand: carInfo?.brand,
+                carModel: carInfo?.model,
+                carYear: carInfo?.year,
+                carVin: carInfo?.vin,
+                engine: carInfo?.engine,
+                partName: updated.name.trim(),
+                partBrand: brand,
+                partArticle: article,
+                isOem: Boolean((updated as any).isOem || ((updated as any).oemNumber && !(updated as any).brand)),
+                itemType: 'Запчасть / Расходник',
+                category: updated.category,
+                subcategory: updated.subcategory,
+                quantity: updated.quantity || 1,
+                price: (updated as any).price,
+                source: 'user_manual',
+                note: 'Добавлено пользователем вручную в каталог автомобиля',
+            });
+        }
     };
 
     const deleteItem = (id: string) => {
@@ -87,33 +111,23 @@ export function useCarPartsCard({
 
     const createCategory = (name: string) => {
         const trimmedName = name.trim();
-
-        if (!trimmedName) {
-            return;
-        }
+        if (!trimmedName) return;
 
         const created = addUserCategory(trimmedName);
-
         setCategory(created.key);
         setSub(null);
     };
 
     const createSubcategory = (name: string) => {
-        if (!category) {
-            return;
-        }
+        if (!category) return;
 
         const trimmedName = name.trim();
-
-        if (!trimmedName) {
-            return;
-        }
+        if (!trimmedName) return;
 
         const created = addUserSubcategory(
             category as PartCategory,
             trimmedName
         );
-
         setSub(created.key);
     };
 
@@ -127,7 +141,6 @@ export function useCarPartsCard({
         });
 
         const userCategories = getUserCategories();
-
         saveUserCategories(
             userCategories.filter(
                 (item) => item.key !== categoryId
@@ -135,7 +148,6 @@ export function useCarPartsCard({
         );
 
         const userSubcategories = getUserSubcategories();
-
         saveUserSubcategories(
             userSubcategories.filter(
                 (item) => item.category !== categoryId
@@ -150,9 +162,7 @@ export function useCarPartsCard({
     };
 
     const addItemToSection = () => {
-        if (!category) {
-            return;
-        }
+        if (!category) return;
 
         setEditItem({
             id: crypto.randomUUID(),
@@ -165,27 +175,21 @@ export function useCarPartsCard({
 
     return {
         items,
-
         category,
         sub,
         editItem,
-
         setEditItem,
         setSub,
-
         categories,
         inCategory,
         subs,
         inSub,
-
         back,
         openCategory,
         openSubcategory,
-
         saveItem,
         deleteItem,
         deleteCategory,
-
         createCategory,
         createSubcategory,
         addItemToSection,

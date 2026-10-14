@@ -70,6 +70,23 @@ export default function CarSectionContent({
         });
     };
 
+    // Нормализатор, который исправляет массивы на объекты
+    const getSafeCatalog = (data: any) => {
+        if (!data) return { items: [] };
+        if (Array.isArray(data)) return { items: data }; // Если это массив - оборачиваем в items
+        if (data.items && Array.isArray(data.items)) return data; // Если уже объект - отдаем как есть
+        return { items: [] };
+    };
+
+    const carInfo = {
+        id: car.id,
+        brand: car.make || (car as any).brand || 'Неизвестная марка',
+        model: car.model || 'Неизвестная модель',
+        year: car.year,
+        vin: car.vin,
+        engine: (car as any).engine,
+    };
+
     if (section === 'overview') {
         return (
             <div className="space-y-6 bg-transparent">
@@ -96,8 +113,9 @@ export default function CarSectionContent({
     if (section === 'fluids') {
         return (
             <CarFluidsCard
-                /* Безопасный фоллбэк: если в localStorage структуры нет, приложение не упадет */
-                fluids={car.fluids?.items ? car.fluids : { items: [] }}
+                carId={car.id}
+                carInfo={carInfo}
+                fluids={getSafeCatalog(car.fluids)}
                 onUpdateFluids={(fluids: CarFluids) => {
                     onUpdateCar({
                         ...car,
@@ -112,8 +130,9 @@ export default function CarSectionContent({
     if (section === 'parts') {
         return (
             <CarPartsCard
-                parts={car.partsCatalog || { items: [] }}
                 carId={car.id}
+                carInfo={carInfo}
+                parts={getSafeCatalog(car.partsCatalog || (car as any).parts)}
                 onUpdateParts={(partsCatalog) => {
                     onUpdateCar({
                         ...car,

@@ -99,6 +99,7 @@ export function useAddCar() {
     };
 
     // Синхронизация расшифрованного авто с админкой
+    // 1. Сохранение декодированного авто
     const saveDecodedCar = () => {
         if (!decoded) return;
 
@@ -108,24 +109,29 @@ export function useAddCar() {
             addedAt: new Date().toISOString(),
         });
 
-        // Отправляем в админку
-        const currentUser = systemStore.getState().users[0]; // Берем текущего юзера
+        // Отправляем в админку с полным паспортом характеристик
+        const currentUser = systemStore.getState().users[0];
         if (currentUser) {
             systemStore.addCar({
                 userId: currentUser.id,
                 brand: decoded.make,
                 model: decoded.model,
-                year: Number(decoded.year),
+                year: Number(decoded.year) || new Date().getFullYear(),
                 vin: decoded.vin,
                 mileage: 0,
-                engine: decoded.engine || `${decoded.displacementL || ''} ${decoded.fuel || ''}`.trim(),
+                engine: decoded.engine || '',
+                displacementL: decoded.displacementL || '',
+                fuel: decoded.fuel || '',
+                transmission: decoded.transmission || '',
+                driveType: decoded.driveType || '',
+                bodyClass: decoded.bodyClass || '',
             });
         }
 
         router.push('/garage');
     };
 
-    // Синхронизация ручного авто с админкой
+    // 2. Сохранение авто из ручной формы
     const saveManualCar = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -136,17 +142,23 @@ export function useAddCar() {
 
         addCarToGarage(mapManualFormToCar(manualForm));
 
-        // Отправляем в админку
+        // Отправляем в админку со всеми полями ручной формы
         const currentUser = systemStore.getState().users[0];
         if (currentUser) {
             systemStore.addCar({
                 userId: currentUser.id,
                 brand: manualForm.make,
                 model: manualForm.model,
-                year: Number(manualForm.year),
+                year: Number(manualForm.year) || new Date().getFullYear(),
                 vin: manualForm.vin,
                 mileage: 0,
-                engine: manualForm.engine || `${manualForm.displacementL || ''} ${manualForm.fuel || ''}`.trim(),
+                engine: manualForm.engine || '',
+                displacementL: manualForm.displacementL || '',
+                fuel: manualForm.fuel || '',
+                transmission: manualForm.transmission || '',
+                driveType: manualForm.driveType || '',
+                bodyClass: manualForm.bodyClass || '',
+                color: manualForm.color || '',
             });
         }
 

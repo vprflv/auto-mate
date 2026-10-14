@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useParams } from 'next/navigation';
 
-import { initialModelNodes, mockEngines, mockCategories } from './data/mockModelCatalog';
+import { initialModelNodes } from './data/mockModelCatalog';
 import { AssemblyNode, PartItem } from './types';
 import { CatalogHeader } from './components/CatalogHeader';
 import { EngineSelector } from './components/EngineSelector';
@@ -11,13 +11,18 @@ import { CategoryTabs } from './components/CategoryTabs';
 import { PartItemRow } from './components/PartItemRow';
 import { EditPartScoreModal } from './components/EditPartScoreModal';
 import { systemStore } from '@/features/admin/lib/systemStore';
+import { normalizeSlug } from '@/features/admin/lib/system-store/utils';
 
 export default function AdminModelCatalogPage() {
     const params = useParams();
-    const brandSlug = ((params?.brand as string) ?? 'skoda').toLowerCase();
-    const modelSlug = ((params?.model as string) ?? 'octavia-a7').toLowerCase();
+    const rawBrand = decodeURIComponent((params?.brand as string) ?? 'skoda');
+    const rawModel = decodeURIComponent((params?.model as string) ?? 'octavia-a7');
 
-    const [nodes, setNodes] = React.useState<AssemblyNode[]>(initialModelNodes);
+    const brandSlug = normalizeSlug(rawBrand);
+    const modelSlug = normalizeSlug(rawModel);
+
+    // Не подставляем initialModelNodes для чужих машин, чтобы не было "мигания" при перезагрузке
+    const [nodes, setNodes] = React.useState<AssemblyNode[]>([]);
     const [selectedEngine, setSelectedEngine] = React.useState('all');
     const [selectedCategory, setSelectedCategory] = React.useState('service');
 
@@ -28,34 +33,31 @@ export default function AdminModelCatalogPage() {
 
     const loadModelNodes = React.useCallback(() => {
         const state = systemStore.getState();
-        // Находим сохраненные узлы для этой модели в глобальном сторе
-        const matched = state.catalogNodes.filter(
-            (n) => n.brandSlug === brandSlug && n.modelSlug === modelSlug
-        );
+        const matched = state.catalogNodes
+            .filter(
+                (n) =>
+                    normalizeSlug(n.brandSlug) === brandSlug &&
+                    normalizeSlug(n.modelSlug) === modelSlug
+            )
+            .map((n) => ({
+                id: n.id,
+                title: n.title,
+                category: n.category,
+                engineCompatibility: n.engineCompatibility,
+                items: n.items,
+            }));
 
-        if (matched.length > 0) {
-            setNodes(
-                matched.map((n) => ({
-                    id: n.id,
-                    title: n.title,
-                    category: n.category,
-                    engineCompatibility: n.engineCompatibility,
-                    items: n.items,
-                }))
-            );
-        } else if (brandSlug === 'skoda' && modelSlug === 'octavia-a7') {
-            setNodes(initialModelNodes);
+        if (brandSlug === 'skoda' && modelSlug === 'octavia-a7') {
+            // Для Octavia A7 объединяем базовые моковые узлы и новые одобренные узлы
+            const merged = [...matched];
+            initialModelNodes.forEach((initNode) => {
+                if (!merged.some((m) => m.id === initNode.id || m.title === initNode.title)) {
+                    merged.push(initNode);
+                }
+            });
+            setNodes(merged);
         } else {
-            // Если новая модель, формируем пустые базовые секции
-            setNodes([
-                {
-                    id: `${brandSlug}-${modelSlug}-service-default`,
-                    title: 'Регламентные расходники ТО',
-                    category: 'service',
-                    engineCompatibility: ['all'],
-                    items: [],
-                },
-            ]);
+            setNodes(matched);
         }
     }, [brandSlug, modelSlug]);
 
@@ -78,11 +80,11 @@ export default function AdminModelCatalogPage() {
         };
     }, [loadModelNodes]);
 
-    const formatBrandTitle = (slug: string) =>
-        slug.charAt(0).toUpperCase() + slug.slice(1);
-
-    const formatModelTitle = (slug: string) =>
-        slug.split('-').map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+    const formatTitle = (slug: string) =>
+        slug
+            .split('-')
+            .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+            .join(' ');
 
     const handleSavePart = (updated: { score: number; isVerified: boolean; note?: string }) => {
         if (!editingState) return;
@@ -99,16 +101,20 @@ export default function AdminModelCatalogPage() {
     };
 
     const visibleNodes = nodes.filter((node) => {
+        if (node.items.length === 0) return false;
         if (node.category !== selectedCategory) return false;
         if (selectedEngine === 'all') return true;
-        return node.engineCompatibility.includes(selectedEngine) || node.engineCompatibility.includes('all');
+        return (
+            node.engineCompatibility.includes(selectedEngine) ||
+            node.engineCompatibility.includes('all')
+        );
     });
 
     return (
         <div className="space-y-6">
             <CatalogHeader
-                brandTitle={formatBrandTitle(brandSlug)}
-                modelTitle={formatModelTitle(modelSlug)}
+                brandTitle={formatTitle(brandSlug)}
+                modelTitle={formatTitle(modelSlug)}
             />
 
             <EngineSelector
@@ -122,7 +128,7 @@ export default function AdminModelCatalogPage() {
             />
 
             <div className="space-y-6">
-                {visibleNodes.length > 0 && visibleNodes.some((n) => n.items.length > 0) ? (
+                {visibleNodes.length > 0 ? (
                     visibleNodes.map((node) => (
                         <section
                             key={node.id}
