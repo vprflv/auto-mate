@@ -16,8 +16,12 @@ const CYRILLIC_TO_LATIN_MAP: Record<string, string> = {
 
 // Стоп-слова, которые юзеры вбивают в поле артикула вместо реального номера
 const FAKE_OEM_STOP_WORDS = new Set([
-    'НЕТ', 'NO', 'NONE', 'ХЗ', 'НЕЗНАЮ', 'НЕПОМНЮ', 'ОРИГИНАЛ', 'OEM', '—', '-', 'АНАЛОГ'
+    'НЕТ', 'NO', 'NONE', 'ХЗ', 'НЕЗНАЮ', 'НЕПОМНЮ', 'ОРИГИНАЛ', 'OEM', '—', '-', 'АНАЛОГ',
+    'DOT3', 'DOT4', 'DOT5', 'DOT51', 'DEXRON', 'DEXRON3', 'DEXRON6', 'ATF'
 ]);
+
+// Регулярка для отсева допусков жидкостей
+const FLUID_SPEC_REGEX = /^(DOT\d*|DEXRON\d*|VW\d{3}\d{2}|MB\d{3}\d*|ACEA[A-Z0-9]+|API[A-Z0-9]+)$/i;
 
 /**
  * Приводит OEM / артикул к строгому каноническому виду:
@@ -40,7 +44,8 @@ export function normalizeOem(raw?: string | null): string {
     // Оставляем только буквы и цифры (выкидываем пробелы, тире, слэши, точки)
     const stripped = trimmed.replace(/[^A-Z0-9А-Я]/g, '');
 
-    if (FAKE_OEM_STOP_WORDS.has(stripped) || stripped.length < 3) {
+    // Проверяем: нет ли стоп-слова, достаточна ли длина и не является ли это допуском
+    if (FAKE_OEM_STOP_WORDS.has(stripped) || stripped.length < 3 || FLUID_SPEC_REGEX.test(stripped)) {
         return '';
     }
 

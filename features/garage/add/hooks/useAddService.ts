@@ -17,8 +17,6 @@ import {
 
 import { STORAGE_KEYS } from '@/features/garage/add/lib/config/storage';
 import { syncServicePartsToCar } from '@/features/garage/lib/syncServiceToCar';
-
-// 1. Импортируем systemStore
 import { systemStore } from '@/features/admin/lib/systemStore';
 
 export function useAddService(carId: string) {
@@ -148,15 +146,63 @@ export function useAddService(carId: string) {
             }
         }
 
-        // 2. ОТПРАВЛЯЕМ В SYSTEMSTORE ДЛЯ АДМИНКИ И МОДЕРАЦИИ
+        // Синхронизация с системой краудсорсинга и очередью модерации
         try {
-            // Находим целевую машину в админке или связываем по VIN / названию
             const adminState = systemStore.getState();
+
+            const effectiveVin =
+                car.vin ||
+                (car as any).carVin ||
+                (car as any).specs?.vin ||
+                '';
+
+            const effectiveBrand =
+                car.make ||
+                (car as any).brand ||
+                'Автомобиль';
+
+            const effectiveModel = car.model || '';
+            const effectiveYear = Number(car.year) || new Date().getFullYear();
+
+            const effectiveEngine =
+                (car as any).engine ||
+                (car as any).engineCode ||
+                (car as any).specs?.engine ||
+                '';
+
+            const effectiveEngineCode =
+                (car as any).engineCode ||
+                (car as any).specs?.engineCode ||
+                '';
+
+            const effectiveTransmission =
+                (car as any).transmission ||
+                (car as any).gearbox ||
+                (car as any).transmissionType ||
+                (car as any).specs?.transmission ||
+                (car as any).specs?.gearbox ||
+                (car as any).specs?.transmissionType ||
+                '';
+
+            const effectiveDrivetrain =
+                (car as any).drivetrain ||
+                (car as any).driveType ||
+                (car as any).drive ||
+                (car as any).specs?.drivetrain ||
+                (car as any).specs?.driveType ||
+                (car as any).specs?.drive ||
+                '';
+
+            const effectiveCarSpecs = {
+                ...((car as any).carSpecs || (car as any).specs || {}),
+                transmission: effectiveTransmission,
+                drivetrain: effectiveDrivetrain,
+            };
+
             let adminCar = adminState.cars.find(
-                (c) => c.id === carId || (c.vin && c.vin === car.vin)
+                (c) => c.id === carId || (effectiveVin && c.vin === effectiveVin)
             );
 
-            // Если машина была создана только в гараже, регистрируем её в админке на лету
             if (!adminCar) {
                 let user = adminState.users[0];
                 if (!user) {
@@ -165,23 +211,39 @@ export function useAddService(carId: string) {
 
                 adminCar = systemStore.addCar({
                     userId: user.id,
-                    brand: (car as any).make || (car as any).brand || 'Автомобиль',
-                    model: car.model || '',
-                    year: Number(car.year) || new Date().getFullYear(),
-                    vin: car.vin || '',
+                    brand: effectiveBrand,
+                    model: effectiveModel,
+                    year: effectiveYear,
+                    vin: effectiveVin,
                     mileage: parsedMileage || 0,
-                    engine: (car as any).engine || '',
+                    engine: effectiveEngine,
                 });
             }
 
-            // Отправляем каждую деталь через addUserPart (с проверкой 1-в-1 и созданием тикета)
             serviceParts.forEach((sp) => {
+                const brandLower = (sp.brand || '').trim().toLowerCase();
+                const isCarBrand =
+                    brandLower === effectiveBrand.toLowerCase() ||
+                    brandLower === 'oem' ||
+                    brandLower === 'оригинал';
+
+                const calculatedIsOem = Boolean(sp.oemNumber && (!sp.brand || isCarBrand));
+
                 systemStore.addUserPart({
                     carId: adminCar.id,
+                    carBrand: effectiveBrand,
+                    carModel: effectiveModel,
+                    carYear: effectiveYear,
+                    carVin: effectiveVin,
+                    engine: effectiveEngine,
+                    engineCode: effectiveEngineCode,
+                    transmission: effectiveTransmission,
+                    drivetrain: effectiveDrivetrain,
+                    carSpecs: effectiveCarSpecs,
                     partName: sp.name,
-                    partBrand: sp.brand,
+                    partBrand: sp.brand || (calculatedIsOem ? 'OEM' : 'Не указан'),
                     partArticle: sp.oemNumber,
-                    isOem: Boolean(sp.oemNumber && !sp.brand),
+                    isOem: calculatedIsOem,
                     itemType: sp.itemType === 'fluid' ? 'Техническая жидкость' : 'Запчасть / Расходник',
                     category: sp.partCategory || sp.fluidCategory,
                     subcategory: sp.subcategory,

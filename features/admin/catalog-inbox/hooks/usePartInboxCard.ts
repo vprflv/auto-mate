@@ -10,7 +10,11 @@ import {
     extractCarSpecs,
 } from '../lib/partInboxUtils';
 
-export function usePartInboxCard(item: InboxItem, onApprove: (id: string) => void) {
+export function usePartInboxCard(
+    item: InboxItem,
+    onApprove: (id: string) => void,
+    onReject?: (id: string) => void
+) {
     const parsedSpecs = React.useMemo(() => extractCarSpecs(item), [item]);
     const { fullEngineTag } = parsedSpecs;
 
@@ -41,6 +45,9 @@ export function usePartInboxCard(item: InboxItem, onApprove: (id: string) => voi
         return ['body', 'suspension', 'brakes'].includes(initialCat) ? 'all' : 'specific';
     });
 
+    // Стейт статуса обработки (защита от двойного клика)
+    const [status, setStatus] = React.useState<'idle' | 'approving' | 'rejecting'>('idle');
+
     // Подсказка существующих узлов для выбранной категории
     const existingNodeTitles = React.useMemo(() => {
         const state = storage.getState();
@@ -70,7 +77,16 @@ export function usePartInboxCard(item: InboxItem, onApprove: (id: string) => voi
         if (nextOem && !score) setScore(90);
     };
 
-    const handleApproveClick = () => {
+    const handleRejectClick = React.useCallback(() => {
+        if (status !== 'idle') return;
+        setStatus('rejecting');
+        onReject?.(item.id);
+    }, [status, item.id, onReject]);
+
+    const handleApproveClick = React.useCallback(() => {
+        if (status !== 'idle') return;
+        setStatus('approving');
+
         const finalCategory =
             isCustomCat && customCatName.trim()
                 ? customCatName.trim().toLowerCase().replace(/\s+/g, '-')
@@ -102,7 +118,22 @@ export function usePartInboxCard(item: InboxItem, onApprove: (id: string) => voi
         }
 
         onApprove(item.id);
-    };
+    }, [
+        status,
+        item.id,
+        isCustomCat,
+        customCatName,
+        selectedCategory,
+        nodeTitle,
+        partName,
+        engineScope,
+        fullEngineTag,
+        partBrand,
+        partArticle,
+        isOem,
+        score,
+        onApprove,
+    ]);
 
     return {
         parsedSpecs,
@@ -128,5 +159,9 @@ export function usePartInboxCard(item: InboxItem, onApprove: (id: string) => voi
         setEngineScope,
         existingNodeTitles,
         handleApproveClick,
+        handleRejectClick,
+        isSubmitting: status !== 'idle',
+        isApproving: status === 'approving',
+        isRejecting: status === 'rejecting',
     };
 }

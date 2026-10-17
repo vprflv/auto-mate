@@ -31,15 +31,13 @@ export function addUserPart(params: AddUserPartParams) {
     const rawName = (params.partName || '').trim();
     if (rawName.length < 2) return;
 
-
-
     // 1. Канонизируем OEM
     const canonicalOem = normalizeOem(params.partArticle);
     const hasValidOem = canonicalOem.length >= 3;
 
     const state = storage.getState();
 
-    // 2. Ищем машину в админке
+    // 2. Ищем авто в админке для связки
     const adminCar =
         state.cars.find((c) => c.id === params.carId) ||
         state.cars.find((c) => c.vin && c.vin === params.carId);
@@ -52,7 +50,7 @@ export function addUserPart(params: AddUserPartParams) {
     const cleanBrand = (params.partBrand || '').trim().toLowerCase();
     const cleanName = rawName.toLowerCase();
 
-    // 3. ПРОВЕРКА В MASTER CATALOG
+    // 3. ПРОВЕРКА В MASTER CATALOG (если деталь уже есть — инкрементируем установки)
     if (hasValidOem) {
         for (const node of state.catalogNodes) {
             if (normalizeSlug(node.brandSlug) !== brandSlug || normalizeSlug(node.modelSlug) !== modelSlug) {
@@ -66,18 +64,24 @@ export function addUserPart(params: AddUserPartParams) {
             }
         }
     } else {
-        const alreadyInCatalog = state.catalogNodes.some((node) => {
-            if (normalizeSlug(node.brandSlug) !== brandSlug || normalizeSlug(node.modelSlug) !== modelSlug) return false;
-            return node.items.some(
+        for (const node of state.catalogNodes) {
+            if (normalizeSlug(node.brandSlug) !== brandSlug || normalizeSlug(node.modelSlug) !== modelSlug) {
+                continue;
+            }
+            const foundPart = node.items.find(
                 (p) =>
                     (p.brand || '').trim().toLowerCase() === cleanBrand &&
                     p.name.trim().toLowerCase() === cleanName
             );
-        });
-        if (alreadyInCatalog) return;
+            if (foundPart) {
+                foundPart.installationsCount = (foundPart.installationsCount || 1) + 1;
+                storage.saveState(state);
+                return;
+            }
+        }
     }
 
-    // 4. ПРОВЕРКА В INBOX (ОЧЕРЕДЬ МОДЕРАЦИИ)
+    // 4. ПРОВЕРКА В INBOX (если тикет уже есть — инкрементируем счетчик обращений)
     if (hasValidOem) {
         const inboxTicket = state.inbox.find(
             (i) =>
@@ -89,7 +93,6 @@ export function addUserPart(params: AddUserPartParams) {
 
         if (inboxTicket) {
             inboxTicket.occurrencesCount = (inboxTicket.occurrencesCount || 1) + 1;
-            // Дополняем старый тикет свежими данными о машине, если их не было
             inboxTicket.carVin = inboxTicket.carVin || params.carVin;
             inboxTicket.engine = inboxTicket.engine || params.engine;
             inboxTicket.engineCode = inboxTicket.engineCode || params.engineCode;
@@ -100,7 +103,7 @@ export function addUserPart(params: AddUserPartParams) {
             return;
         }
     } else {
-        const alreadyInInbox = state.inbox.some(
+        const inboxTicket = state.inbox.find(
             (i) =>
                 i.type === 'part' &&
                 normalizeSlug(i.carBrand) === brandSlug &&
@@ -108,10 +111,15 @@ export function addUserPart(params: AddUserPartParams) {
                 (i.partBrand || '').trim().toLowerCase() === cleanBrand &&
                 (i.partName || '').trim().toLowerCase() === cleanName
         );
-        if (alreadyInInbox) return;
+
+        if (inboxTicket) {
+            inboxTicket.occurrencesCount = (inboxTicket.occurrencesCount || 1) + 1;
+            storage.saveState(state);
+            return;
+        }
     }
 
-    // 5. СОЗДАЕМ ТИКЕТ
+    // 5. СОЗДАЕМ ТИКЕТ В INBOX
     const baseScore = hasValidOem ? 85 : 40;
     const isOemFlag = Boolean(params.isOem || hasValidOem);
 

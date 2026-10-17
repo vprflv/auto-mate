@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
-import { ServiceRecord, ServicePart } from '@/types';
+import { ServiceRecord, ServicePart, Car } from '@/types';
 import ServiceMainFields from '@/features/garage/add/components/ServiceMainFields';
 import ServicePartsSection from '@/features/garage/add/components/ServicePartsSection';
 import {
@@ -10,7 +11,9 @@ import {
     createEmptyPart,
 } from '@/features/garage/add/types/serviceForm';
 import ServicePhotosSection from '@/features/garage/add/components/ServicePhotosSection';
-import {toast} from "sonner";
+
+import { STORAGE_KEYS } from '@/features/garage/add/lib/config/storage';
+import { systemStore } from '@/features/admin/lib/systemStore';
 
 type Props = {
     record: ServiceRecord | null;
@@ -44,17 +47,14 @@ function formToParts(parts: PartForm[]): ServicePart[] {
             oemNumber: p.oemNumber.trim() || undefined,
             quantity: parseInt(p.quantity, 10) || 1,
             itemType: p.itemType,
-
             fluidCategory:
                 p.itemType === 'fluid'
                     ? p.fluidCategory
                     : undefined,
-
             partCategory:
                 p.itemType === 'part'
                     ? p.partCategory
                     : undefined,
-
             subcategory:
                 p.subcategory.trim() || undefined,
         }));
@@ -100,7 +100,6 @@ export default function EditServiceModal({
         if (!open) return;
 
         const originalOverflow = document.body.style.overflow;
-
         document.body.style.overflow = 'hidden';
 
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -113,10 +112,7 @@ export default function EditServiceModal({
 
         return () => {
             document.body.style.overflow = originalOverflow;
-            document.removeEventListener(
-                'keydown',
-                handleKeyDown
-            );
+            document.removeEventListener('keydown', handleKeyDown);
         };
     }, [open, onClose]);
 
@@ -152,21 +148,137 @@ export default function EditServiceModal({
             return;
         }
 
+        const validParts = formToParts(parts);
+        const parsedMileage = mileage ? parseInt(mileage, 10) : undefined;
+
         const updated: ServiceRecord = {
             ...record,
             title: title.trim(),
             date,
-            mileage: mileage
-                ? parseInt(mileage, 10)
-                : undefined,
+            mileage: parsedMileage,
             photos: photos.length ? photos : undefined,
-            description:
-                description.trim() || undefined,
-            cost: cost
-                ? parseFloat(cost)
-                : undefined,
-            parts: formToParts(parts),
+            description: description.trim() || undefined,
+            cost: cost ? parseFloat(cost) : undefined,
+            parts: validParts,
         };
+
+        // Отправка телеметрии в админку с извлечением паспорта авто
+        try {
+            const adminState = systemStore.getState();
+
+            // 1. Ищем авто в LocalStorage гаража
+            let garageCar: Car | null = null;
+            const garageData = localStorage.getItem(STORAGE_KEYS.garage);
+            if (garageData) {
+                const cars: Car[] = JSON.parse(garageData);
+                garageCar = cars.find((c) => c.id === record.carId) || null;
+            }
+
+            // 2. Ищем авто в админском сторе
+            const adminCar = adminState.cars.find(
+                (c) => c.id === record.carId || (garageCar?.vin && c.vin === garageCar.vin)
+            );
+
+            // 3. Собираем паспортные данные
+            const effectiveVin =
+                garageCar?.vin ||
+                (garageCar as any)?.carVin ||
+                (garageCar as any)?.specs?.vin ||
+                adminCar?.vin ||
+                '';
+
+            const effectiveBrand =
+                garageCar?.make ||
+                (garageCar as any)?.brand ||
+                adminCar?.brand ||
+                'Автомобиль';
+
+            const effectiveModel =
+                garageCar?.model ||
+                adminCar?.model ||
+                '';
+
+            const effectiveYear =
+                Number(garageCar?.year) ||
+                adminCar?.year ||
+                new Date().getFullYear();
+
+            const effectiveEngine =
+                (garageCar as any)?.engine ||
+                (garageCar as any)?.engineCode ||
+                (garageCar as any)?.specs?.engine ||
+                adminCar?.engine ||
+                '';
+
+            const effectiveEngineCode =
+                (garageCar as any)?.engineCode ||
+                (garageCar as any)?.specs?.engineCode ||
+                adminCar?.engineCode ||
+                '';
+
+            const effectiveTransmission =
+                (garageCar as any)?.transmission ||
+                (garageCar as any)?.gearbox ||
+                (garageCar as any)?.transmissionType ||
+                (garageCar as any)?.specs?.transmission ||
+                (garageCar as any)?.specs?.gearbox ||
+                (garageCar as any)?.specs?.transmissionType ||
+                adminCar?.transmission ||
+                '';
+
+            const effectiveDrivetrain =
+                (garageCar as any)?.drivetrain ||
+                (garageCar as any)?.driveType ||
+                (garageCar as any)?.drive ||
+                (garageCar as any)?.specs?.drivetrain ||
+                (garageCar as any)?.specs?.driveType ||
+                (garageCar as any)?.specs?.drive ||
+                (adminCar as any)?.drivetrain ||
+                '';
+
+            const effectiveCarSpecs = {
+                ...((garageCar as any)?.carSpecs || (garageCar as any)?.specs || adminCar?.carSpecs || {}),
+                transmission: effectiveTransmission,
+                drivetrain: effectiveDrivetrain,
+            };
+
+            // 4. Отправляем каждую деталь
+            validParts.forEach((sp) => {
+                const brandLower = (sp.brand || '').trim().toLowerCase();
+                const isCarBrand =
+                    brandLower === effectiveBrand.toLowerCase() ||
+                    brandLower === 'oem' ||
+                    brandLower === 'оригинал';
+
+                const calculatedIsOem = Boolean(sp.oemNumber && (!sp.brand || isCarBrand));
+
+                systemStore.addUserPart({
+                    carId: adminCar?.id || record.carId,
+                    carBrand: effectiveBrand,
+                    carModel: effectiveModel,
+                    carYear: effectiveYear,
+                    carVin: effectiveVin,
+                    engine: effectiveEngine,
+                    engineCode: effectiveEngineCode,
+                    transmission: effectiveTransmission,
+                    drivetrain: effectiveDrivetrain,
+                    carSpecs: effectiveCarSpecs,
+                    partName: sp.name,
+                    partBrand: sp.brand || (calculatedIsOem ? 'OEM' : 'Не указан'),
+                    partArticle: sp.oemNumber,
+                    isOem: calculatedIsOem,
+                    itemType: sp.itemType === 'fluid' ? 'Техническая жидкость' : 'Запчасть / Расходник',
+                    category: sp.partCategory || sp.fluidCategory,
+                    subcategory: sp.subcategory,
+                    quantity: sp.quantity,
+                    mileage: parsedMileage,
+                    source: 'user_service',
+                    note: `Редактирование ТО: "${title.trim()}"`,
+                });
+            });
+        } catch (err) {
+            console.error('[EditServiceModal] Ошибка синхронизации с админкой:', err);
+        }
 
         onSave(updated);
         onClose();
@@ -239,6 +351,7 @@ export default function EditServiceModal({
                         <button
                             type="button"
                             onClick={() => {
+                                if (!record) return;
                                 onDelete(record.id);
                                 onClose();
                             }}

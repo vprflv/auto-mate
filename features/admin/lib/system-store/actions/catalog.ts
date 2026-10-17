@@ -108,6 +108,7 @@ export function approveInboxItem(id: string) {
     // 5. Проверяем наличие детали по каноническому OEM или связке бренд+артикул
     const canonicalFinal = normalizeOem(finalArticle);
     const hasRealOem = canonicalFinal.length >= 3;
+    const safeArticle = hasRealOem ? finalArticle.trim() : '—';
 
     const existingPart = targetNode.items.find((p) => {
         if (hasRealOem && normalizeOem(p.article).length >= 3) {
@@ -129,9 +130,9 @@ export function approveInboxItem(id: string) {
         targetNode.items.push({
             id: `p_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
             brand: finalBrand,
-            article: finalArticle,
+            article: safeArticle,
             name: finalName,
-            isOem: finalIsOem,
+            isOem: hasRealOem ? finalIsOem : false,
             isVerified: true,
             installationsCount: item.occurrencesCount || 1,
             compatibilityScore: finalScore,

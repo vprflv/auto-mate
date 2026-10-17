@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, X, Loader2 } from 'lucide-react';
 import { InboxItem } from '@/features/admin/lib/systemStore';
 import { usePartInboxCard } from '../hooks/usePartInboxCard';
 import { PartCarSpecsSection } from './part-card/PartCarSpecsSection';
@@ -39,7 +39,11 @@ export function PartInboxCard({ item, onApprove, onReject }: Props) {
         setEngineScope,
         existingNodeTitles,
         handleApproveClick,
-    } = usePartInboxCard(item, onApprove);
+        handleRejectClick,
+        isSubmitting,
+        isApproving,
+        isRejecting,
+    } = usePartInboxCard(item, onApprove, onReject);
 
     return (
         <div className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[var(--border)]/60 bg-[var(--card)] transition-all duration-200 hover:border-[var(--link)]/40 hover:shadow-sm">
@@ -83,19 +87,29 @@ export function PartInboxCard({ item, onApprove, onReject }: Props) {
                 <div className="flex items-center gap-2 pt-2 border-t border-[var(--border)]/40">
                     <button
                         type="button"
-                        onClick={() => onReject(item.id)}
-                        className="flex h-8 flex-1 items-center justify-center gap-1 rounded-xl border border-rose-500/20 bg-rose-500/10 text-xs font-semibold text-rose-500 transition hover:bg-rose-500 hover:text-white"
+                        disabled={isSubmitting}
+                        onClick={handleRejectClick}
+                        className="flex h-8 flex-1 items-center justify-center gap-1 rounded-xl border border-rose-500/20 bg-rose-500/10 text-xs font-semibold text-rose-500 transition hover:bg-rose-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <X className="h-3 w-3" />
+                        {isRejecting ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                            <X className="h-3 w-3" />
+                        )}
                         Отклонить
                     </button>
 
                     <button
                         type="button"
+                        disabled={isSubmitting}
                         onClick={handleApproveClick}
-                        className="flex h-8 flex-[1.4] items-center justify-center gap-1 rounded-xl bg-emerald-500 text-xs font-bold text-white transition hover:bg-emerald-600 shadow-2xs"
+                        className="flex h-8 flex-[1.4] items-center justify-center gap-1 rounded-xl bg-emerald-500 text-xs font-bold text-white transition hover:bg-emerald-600 shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                        {isApproving ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                            <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                        )}
                         Одобрить
                     </button>
                 </div>
