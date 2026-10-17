@@ -1,6 +1,6 @@
 import { InboxItem } from '../types';
 import { storage } from '../storage';
-import { normalizeSlug } from '../utils';
+import { normalizeSlug, normalizeOem } from '../utils';
 
 export interface AddUserPartParams {
     carId: string;
@@ -9,6 +9,10 @@ export interface AddUserPartParams {
     carYear?: number;
     carVin?: string;
     engine?: string;
+    engineCode?: string;
+    drivetrain?: string;
+    transmission?: string;
+    carSpecs?: Record<string, any>;
     partName: string;
     partBrand?: string;
     partArticle?: string;
@@ -23,102 +27,93 @@ export interface AddUserPartParams {
     note?: string;
 }
 
-function findCarInLocalStorage(carId: string): any | null {
-    if (typeof window === 'undefined') return null;
-    try {
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (!key || key === 'bm_shared_system_state_v1') continue;
-            const raw = localStorage.getItem(key);
-            if (!raw || (!raw.startsWith('[') && !raw.startsWith('{'))) continue;
-
-            const parsed = JSON.parse(raw);
-            const list = Array.isArray(parsed)
-                ? parsed
-                : Array.isArray(parsed?.cars)
-                    ? parsed.cars
-                    : Array.isArray(parsed?.items)
-                        ? parsed.items
-                        : null;
-
-            if (list) {
-                const found = list.find((c: any) => c && (c.id === carId || c.vin === carId));
-                if (found && (found.make || found.brand || found.model)) {
-                    return found;
-                }
-            }
-        }
-    } catch {
-        // ignore parse errors
-    }
-    return null;
-}
-
 export function addUserPart(params: AddUserPartParams) {
     const rawName = (params.partName || '').trim();
     if (rawName.length < 2) return;
 
+
+
+    // 1. Канонизируем OEM
+    const canonicalOem = normalizeOem(params.partArticle);
+    const hasValidOem = canonicalOem.length >= 3;
+
     const state = storage.getState();
 
-    // 1. Сначала ищем машину по точному ID в админке
+    // 2. Ищем машину в админке
     const adminCar =
         state.cars.find((c) => c.id === params.carId) ||
         state.cars.find((c) => c.vin && c.vin === params.carId);
 
-    // 2. Если не переданы напрямую и нет в админке — ищем машину в localStorage гаража
-    const garageCar = !params.carBrand && !adminCar ? findCarInLocalStorage(params.carId) : null;
-
-    const carBrand =
-        params.carBrand ||
-        adminCar?.brand ||
-        garageCar?.make ||
-        garageCar?.brand ||
-        'Неизвестная марка';
-
-    const carModel =
-        params.carModel ||
-        adminCar?.model ||
-        garageCar?.model ||
-        'Неизвестная модель';
-
-    const carYear = params.carYear || adminCar?.year || Number(garageCar?.year) || undefined;
-    const carVin = params.carVin || adminCar?.vin || garageCar?.vin || undefined;
-    const carEngine = params.engine || adminCar?.engine || garageCar?.engine || undefined;
-
-    const user =
-        (adminCar && state.users.find((u) => u.id === adminCar.userId)) ||
-        state.users[0];
-
+    const carBrand = params.carBrand || adminCar?.brand || 'Неизвестная марка';
+    const carModel = params.carModel || adminCar?.model || 'Неизвестная модель';
     const brandSlug = normalizeSlug(carBrand);
     const modelSlug = normalizeSlug(carModel);
-    const cleanArticle = (params.partArticle || '').trim().toUpperCase();
+
     const cleanBrand = (params.partBrand || '').trim().toLowerCase();
     const cleanName = rawName.toLowerCase();
 
-    const hasRealArticle = cleanArticle.length > 0 && cleanArticle !== '—' && cleanArticle !== '-';
-
-    const isSamePart = (pBrand?: string, pArticle?: string, pName?: string) => {
-        const bMatch = (pBrand || '').trim().toLowerCase() === cleanBrand;
-        if (hasRealArticle) {
-            return bMatch && (pArticle || '').trim().toUpperCase() === cleanArticle;
+    // 3. ПРОВЕРКА В MASTER CATALOG
+    if (hasValidOem) {
+        for (const node of state.catalogNodes) {
+            if (normalizeSlug(node.brandSlug) !== brandSlug || normalizeSlug(node.modelSlug) !== modelSlug) {
+                continue;
+            }
+            const foundPart = node.items.find((p) => normalizeOem(p.article) === canonicalOem);
+            if (foundPart) {
+                foundPart.installationsCount = (foundPart.installationsCount || 1) + 1;
+                storage.saveState(state);
+                return;
+            }
         }
-        return bMatch && (pName || '').trim().toLowerCase() === cleanName;
-    };
+    } else {
+        const alreadyInCatalog = state.catalogNodes.some((node) => {
+            if (normalizeSlug(node.brandSlug) !== brandSlug || normalizeSlug(node.modelSlug) !== modelSlug) return false;
+            return node.items.some(
+                (p) =>
+                    (p.brand || '').trim().toLowerCase() === cleanBrand &&
+                    p.name.trim().toLowerCase() === cleanName
+            );
+        });
+        if (alreadyInCatalog) return;
+    }
 
-    const alreadyInMasterCatalog = state.catalogNodes.some((node) => {
-        if (node.brandSlug !== brandSlug || node.modelSlug !== modelSlug) return false;
-        return node.items.some((p) => isSamePart(p.brand, p.article, p.name));
-    });
+    // 4. ПРОВЕРКА В INBOX (ОЧЕРЕДЬ МОДЕРАЦИИ)
+    if (hasValidOem) {
+        const inboxTicket = state.inbox.find(
+            (i) =>
+                i.type === 'part' &&
+                normalizeSlug(i.carBrand) === brandSlug &&
+                normalizeSlug(i.carModel) === modelSlug &&
+                normalizeOem(i.partArticle) === canonicalOem
+        );
 
-    if (alreadyInMasterCatalog) return;
+        if (inboxTicket) {
+            inboxTicket.occurrencesCount = (inboxTicket.occurrencesCount || 1) + 1;
+            // Дополняем старый тикет свежими данными о машине, если их не было
+            inboxTicket.carVin = inboxTicket.carVin || params.carVin;
+            inboxTicket.engine = inboxTicket.engine || params.engine;
+            inboxTicket.engineCode = inboxTicket.engineCode || params.engineCode;
+            inboxTicket.drivetrain = inboxTicket.drivetrain || params.drivetrain;
+            inboxTicket.transmission = inboxTicket.transmission || params.transmission;
+            inboxTicket.carSpecs = { ...(inboxTicket.carSpecs || {}), ...(params.carSpecs || {}) };
+            storage.saveState(state);
+            return;
+        }
+    } else {
+        const alreadyInInbox = state.inbox.some(
+            (i) =>
+                i.type === 'part' &&
+                normalizeSlug(i.carBrand) === brandSlug &&
+                normalizeSlug(i.carModel) === modelSlug &&
+                (i.partBrand || '').trim().toLowerCase() === cleanBrand &&
+                (i.partName || '').trim().toLowerCase() === cleanName
+        );
+        if (alreadyInInbox) return;
+    }
 
-    const alreadyInInbox = state.inbox.some((i) => {
-        if (i.type !== 'part') return false;
-        if (normalizeSlug(i.carBrand) !== brandSlug || normalizeSlug(i.carModel) !== modelSlug) return false;
-        return isSamePart(i.partBrand, i.partArticle, i.partName);
-    });
-
-    if (alreadyInInbox) return;
+    // 5. СОЗДАЕМ ТИКЕТ
+    const baseScore = hasValidOem ? 85 : 40;
+    const isOemFlag = Boolean(params.isOem || hasValidOem);
 
     const partTicket: InboxItem = {
         id: `inbox_part_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -126,23 +121,27 @@ export function addUserPart(params: AddUserPartParams) {
         source: params.source || 'user_manual',
         carBrand,
         carModel,
-        carYear,
-        carVin,
-        engine: carEngine,
+        carYear: params.carYear || adminCar?.year,
+        carVin: params.carVin || adminCar?.vin,
+        engine: params.engine || adminCar?.engine,
+        engineCode: params.engineCode || (adminCar as any)?.engineCode,
+        drivetrain: params.drivetrain || params.carSpecs?.drivetrain || (adminCar as any)?.drivetrain || (adminCar as any)?.drive,
+        transmission: params.transmission || params.carSpecs?.transmission || (adminCar as any)?.transmission,
+        carSpecs: params.carSpecs || (adminCar as any)?.carSpecs,
         nodeTitle: rawName,
-        partBrand: params.partBrand,
-        partArticle: params.partArticle,
+        partBrand: params.partBrand || (hasValidOem ? 'OEM' : 'Не указан'),
+        partArticle: hasValidOem ? (params.partArticle?.trim() || canonicalOem) : '—',
         partName: rawName,
-        isOem: Boolean(params.isOem),
-        itemType: params.itemType,
+        isOem: isOemFlag,
+        itemType: params.itemType || 'Запчасть / Расходник',
         category: params.category,
         subcategory: params.subcategory,
         quantity: params.quantity,
         price: params.price,
         mileage: params.mileage,
-        suggestedScore: params.isOem ? 90 : 40,
+        suggestedScore: baseScore,
         occurrencesCount: 1,
-        submittedBy: user?.email || user?.name || 'Пользователь',
+        submittedBy: state.users[0]?.email || state.users[0]?.name || 'Пользователь',
         submittedAt: 'Только что',
         note: params.note,
     };

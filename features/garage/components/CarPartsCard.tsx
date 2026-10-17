@@ -18,6 +18,10 @@ export type CarSummaryInfo = {
     year?: number;
     vin?: string;
     engine?: string;
+    engineCode?: string;
+    drivetrain?: string;
+    transmission?: string;
+    carSpecs?: Record<string, any>;
 };
 
 type Props = {

@@ -7,11 +7,12 @@ import { initialModelNodes } from './data/mockModelCatalog';
 import { AssemblyNode, PartItem } from './types';
 import { CatalogHeader } from './components/CatalogHeader';
 import { EngineSelector } from './components/EngineSelector';
-import { CategoryTabs } from './components/CategoryTabs';
 import { PartItemRow } from './components/PartItemRow';
 import { EditPartScoreModal } from './components/EditPartScoreModal';
 import { systemStore } from '@/features/admin/lib/systemStore';
 import { normalizeSlug } from '@/features/admin/lib/system-store/utils';
+import {ADMIN_CATALOG_CATEGORIES} from "@/features/admin/catalog-inbox/lib/partInboxUtils";
+
 
 export default function AdminModelCatalogPage() {
     const params = useParams();
@@ -21,7 +22,6 @@ export default function AdminModelCatalogPage() {
     const brandSlug = normalizeSlug(rawBrand);
     const modelSlug = normalizeSlug(rawModel);
 
-    // Не подставляем initialModelNodes для чужих машин, чтобы не было "мигания" при перезагрузке
     const [nodes, setNodes] = React.useState<AssemblyNode[]>([]);
     const [selectedEngine, setSelectedEngine] = React.useState('all');
     const [selectedCategory, setSelectedCategory] = React.useState('service');
@@ -47,18 +47,27 @@ export default function AdminModelCatalogPage() {
                 items: n.items,
             }));
 
+        let finalNodes = matched;
+
         if (brandSlug === 'skoda' && modelSlug === 'octavia-a7') {
-            // Для Octavia A7 объединяем базовые моковые узлы и новые одобренные узлы
             const merged = [...matched];
             initialModelNodes.forEach((initNode) => {
                 if (!merged.some((m) => m.id === initNode.id || m.title === initNode.title)) {
                     merged.push(initNode);
                 }
             });
-            setNodes(merged);
-        } else {
-            setNodes(matched);
+            finalNodes = merged;
         }
+
+        setNodes(finalNodes);
+
+        // Если в текущей выбранной вкладке пусто, а в другой есть детали — переключаемся на непустую
+        setSelectedCategory((prevCat) => {
+            const hasInCurrent = finalNodes.some((n) => n.category === prevCat && n.items.length > 0);
+            if (hasInCurrent) return prevCat;
+            const firstNonEmpty = finalNodes.find((n) => n.items.length > 0);
+            return firstNonEmpty ? firstNonEmpty.category : prevCat;
+        });
     }, [brandSlug, modelSlug]);
 
     React.useEffect(() => {
@@ -79,6 +88,25 @@ export default function AdminModelCatalogPage() {
             window.removeEventListener('storage', onStorageUpdate);
         };
     }, [loadModelNodes]);
+
+    // Формируем список всех вкладок: стандартные + любые кастомные категории админа
+    const categoryTabs = React.useMemo(() => {
+        const map = new Map<string, string>();
+        ADMIN_CATALOG_CATEGORIES.forEach((c) => map.set(c.id, c.label));
+
+        nodes.forEach((n) => {
+            if (n.category && !map.has(n.category)) {
+                map.set(n.category, n.category.charAt(0).toUpperCase() + n.category.slice(1));
+            }
+        });
+
+        return Array.from(map.entries()).map(([id, label]) => {
+            const count = nodes
+                .filter((n) => n.category === id)
+                .reduce((acc, n) => acc + n.items.length, 0);
+            return { id, label, count };
+        });
+    }, [nodes]);
 
     const formatTitle = (slug: string) =>
         slug
@@ -122,10 +150,39 @@ export default function AdminModelCatalogPage() {
                 onSelectEngine={setSelectedEngine}
             />
 
-            <CategoryTabs
-                selectedCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
-            />
+            {/* Умные вкладки категорий со счётчиком деталей */}
+            <div className="flex flex-wrap gap-2 border-b border-[var(--border)] pb-3">
+                {categoryTabs.map((tab) => {
+                    const isActive = selectedCategory === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setSelectedCategory(tab.id)}
+                            className={[
+                                'inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition',
+                                isActive
+                                    ? 'bg-[var(--btn-primary)] text-[var(--btn-primary-text)] shadow-2xs'
+                                    : 'bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text)]',
+                            ].join(' ')}
+                        >
+                            <span>{tab.label}</span>
+                            {tab.count > 0 && (
+                                <span
+                                    className={[
+                                        'rounded-md px-1.5 py-0.5 text-[10px] font-bold',
+                                        isActive
+                                            ? 'bg-black/20 text-white'
+                                            : 'bg-[var(--card)] text-[var(--text)]',
+                                    ].join(' ')}
+                                >
+                                    {tab.count}
+                                </span>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
 
             <div className="space-y-6">
                 {visibleNodes.length > 0 ? (
@@ -160,7 +217,7 @@ export default function AdminModelCatalogPage() {
                             Для выбранной категории пока нет верифицированных деталей
                         </p>
                         <p className="mt-1 text-xs text-[var(--text-dim)]">
-                            Новые детали поступают из записей ТО пользователей через модерацию входящих
+                            Новые детали поступают из записей ТО и гаражей пользователей через модерацию входящих
                         </p>
                     </div>
                 )}

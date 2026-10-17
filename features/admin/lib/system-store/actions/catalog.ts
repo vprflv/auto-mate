@@ -1,5 +1,5 @@
 import { storage } from '../storage';
-import { normalizeSlug } from '../utils';
+import { normalizeSlug, normalizeOem } from '../utils';
 
 export function resolveInboxItem(id: string) {
     const state = storage.getState();
@@ -25,7 +25,7 @@ export function approveCarModel(id: string) {
             brandName: item.carBrand,
             modelSlug: mSlug,
             modelName: item.carModel,
-            years: `${item.carYear || item.year || '2015'} – н.в.`,
+            years: `${item.carYear || (item as any).year || '2015'} – н.в.`,
             verified: true,
         });
     }
@@ -47,7 +47,7 @@ export function approveInboxItem(id: string) {
     const brandSlug = normalizeSlug(item.carBrand);
     const modelSlug = normalizeSlug(item.carModel);
 
-    // 1. Автоматически регистрируем модель в masterModels, если её ещё нет в каталоге
+    // 1. Авто-регистрация модели в masterModels, если её ещё нет
     const modelExists = state.masterModels.some(
         (m) => m.brandSlug === brandSlug && m.modelSlug === modelSlug
     );
@@ -57,65 +57,85 @@ export function approveInboxItem(id: string) {
             brandName: item.carBrand,
             modelSlug,
             modelName: item.carModel,
-            years: `${item.carYear || item.year || '2015'} – н.в.`,
+            years: `${item.carYear || (item as any).year || '2015'} – н.в.`,
             verified: true,
         });
     }
 
-    // 2. Используем только валидные ID вкладок CategoryTabs ('service' | 'brakes' | 'suspension' | 'ignition')
-    const catLower = `${item.category || ''} ${item.nodeTitle || ''}`.toLowerCase();
-    let targetCategory: 'service' | 'brakes' | 'suspension' | 'ignition' = 'service';
+    // 2. Берём данные с учётом правок админа
+    const targetCategory: string = (item as any).adminCategory || 'service';
+    const targetTitle: string = ((item as any).adminNodeTitle || item.nodeTitle || item.partName || 'Расходники ТО').trim();
 
-    if (catLower.includes('тормоз') || catLower.includes('колодк') || catLower.includes('brakes')) {
-        targetCategory = 'brakes';
-    } else if (catLower.includes('подвеск') || catLower.includes('амортизатор') || catLower.includes('рычаг') || catLower.includes('suspension')) {
-        targetCategory = 'suspension';
-    } else if (catLower.includes('зажигани') || catLower.includes('свеч') || catLower.includes('катушк') || catLower.includes('ignition')) {
-        targetCategory = 'ignition';
-    }
+    const finalBrand = ((item as any).adminPartBrand !== undefined ? (item as any).adminPartBrand : item.partBrand) || 'OEM';
+    const finalArticle = ((item as any).adminPartArticle !== undefined ? (item as any).adminPartArticle : item.partArticle) || '—';
+    const finalName = ((item as any).adminPartName !== undefined ? (item as any).adminPartName : item.partName) || 'Деталь';
+    const finalIsOem = (item as any).adminIsOem !== undefined ? Boolean((item as any).adminIsOem) : Boolean(item.isOem);
+    const finalScore = (item as any).adminScore !== undefined ? Number((item as any).adminScore) : (item.suggestedScore || 80);
 
-    const targetTitle = item.nodeTitle || item.category || 'Регламентные расходники ТО';
+    // 3. Определяем привязку к двигателю (конкретный мотор или 'all')
+    const targetEngine: string = (item as any).adminEngineScope || 'all';
 
+    // 4. Ищем существующий узел внутри выбранной категории
     let targetNode = state.catalogNodes.find(
         (n) =>
-            n.brandSlug === brandSlug &&
-            n.modelSlug === modelSlug &&
-            n.title.toLowerCase() === targetTitle.toLowerCase()
+            normalizeSlug(n.brandSlug) === brandSlug &&
+            normalizeSlug(n.modelSlug) === modelSlug &&
+            n.category === targetCategory &&
+            n.title.trim().toLowerCase() === targetTitle.toLowerCase()
     );
 
     if (!targetNode) {
         targetNode = {
-            id: `${brandSlug}-${modelSlug}-${Date.now()}`,
+            id: `${brandSlug}-${modelSlug}-${targetCategory}-${Date.now()}`,
             brandSlug,
             modelSlug,
             title: targetTitle,
-            category: targetCategory,
-            engineCompatibility: ['all'],
+            category: targetCategory as any,
+            engineCompatibility: [targetEngine],
             items: [],
         };
         state.catalogNodes.push(targetNode);
+    } else {
+        // Если узел уже есть — обновляем его совместимость по моторам
+        const currentEngines = targetNode.engineCompatibility || [];
+        if (targetEngine === 'all') {
+            targetNode.engineCompatibility = ['all'];
+        } else if (!currentEngines.includes('all') && !currentEngines.includes(targetEngine)) {
+            targetNode.engineCompatibility = [...currentEngines, targetEngine];
+        }
     }
 
-    const existingPart = targetNode.items.find(
-        (p) =>
-            p.article.trim().toLowerCase() === (item.partArticle || '').trim().toLowerCase() &&
-            p.brand.trim().toLowerCase() === (item.partBrand || '').trim().toLowerCase()
-    );
+    // 5. Проверяем наличие детали по каноническому OEM или связке бренд+артикул
+    const canonicalFinal = normalizeOem(finalArticle);
+    const hasRealOem = canonicalFinal.length >= 3;
+
+    const existingPart = targetNode.items.find((p) => {
+        if (hasRealOem && normalizeOem(p.article).length >= 3) {
+            return normalizeOem(p.article) === canonicalFinal;
+        }
+        return (
+            p.article.trim().toLowerCase() === finalArticle.trim().toLowerCase() &&
+            p.brand.trim().toLowerCase() === finalBrand.trim().toLowerCase()
+        );
+    });
+
+    const engineNotePrefix = targetEngine !== 'all' ? `[ДВС: ${targetEngine}] ` : '';
+    const combinedNote = `${engineNotePrefix}${item.note || ''}`.trim();
 
     if (existingPart) {
-        existingPart.installationsCount += 1;
+        existingPart.installationsCount = (existingPart.installationsCount || 1) + (item.occurrencesCount || 1);
         existingPart.isVerified = true;
     } else {
         targetNode.items.push({
             id: `p_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-            brand: item.partBrand || 'OEM',
-            article: item.partArticle || '—',
-            name: item.partName || 'Деталь',
-            isOem: Boolean(item.isOem),
+            brand: finalBrand,
+            article: finalArticle,
+            name: finalName,
+            isOem: finalIsOem,
             isVerified: true,
             installationsCount: item.occurrencesCount || 1,
-            compatibilityScore: item.suggestedScore || 80,
-            note: item.note,
+            compatibilityScore: finalScore,
+            note: combinedNote || undefined,
         });
     }
 

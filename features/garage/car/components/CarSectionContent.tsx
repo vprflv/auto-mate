@@ -70,21 +70,65 @@ export default function CarSectionContent({
         });
     };
 
-    // Нормализатор, который исправляет массивы на объекты
     const getSafeCatalog = (data: any) => {
         if (!data) return { items: [] };
-        if (Array.isArray(data)) return { items: data }; // Если это массив - оборачиваем в items
-        if (data.items && Array.isArray(data.items)) return data; // Если уже объект - отдаем как есть
+        if (Array.isArray(data)) return { items: data };
+        if (data.items && Array.isArray(data.items)) return data;
         return { items: [] };
     };
 
+    // Вытаскиваем возможные вложенные объекты характеристик из car
+    const rawCar = car as Record<string, any>;
+    const nestedSpecs = rawCar.specs || rawCar.characteristics || rawCar.details || {};
+    const nestedExtra = rawCar.extra || rawCar.extraInfo || {};
+
+    // Объединяем всё в единый плоский объект, чтобы не потерять ни одного поля
+    const mergedSpecs: Record<string, any> = {
+        ...nestedExtra,
+        ...nestedSpecs,
+        ...rawCar,
+    };
+
+    // Убираем тяжёлые массивы (фотки, каталоги), чтобы не забивать стор
+    delete mergedSpecs.photos;
+    delete mergedSpecs.parts;
+    delete mergedSpecs.partsCatalog;
+    delete mergedSpecs.fluids;
+    delete mergedSpecs.records;
+
     const carInfo = {
         id: car.id,
-        brand: car.make || (car as any).brand || 'Неизвестная марка',
+        brand: car.make || rawCar.brand || 'Неизвестная марка',
         model: car.model || 'Неизвестная модель',
-        year: car.year,
-        vin: car.vin,
-        engine: (car as any).engine,
+        year: car.year || mergedSpecs.year,
+        vin: car.vin || mergedSpecs.vinCode || mergedSpecs.vin || '',
+        engine:
+            mergedSpecs.engine ||
+            mergedSpecs.engineVolume ||
+            mergedSpecs.engineCapacity ||
+            mergedSpecs.displacement ||
+            mergedSpecs.motor ||
+            mergedSpecs.modification ||
+            '',
+        engineCode:
+            mergedSpecs.engineCode ||
+            mergedSpecs.engine_code ||
+            mergedSpecs.engineModel ||
+            '',
+        drivetrain:
+            mergedSpecs.drive ||
+            mergedSpecs.drivetrain ||
+            mergedSpecs.driveType ||
+            mergedSpecs.wheelDrive ||
+            mergedSpecs.privod ||
+            '',
+        transmission:
+            mergedSpecs.transmission ||
+            mergedSpecs.gearbox ||
+            mergedSpecs.transmissionType ||
+            mergedSpecs.kpp ||
+            '',
+        carSpecs: mergedSpecs,
     };
 
     if (section === 'overview') {
@@ -101,7 +145,6 @@ export default function CarSectionContent({
                     }}
                 />
 
-                {/* Адаптивная сетка параметров */}
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 relative z-10 bg-transparent">
                     <CarSpecs car={car} />
                     <CarExtraInfo car={car} />

@@ -54,22 +54,36 @@ export interface CarSpecs {
 
 export interface InboxItem {
     id: string;
-    type?: 'part' | 'car_model';
-    source: 'user_service' | 'ai_draft' | 'user_garage' | 'user_manual';
+    type: 'part' | 'car_model';
+    source?: 'user_manual' | 'user_service';
     carBrand: string;
     carModel: string;
     carYear?: number;
     carVin?: string;
     engine?: string;
     engineCode?: string;
-    year?: number;
-    specs?: CarSpecs;
+    drivetrain?: string;
+    transmission?: string;
+
+    // Любые доп. характеристики автомобиля
+    carSpecs?: {
+        generation?: string;
+        bodyType?: string;
+        enginePower?: string | number;
+        engineDisplacement?: string | number;
+        transmissionType?: string;
+        driveType?: string;
+        plateNumber?: string;
+        mileage?: number;
+        [key: string]: any;
+    };
+
     nodeTitle?: string;
     partBrand?: string;
     partArticle?: string;
     partName?: string;
     isOem?: boolean;
-    itemType?: 'part' | 'fluid' | string;
+    itemType?: string;
     category?: string;
     subcategory?: string;
     quantity?: number;
@@ -77,9 +91,12 @@ export interface InboxItem {
     mileage?: number;
     suggestedScore?: number;
     occurrencesCount?: number;
-    submittedBy: string;
-    submittedAt: string;
+    submittedBy?: string;
+    submittedAt?: string;
     note?: string;
+    adminCategory?: string;
+    adminCategoryLabel?: string;
+    adminNodeTitle?: string;
 }
 
 export interface StoredPartItem {
@@ -122,3 +139,4 @@ export interface SystemState {
     catalogNodes: StoredCatalogNode[];
     masterModels: StoredMasterModel[];
 }
+
