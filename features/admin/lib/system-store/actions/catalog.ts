@@ -47,7 +47,7 @@ export function approveInboxItem(id: string) {
     const brandSlug = normalizeSlug(item.carBrand);
     const modelSlug = normalizeSlug(item.carModel);
 
-    // 1. Авто-регистрация модели в masterModels, если её ещё нет
+    // 1. Авто-регистрация модели
     const modelExists = state.masterModels.some(
         (m) => m.brandSlug === brandSlug && m.modelSlug === modelSlug
     );
@@ -65,15 +65,29 @@ export function approveInboxItem(id: string) {
     // 2. Берём данные с учётом правок админа
     const targetCategory: string = (item as any).adminCategory || 'service';
     const targetTitle: string = ((item as any).adminNodeTitle || item.nodeTitle || item.partName || 'Расходники ТО').trim();
-
     const finalBrand = ((item as any).adminPartBrand !== undefined ? (item as any).adminPartBrand : item.partBrand) || 'OEM';
     const finalArticle = ((item as any).adminPartArticle !== undefined ? (item as any).adminPartArticle : item.partArticle) || '—';
     const finalName = ((item as any).adminPartName !== undefined ? (item as any).adminPartName : item.partName) || 'Деталь';
     const finalIsOem = (item as any).adminIsOem !== undefined ? Boolean((item as any).adminIsOem) : Boolean(item.isOem);
     const finalScore = (item as any).adminScore !== undefined ? Number((item as any).adminScore) : (item.suggestedScore || 80);
 
-    // 3. Определяем привязку к двигателю (конкретный мотор или 'all')
-    const targetEngine: string = (item as any).adminEngineScope || 'all';
+    // 3. Унификация скоупа двигателя
+    const rawEngineScope: string = (item as any).adminEngineScope || 'all';
+    let targetEngine = 'all';
+    if (rawEngineScope !== 'all') {
+        const cleanCode = item.engineCode?.trim().toUpperCase();
+        if (cleanCode && cleanCode.length >= 2) {
+            targetEngine = cleanCode;
+        } else {
+            const parts = rawEngineScope.replace(/\(.*?\)/g, '').trim().split(/\s+/);
+            const candidate = parts[parts.length - 1]?.toUpperCase();
+            targetEngine = candidate && candidate.length >= 3 ? candidate : rawEngineScope.trim().toUpperCase();
+        }
+    }
+
+    // ДОСТАЕМ ТРАНСМИССИЮ И ПРИВОД ИЗ ТИКЕТА
+    const targetTrans = (item.transmission || item.carSpecs?.transmission || 'all').trim().toLowerCase();
+    const targetDrive = (item.drivetrain || item.carSpecs?.drivetrain || 'all').trim().toLowerCase();
 
     // 4. Ищем существующий узел внутри выбранной категории
     let targetNode = state.catalogNodes.find(
@@ -92,20 +106,38 @@ export function approveInboxItem(id: string) {
             title: targetTitle,
             category: targetCategory as any,
             engineCompatibility: [targetEngine],
+            transmissionCompatibility: [targetTrans],
+            drivetrainCompatibility: [targetDrive],
             items: [],
         };
         state.catalogNodes.push(targetNode);
     } else {
-        // Если узел уже есть — обновляем его совместимость по моторам
+        // Обновляем список моторов
         const currentEngines = targetNode.engineCompatibility || [];
         if (targetEngine === 'all') {
             targetNode.engineCompatibility = ['all'];
         } else if (!currentEngines.includes('all') && !currentEngines.includes(targetEngine)) {
             targetNode.engineCompatibility = [...currentEngines, targetEngine];
         }
+
+        // Обновляем список КПП
+        const currentTrans = targetNode.transmissionCompatibility || [];
+        if (targetTrans === 'all') {
+            targetNode.transmissionCompatibility = ['all'];
+        } else if (!currentTrans.includes('all') && !currentTrans.includes(targetTrans)) {
+            targetNode.transmissionCompatibility = [...currentTrans, targetTrans];
+        }
+
+        // Обновляем список приводов
+        const currentDrive = targetNode.drivetrainCompatibility || [];
+        if (targetDrive === 'all') {
+            targetNode.drivetrainCompatibility = ['all'];
+        } else if (!currentDrive.includes('all') && !currentDrive.includes(targetDrive)) {
+            targetNode.drivetrainCompatibility = [...currentDrive, targetDrive];
+        }
     }
 
-    // 5. Проверяем наличие детали по каноническому OEM или связке бренд+артикул
+    // 5. Проверяем наличие детали
     const canonicalFinal = normalizeOem(finalArticle);
     const hasRealOem = canonicalFinal.length >= 3;
     const safeArticle = hasRealOem ? finalArticle.trim() : '—';
@@ -121,7 +153,8 @@ export function approveInboxItem(id: string) {
     });
 
     const engineNotePrefix = targetEngine !== 'all' ? `[ДВС: ${targetEngine}] ` : '';
-    const combinedNote = `${engineNotePrefix}${item.note || ''}`.trim();
+    const transNotePrefix = targetTrans !== 'all' ? `[КПП: ${targetTrans}] ` : '';
+    const combinedNote = `${engineNotePrefix}${transNotePrefix}${item.note || ''}`.trim();
 
     if (existingPart) {
         existingPart.installationsCount = (existingPart.installationsCount || 1) + (item.occurrencesCount || 1);

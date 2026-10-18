@@ -119,6 +119,8 @@ export interface StoredCatalogNode {
     title: string;
     category: 'service' | 'brakes' | 'suspension' | 'ignition' | 'fluids';
     engineCompatibility: string[];
+    transmissionCompatibility?: string[]; // <-- ДОБАВИТЬ
+    drivetrainCompatibility?: string[];   // <-- ДОБАВИТЬ
     items: StoredPartItem[];
 }
 
