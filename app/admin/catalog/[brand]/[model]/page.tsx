@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { useParams } from 'next/navigation';
 
-import { initialModelNodes } from './data/mockModelCatalog';
 import { AssemblyNode, PartItem } from './types';
 import { CatalogHeader } from './components/CatalogHeader';
 import { EngineSelector } from './components/EngineSelector';
@@ -11,19 +10,22 @@ import { PartItemRow } from './components/PartItemRow';
 import { EditPartScoreModal } from './components/EditPartScoreModal';
 import { systemStore } from '@/features/admin/lib/systemStore';
 import { normalizeSlug } from '@/features/admin/lib/system-store/utils';
-import {ADMIN_CATALOG_CATEGORIES} from "@/features/admin/catalog-inbox/lib/partInboxUtils";
-
+import { ADMIN_CATALOG_CATEGORIES } from '@/features/admin/catalog-inbox/lib/partInboxUtils';
 
 export default function AdminModelCatalogPage() {
     const params = useParams();
-    const rawBrand = decodeURIComponent((params?.brand as string) ?? 'skoda');
-    const rawModel = decodeURIComponent((params?.model as string) ?? 'octavia-a7');
+    const rawBrand = decodeURIComponent((params?.brand as string) ?? '');
+    const rawModel = decodeURIComponent((params?.model as string) ?? '');
 
     const brandSlug = normalizeSlug(rawBrand);
     const modelSlug = normalizeSlug(rawModel);
 
     const [nodes, setNodes] = React.useState<AssemblyNode[]>([]);
+
+    // Стейты фильтров
     const [selectedEngine, setSelectedEngine] = React.useState('all');
+    const [selectedTransmission, setSelectedTransmission] = React.useState('all');
+    const [selectedDrivetrain, setSelectedDrivetrain] = React.useState('all');
     const [selectedCategory, setSelectedCategory] = React.useState('service');
 
     const [editingState, setEditingState] = React.useState<{
@@ -43,29 +45,19 @@ export default function AdminModelCatalogPage() {
                 id: n.id,
                 title: n.title,
                 category: n.category,
-                engineCompatibility: n.engineCompatibility,
+                engineCompatibility: n.engineCompatibility || [],
+                transmissionCompatibility: n.transmissionCompatibility || [],
+                drivetrainCompatibility: n.drivetrainCompatibility || [],
                 items: n.items,
             }));
 
-        let finalNodes = matched;
+        setNodes(matched);
 
-        if (brandSlug === 'skoda' && modelSlug === 'octavia-a7') {
-            const merged = [...matched];
-            initialModelNodes.forEach((initNode) => {
-                if (!merged.some((m) => m.id === initNode.id || m.title === initNode.title)) {
-                    merged.push(initNode);
-                }
-            });
-            finalNodes = merged;
-        }
-
-        setNodes(finalNodes);
-
-        // Если в текущей выбранной вкладке пусто, а в другой есть детали — переключаемся на непустую
+        // Умное переключение категории, если текущая пуста
         setSelectedCategory((prevCat) => {
-            const hasInCurrent = finalNodes.some((n) => n.category === prevCat && n.items.length > 0);
+            const hasInCurrent = matched.some((n) => n.category === prevCat && n.items.length > 0);
             if (hasInCurrent) return prevCat;
-            const firstNonEmpty = finalNodes.find((n) => n.items.length > 0);
+            const firstNonEmpty = matched.find((n) => n.items.length > 0);
             return firstNonEmpty ? firstNonEmpty.category : prevCat;
         });
     }, [brandSlug, modelSlug]);
@@ -89,7 +81,45 @@ export default function AdminModelCatalogPage() {
         };
     }, [loadModelNodes]);
 
-    // Формируем список всех вкладок: стандартные + любые кастомные категории админа
+    // 1. Динамическое извлечение существующих двигателей
+    const availableEngines = React.useMemo(() => {
+        const engineSet = new Set<string>();
+        nodes.forEach(n => {
+            n.engineCompatibility?.forEach(e => {
+                if (e && e !== 'all') engineSet.add(e.toUpperCase());
+            });
+        });
+        const options = Array.from(engineSet).sort().map(e => ({ id: e, label: e }));
+        return [{ id: 'all', label: 'Все ДВС' }, ...options];
+    }, [nodes]);
+
+    // 2. Динамическое извлечение существующих КПП
+    const availableTransmissions = React.useMemo(() => {
+        const transSet = new Set<string>();
+        nodes.forEach(n => {
+            n.transmissionCompatibility?.forEach(t => {
+                if (t && t !== 'all') transSet.add(t.toUpperCase());
+            });
+        });
+        const options = Array.from(transSet).sort().map(t => ({ id: t.toLowerCase(), label: t }));
+        return [{ id: 'all', label: 'Любая КПП' }, ...options];
+    }, [nodes]);
+
+    // 3. Динамическое извлечение существующих приводов
+    const availableDrivetrains = React.useMemo(() => {
+        const driveSet = new Set<string>();
+        nodes.forEach(n => {
+            n.drivetrainCompatibility?.forEach(d => {
+                if (d && d !== 'all') driveSet.add(d.toLowerCase());
+            });
+        });
+        const options = Array.from(driveSet).sort().map(d => {
+            const label = d.charAt(0).toUpperCase() + d.slice(1);
+            return { id: d, label };
+        });
+        return [{ id: 'all', label: 'Любой привод' }, ...options];
+    }, [nodes]);
+
     const categoryTabs = React.useMemo(() => {
         const map = new Map<string, string>();
         ADMIN_CATALOG_CATEGORIES.forEach((c) => map.set(c.id, c.label));
@@ -128,14 +158,24 @@ export default function AdminModelCatalogPage() {
         setEditingState(null);
     };
 
+    // Строгая фильтрация узлов по категории, мотору, КПП и приводу
     const visibleNodes = nodes.filter((node) => {
         if (node.items.length === 0) return false;
         if (node.category !== selectedCategory) return false;
-        if (selectedEngine === 'all') return true;
-        return (
-            node.engineCompatibility.includes(selectedEngine) ||
-            node.engineCompatibility.includes('all')
-        );
+
+        const engineMatch = selectedEngine === 'all' ||
+            (node.engineCompatibility || []).includes(selectedEngine) ||
+            (node.engineCompatibility || []).includes('all');
+
+        const transMatch = selectedTransmission === 'all' ||
+            (node.transmissionCompatibility || []).includes(selectedTransmission) ||
+            (node.transmissionCompatibility || []).includes('all');
+
+        const driveMatch = selectedDrivetrain === 'all' ||
+            (node.drivetrainCompatibility || []).includes(selectedDrivetrain) ||
+            (node.drivetrainCompatibility || []).includes('all');
+
+        return engineMatch && transMatch && driveMatch;
     });
 
     return (
@@ -146,11 +186,17 @@ export default function AdminModelCatalogPage() {
             />
 
             <EngineSelector
+                engines={availableEngines}
                 selectedEngine={selectedEngine}
                 onSelectEngine={setSelectedEngine}
+                transmissions={availableTransmissions}
+                selectedTransmission={selectedTransmission}
+                onSelectTransmission={setSelectedTransmission}
+                drivetrains={availableDrivetrains}
+                selectedDrivetrain={selectedDrivetrain}
+                onSelectDrivetrain={setSelectedDrivetrain}
             />
 
-            {/* Умные вкладки категорий со счётчиком деталей */}
             <div className="flex flex-wrap gap-2 border-b border-[var(--border)] pb-3">
                 {categoryTabs.map((tab) => {
                     const isActive = selectedCategory === tab.id;
@@ -214,7 +260,7 @@ export default function AdminModelCatalogPage() {
                 ) : (
                     <div className="flex min-h-36 flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] p-8 text-center">
                         <p className="text-sm font-medium text-[var(--text)]">
-                            Для выбранной категории пока нет верифицированных деталей
+                            Для выбранной категории и модификации пока нет верифицированных деталей
                         </p>
                         <p className="mt-1 text-xs text-[var(--text-dim)]">
                             Новые детали поступают из записей ТО и гаражей пользователей через модерацию входящих

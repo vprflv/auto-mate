@@ -3,6 +3,7 @@ export type EditCarFormValues = {
     model: string;
     year: string;
     vin: string;
+    trim: string; // <-- ДОБАВИТЬ ЭТУ СТРОКУ
     bodyClass: string;
     displacementL: string;
     cylinders: string;

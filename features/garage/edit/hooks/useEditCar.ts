@@ -11,6 +11,7 @@ const emptyForm: EditCarFormValues = {
     model: '',
     year: '',
     vin: '',
+    trim: '', // <-- ДОБАВЛЕНО
     bodyClass: '',
     displacementL: '',
     cylinders: '',
@@ -47,6 +48,7 @@ export function useEditCar() {
                 model: found.model || '',
                 year: String(found.year || ''),
                 vin: found.vin || '',
+                trim: found.trim || '', // <-- ЧИТАЕМ ИЗ БАЗЫ
                 bodyClass: found.bodyClass || '',
                 displacementL: found.displacementL || '',
                 cylinders: found.cylinders || '',
@@ -92,6 +94,7 @@ export function useEditCar() {
                 model: form.model.trim() || c.model,
                 year: parseInt(form.year) || c.year,
                 vin: form.vin.trim().toUpperCase() || c.vin,
+                trim: form.trim.trim() || undefined, // <-- СОХРАНЯЕМ В БАЗУ
                 bodyClass: form.bodyClass.trim() || undefined,
                 displacementL: form.displacementL.trim() || undefined,
                 cylinders: form.cylinders.trim() || undefined,
@@ -113,7 +116,7 @@ export function useEditCar() {
 
         saveGarageCars(updatedCars);
         setSaving(false);
-        router.push('/garage');
+        router.push(`/garage/${id}`);
     };
 
     return { car, loading, saving, form, handleChange, handleSave };

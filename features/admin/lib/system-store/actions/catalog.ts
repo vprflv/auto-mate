@@ -12,8 +12,13 @@ export function approveCarModel(id: string) {
     const item = state.inbox.find((i) => i.id === id);
     if (!item) return;
 
-    const bSlug = normalizeSlug(item.carBrand);
-    const mSlug = normalizeSlug(item.carModel);
+    // Читаем исправленные админом поля, если они есть
+    const finalBrand = (item as any).adminCarBrand || item.carBrand || 'Неизвестно';
+    const finalModel = (item as any).adminCarModel || item.carModel || 'Неизвестно';
+    const finalYears = (item as any).adminYears || `${item.carYear || (item as any).year || '2015'} – н.в.`;
+
+    const bSlug = normalizeSlug(finalBrand);
+    const mSlug = normalizeSlug(finalModel);
 
     const exists = state.masterModels.some(
         (m) => m.brandSlug === bSlug && m.modelSlug === mSlug
@@ -22,16 +27,20 @@ export function approveCarModel(id: string) {
     if (!exists) {
         state.masterModels.push({
             brandSlug: bSlug,
-            brandName: item.carBrand,
+            brandName: finalBrand,
             modelSlug: mSlug,
-            modelName: item.carModel,
-            years: `${item.carYear || (item as any).year || '2015'} – н.в.`,
+            modelName: finalModel,
+            years: finalYears,
             verified: true,
         });
     }
 
     state.inbox = state.inbox.filter((i) => i.id !== id);
     storage.saveState(state);
+
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('system-store-updated'));
+    }
 }
 
 export function approveInboxItem(id: string) {

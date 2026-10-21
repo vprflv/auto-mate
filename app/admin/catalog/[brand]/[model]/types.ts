@@ -14,7 +14,9 @@ export interface PartItem {
 export interface AssemblyNode {
     id: string;
     title: string;
-    category: 'service' | 'brakes' | 'suspension' | 'ignition' | 'fluids';
+    category: 'service' | 'brakes' | 'suspension' | 'ignition' | 'fluids' | string;
     engineCompatibility: string[];
+    transmissionCompatibility?: string[];
+    drivetrainCompatibility?: string[];
     items: PartItem[];
 }

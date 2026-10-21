@@ -1,4 +1,4 @@
-import { AppCar, InboxItem } from '../types';
+import {AppCar, CarSpecs, InboxItem} from '../types';
 import { storage } from '../storage';
 import { normalizeSlug } from '../utils';
 
@@ -18,6 +18,7 @@ export interface AddCarParams {
     transmission?: string;
     driveType?: string;
     color?: string;
+    carSpecs?: CarSpecs;
 }
 
 export function addCar(params: AddCarParams): AppCar {
@@ -61,12 +62,12 @@ export function addCar(params: AddCarParams): AppCar {
             const carInboxTicket: InboxItem = {
                 id: `inbox_car_${Date.now()}`,
                 type: 'car_model',
-                source: 'user_garage',
+                source: 'user_manual', // <-- ИСПРАВЛЕНО (было 'user_garage')
                 carBrand: params.brand,
                 carModel: params.model,
                 engine: params.engine || params.displacementL || '',
-                year: params.year,
-                specs: {
+                carYear: params.year,
+                carSpecs: {
                     vin: params.vin,
                     bodyClass: params.bodyClass,
                     displacementL: params.displacementL,
@@ -75,6 +76,7 @@ export function addCar(params: AddCarParams): AppCar {
                     driveType: params.driveType,
                     engineCode: params.engineCode,
                     color: params.color,
+                    trim: params.carSpecs?.trim,
                 },
                 submittedBy: user?.email || 'Пользователь',
                 submittedAt: 'Только что',

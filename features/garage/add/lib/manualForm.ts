@@ -4,6 +4,7 @@ export function createEmptyManualForm(vin = ''): ManualCarForm {
     return {
         vin,
         make: '',
+        trim: '',
         model: '',
         year: '',
         bodyClass: '',
@@ -27,6 +28,7 @@ export function mapManualFormToCar(form: ManualCarForm): Car {
         make: form.make.trim(),
         model: form.model.trim(),
         year: parseInt(form.year) || new Date().getFullYear(),
+        trim: form.trim.trim() || undefined,
         bodyClass: form.bodyClass.trim() || undefined,
         displacementL: form.displacementL.trim() || undefined,
         cylinders: form.cylinders.trim() || undefined,
@@ -49,6 +51,7 @@ export function mapDecodedToManualForm(car: DecodedCar): ManualCarForm {
         make: car.make || '',
         model: car.model || '',
         year: car.year ? String(car.year) : '',
+        trim: car.trim || '',
         bodyClass: car.bodyClass || '',
         displacementL: car.displacementL || '',
         cylinders: car.cylinders || '',

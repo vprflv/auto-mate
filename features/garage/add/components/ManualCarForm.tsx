@@ -94,6 +94,18 @@ export default function ManualCarForm({
 
                     <div>
                         <label className="mb-2 block text-sm font-medium text-[var(--text)]">
+                            Комплектация (необязательно)
+                        </label>
+                        <input
+                            value={form.trim || ''}
+                            onChange={(e) => onChange('trim', e.target.value)}
+                            placeholder="Например: Style, R-Line, Comfort..."
+                            className={inputClass}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-[var(--text)]">
                             Цвет
                         </label>
                         <input

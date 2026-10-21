@@ -20,6 +20,9 @@ export interface AppCar {
     mileage: number;
     engine: string;
     engineCode?: string;
+    transmission?: string;
+    drivetrain?: string;
+    carSpecs?: CarSpecs; // <-- СТРОГИЙ ТИП ВМЕСТО Record<string, any>
     createdAt: string;
 }
 
@@ -50,6 +53,7 @@ export interface CarSpecs {
     driveType?: string;
     engineCode?: string;
     color?: string;
+    trim?: string;
 }
 
 export interface InboxItem {

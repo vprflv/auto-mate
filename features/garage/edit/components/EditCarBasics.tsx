@@ -38,6 +38,15 @@ export default function EditCarBasics({ form, onChange }: Props) {
                     onChange={onChange}
                 />
 
+                {/* НОВОЕ ПОЛЕ КОМПЛЕКТАЦИИ */}
+                <Field
+                    label="Комплектация"
+                    name="trim"
+                    value={form.trim}
+                    onChange={onChange}
+                    placeholder="Style, Comfort, R-Line..."
+                />
+
                 <Field
                     label="VIN"
                     name="vin"

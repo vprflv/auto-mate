@@ -6,6 +6,7 @@ export type Car = {
     make: string;
     model: string;
     year: number;
+    trim?: string; // <-- ДОБАВЛЕНО (Комплектация)
     fluids?: CarFluids;
     bodyClass?: string;
     engine?: string;
@@ -23,10 +24,8 @@ export type Car = {
     notes?: string;
     addedAt: string;
     updatedAt?: string;
-
     photos?: string[];
 };
-
 
 
 export type DecodedCar = {
@@ -34,6 +33,7 @@ export type DecodedCar = {
     make: string;
     model: string;
     year: number;
+    trim?: string; // <-- ДОБАВЛЕНО
     bodyClass?: string;
     engine?: string;
     displacementL?: string;
@@ -45,12 +45,12 @@ export type DecodedCar = {
     plantCountry?: string;
 };
 
-
 export type ManualCarForm = {
     vin: string;
     make: string;
     model: string;
     year: string;
+    trim: string;
     bodyClass: string;
     displacementL: string;
     cylinders: string;

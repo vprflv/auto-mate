@@ -125,6 +125,7 @@ export function useAddCar() {
                 transmission: decoded.transmission || '',
                 driveType: decoded.driveType || '',
                 bodyClass: decoded.bodyClass || '',
+                carSpecs: { trim: decoded.trim || '' }, // <-- ДОБАВИТЬ ВОТ ЭТУ СТРОКУ
             });
         }
 
@@ -159,6 +160,7 @@ export function useAddCar() {
                 driveType: manualForm.driveType || '',
                 bodyClass: manualForm.bodyClass || '',
                 color: manualForm.color || '',
+                carSpecs: { trim: manualForm.trim || '' }, // <-- И ДОБАВИТЬ СЮДА
             });
         }
 
