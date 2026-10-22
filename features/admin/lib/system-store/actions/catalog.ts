@@ -7,32 +7,77 @@ export function resolveInboxItem(id: string) {
     storage.saveState(state);
 }
 
-export function approveCarModel(id: string) {
+export function approveCarModel(
+    id: string,
+    payload?: {
+        brandName: string;
+        modelName: string;
+        years: string;
+        modification?: {
+            id: string;
+            name: string;
+            attributes: {
+                trim?: string;
+                engine?: string;
+                transmission?: string;
+                drivetrain?: string;
+                [key: string]: string | undefined; // <-- И ДОБАВИТЬ СЮДА
+            };
+        };
+    }
+) {
     const state = storage.getState();
     const item = state.inbox.find((i) => i.id === id);
     if (!item) return;
 
-    // Читаем исправленные админом поля, если они есть
-    const finalBrand = (item as any).adminCarBrand || item.carBrand || 'Неизвестно';
-    const finalModel = (item as any).adminCarModel || item.carModel || 'Неизвестно';
-    const finalYears = (item as any).adminYears || `${item.carYear || (item as any).year || '2015'} – н.в.`;
+    // Берем данные из payload (от админа) или фоллбек из тикета
+    const finalBrand = payload?.brandName || item.carBrand;
+    const finalModel = payload?.modelName || item.carModel;
+    const finalYears = payload?.years || `${item.carYear || '2015'} – н.в.`;
 
     const bSlug = normalizeSlug(finalBrand);
     const mSlug = normalizeSlug(finalModel);
 
-    const exists = state.masterModels.some(
+    let masterModel = state.masterModels.find(
         (m) => m.brandSlug === bSlug && m.modelSlug === mSlug
     );
 
-    if (!exists) {
-        state.masterModels.push({
+    // --- УРОВЕНЬ 1: КУЗОВ ---
+    if (!masterModel) {
+        masterModel = {
             brandSlug: bSlug,
             brandName: finalBrand,
             modelSlug: mSlug,
             modelName: finalModel,
             years: finalYears,
             verified: true,
-        });
+            registeredCount: 1, // Первый пошел!
+            modifications: [],
+        };
+        state.masterModels.push(masterModel);
+    } else {
+        // Увеличиваем общий счетчик кузова
+        masterModel.registeredCount = (masterModel.registeredCount || 0) + 1;
+    }
+
+    // --- УРОВЕНЬ 2: МОДИФИКАЦИЯ ---
+    if (payload?.modification) {
+        if (!masterModel.modifications) masterModel.modifications = [];
+
+        const existingMod = masterModel.modifications.find(
+            (mod) => mod.id === payload.modification!.id
+        );
+
+        if (existingMod) {
+            // Увеличиваем счетчик конкретной модификации
+            existingMod.registeredCount = (existingMod.registeredCount || 0) + 1;
+        } else {
+            // Админ создал новую модификацию (например, SiR) прямо при одобрении
+            masterModel.modifications.push({
+                ...payload.modification,
+                registeredCount: 1, // Первая такая комплектация
+            });
+        }
     }
 
     state.inbox = state.inbox.filter((i) => i.id !== id);
@@ -43,20 +88,21 @@ export function approveCarModel(id: string) {
     }
 }
 
-export function approveInboxItem(id: string) {
+export function approveInboxItem(id: string, payload?: any) {
     const state = storage.getState();
     const item = state.inbox.find((i) => i.id === id);
     if (!item) return;
 
     if (item.type === 'car_model') {
-        approveCarModel(id);
+        // Прокидываем payload дальше в обработчик автомобилей
+        approveCarModel(id, payload);
         return;
     }
 
     const brandSlug = normalizeSlug(item.carBrand);
     const modelSlug = normalizeSlug(item.carModel);
 
-    // 1. Авто-регистрация модели
+    // 1. Авто-регистрация модели, если её нет (счетчик = 0, так как это запчасть, а не регистрация авто)
     const modelExists = state.masterModels.some(
         (m) => m.brandSlug === brandSlug && m.modelSlug === modelSlug
     );
@@ -68,6 +114,8 @@ export function approveInboxItem(id: string) {
             modelName: item.carModel,
             years: `${item.carYear || (item as any).year || '2015'} – н.в.`,
             verified: true,
+            registeredCount: 0,
+            modifications: []
         });
     }
 
@@ -80,25 +128,10 @@ export function approveInboxItem(id: string) {
     const finalIsOem = (item as any).adminIsOem !== undefined ? Boolean((item as any).adminIsOem) : Boolean(item.isOem);
     const finalScore = (item as any).adminScore !== undefined ? Number((item as any).adminScore) : (item.suggestedScore || 80);
 
-    // 3. Унификация скоупа двигателя
-    const rawEngineScope: string = (item as any).adminEngineScope || 'all';
-    let targetEngine = 'all';
-    if (rawEngineScope !== 'all') {
-        const cleanCode = item.engineCode?.trim().toUpperCase();
-        if (cleanCode && cleanCode.length >= 2) {
-            targetEngine = cleanCode;
-        } else {
-            const parts = rawEngineScope.replace(/\(.*?\)/g, '').trim().split(/\s+/);
-            const candidate = parts[parts.length - 1]?.toUpperCase();
-            targetEngine = candidate && candidate.length >= 3 ? candidate : rawEngineScope.trim().toUpperCase();
-        }
-    }
+    // ВРЕМЕННЫЙ ПАТЧ: Пока не переделали форму модерации запчасти, привязываем ко всем модификациям ['all']
+    const targetModifications = ['all'];
 
-    // ДОСТАЕМ ТРАНСМИССИЮ И ПРИВОД ИЗ ТИКЕТА
-    const targetTrans = (item.transmission || item.carSpecs?.transmission || 'all').trim().toLowerCase();
-    const targetDrive = (item.drivetrain || item.carSpecs?.drivetrain || 'all').trim().toLowerCase();
-
-    // 4. Ищем существующий узел внутри выбранной категории
+    // 3. Ищем существующий узел внутри выбранной категории
     let targetNode = state.catalogNodes.find(
         (n) =>
             normalizeSlug(n.brandSlug) === brandSlug &&
@@ -114,39 +147,26 @@ export function approveInboxItem(id: string) {
             modelSlug,
             title: targetTitle,
             category: targetCategory as any,
-            engineCompatibility: [targetEngine],
-            transmissionCompatibility: [targetTrans],
-            drivetrainCompatibility: [targetDrive],
+            compatibleModifications: targetModifications, // <-- НОВЫЙ МАССИВ
             items: [],
         };
         state.catalogNodes.push(targetNode);
     } else {
-        // Обновляем список моторов
-        const currentEngines = targetNode.engineCompatibility || [];
-        if (targetEngine === 'all') {
-            targetNode.engineCompatibility = ['all'];
-        } else if (!currentEngines.includes('all') && !currentEngines.includes(targetEngine)) {
-            targetNode.engineCompatibility = [...currentEngines, targetEngine];
-        }
-
-        // Обновляем список КПП
-        const currentTrans = targetNode.transmissionCompatibility || [];
-        if (targetTrans === 'all') {
-            targetNode.transmissionCompatibility = ['all'];
-        } else if (!currentTrans.includes('all') && !currentTrans.includes(targetTrans)) {
-            targetNode.transmissionCompatibility = [...currentTrans, targetTrans];
-        }
-
-        // Обновляем список приводов
-        const currentDrive = targetNode.drivetrainCompatibility || [];
-        if (targetDrive === 'all') {
-            targetNode.drivetrainCompatibility = ['all'];
-        } else if (!currentDrive.includes('all') && !currentDrive.includes(targetDrive)) {
-            targetNode.drivetrainCompatibility = [...currentDrive, targetDrive];
+        // Добавляем новые модификации, если их еще нет в узле
+        const currentMods = targetNode.compatibleModifications || [];
+        if (targetModifications.includes('all')) {
+            targetNode.compatibleModifications = ['all'];
+        } else {
+            targetModifications.forEach(mod => {
+                if (!currentMods.includes('all') && !currentMods.includes(mod)) {
+                    currentMods.push(mod);
+                }
+            });
+            targetNode.compatibleModifications = currentMods;
         }
     }
 
-    // 5. Проверяем наличие детали
+    // 4. Проверяем наличие детали
     const canonicalFinal = normalizeOem(finalArticle);
     const hasRealOem = canonicalFinal.length >= 3;
     const safeArticle = hasRealOem ? finalArticle.trim() : '—';
@@ -161,9 +181,7 @@ export function approveInboxItem(id: string) {
         );
     });
 
-    const engineNotePrefix = targetEngine !== 'all' ? `[ДВС: ${targetEngine}] ` : '';
-    const transNotePrefix = targetTrans !== 'all' ? `[КПП: ${targetTrans}] ` : '';
-    const combinedNote = `${engineNotePrefix}${transNotePrefix}${item.note || ''}`.trim();
+    const combinedNote = item.note || undefined;
 
     if (existingPart) {
         existingPart.installationsCount = (existingPart.installationsCount || 1) + (item.occurrencesCount || 1);
@@ -178,7 +196,7 @@ export function approveInboxItem(id: string) {
             isVerified: true,
             installationsCount: item.occurrencesCount || 1,
             compatibilityScore: finalScore,
-            note: combinedNote || undefined,
+            note: combinedNote,
         });
     }
 

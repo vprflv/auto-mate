@@ -34,8 +34,8 @@ export function CatalogInboxScreen() {
         };
     }, [loadInbox]);
 
-    const handleApprove = (id: string) => {
-        systemStore.approveInboxItem(id);
+    const handleApprove = (id: string, payload?: any) => {
+        systemStore.approveInboxItem(id, payload);
     };
 
     const handleReject = (id: string) => {

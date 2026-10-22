@@ -7,6 +7,18 @@ export interface AppUser {
     status: 'active' | 'blocked' | 'pending';
 }
 
+export interface CarSpecs {
+    vin?: string;
+    bodyClass?: string;
+    displacementL?: string;
+    fuel?: string;
+    transmission?: string;
+    driveType?: string;
+    engineCode?: string;
+    color?: string;
+    trim?: string;
+}
+
 export interface AppCar {
     id: string;
     userId: string;
@@ -22,7 +34,7 @@ export interface AppCar {
     engineCode?: string;
     transmission?: string;
     drivetrain?: string;
-    carSpecs?: CarSpecs; // <-- СТРОГИЙ ТИП ВМЕСТО Record<string, any>
+    carSpecs?: CarSpecs;
     createdAt: string;
 }
 
@@ -44,18 +56,6 @@ export interface AppServiceRecord {
     items: AppServiceItem[];
 }
 
-export interface CarSpecs {
-    vin?: string;
-    bodyClass?: string;
-    displacementL?: string;
-    fuel?: string;
-    transmission?: string;
-    driveType?: string;
-    engineCode?: string;
-    color?: string;
-    trim?: string;
-}
-
 export interface InboxItem {
     id: string;
     type: 'part' | 'car_model';
@@ -68,20 +68,7 @@ export interface InboxItem {
     engineCode?: string;
     drivetrain?: string;
     transmission?: string;
-
-    // Любые доп. характеристики автомобиля
-    carSpecs?: {
-        generation?: string;
-        bodyType?: string;
-        enginePower?: string | number;
-        engineDisplacement?: string | number;
-        transmissionType?: string;
-        driveType?: string;
-        plateNumber?: string;
-        mileage?: number;
-        [key: string]: any;
-    };
-
+    carSpecs?: CarSpecs | Record<string, any>;
     nodeTitle?: string;
     partBrand?: string;
     partArticle?: string;
@@ -103,6 +90,21 @@ export interface InboxItem {
     adminNodeTitle?: string;
 }
 
+// --- ЭТАЛОННЫЙ КАТАЛОГ (MASTER CATALOG) ---
+
+export interface CatalogModification {
+    id: string;
+    name: string;
+    registeredCount: number;
+    attributes: {
+        trim?: string;
+        engine?: string;
+        transmission?: string;
+        drivetrain?: string;
+        [key: string]: string | undefined;
+    };
+}
+
 export interface StoredPartItem {
     id: string;
     brand: string;
@@ -121,10 +123,8 @@ export interface StoredCatalogNode {
     brandSlug: string;
     modelSlug: string;
     title: string;
-    category: 'service' | 'brakes' | 'suspension' | 'ignition' | 'fluids';
-    engineCompatibility: string[];
-    transmissionCompatibility?: string[]; // <-- ДОБАВИТЬ
-    drivetrainCompatibility?: string[];   // <-- ДОБАВИТЬ
+    category: 'service' | 'brakes' | 'suspension' | 'ignition' | 'fluids' | string;
+    compatibleModifications: string[]; // Массив ID модификаций (['mod_cf4_sir']) или ['all']
     items: StoredPartItem[];
 }
 
@@ -135,6 +135,8 @@ export interface StoredMasterModel {
     modelName: string;
     years: string;
     verified: boolean;
+    registeredCount: number; // Счетчик кузова
+    modifications: CatalogModification[]; // Админ пополняет этот список
 }
 
 export interface SystemState {
@@ -145,4 +147,3 @@ export interface SystemState {
     catalogNodes: StoredCatalogNode[];
     masterModels: StoredMasterModel[];
 }
-
