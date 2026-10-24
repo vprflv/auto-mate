@@ -118,7 +118,8 @@ export interface StoredPartItem {
     article: string;
     name: string;
     isOem: boolean;
-    oemCross?: string; // <--- ДОБАВЛЯЕМ СЮДА
+    oemCross?: string;
+    oemCrosses?: string[];// <--- ДОБАВЛЯЕМ СЮДА
     isVerified?: boolean;
     installationsCount: number;
     compatibilityScore: number;

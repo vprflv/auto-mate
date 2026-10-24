@@ -172,7 +172,7 @@ export function addUserPart(params: AddUserPartParams) {
 
     // 5. СОЗДАЕМ НОВЫЙ ТИКЕТ
     const baseScore = hasValidOem ? 85 : 40;
-    const isOemFlag = Boolean(params.isOem || hasValidOem);
+    const isOemFlag = params.isOem === true;
 
     const partTicket: InboxItem = {
         id: `inbox_part_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,

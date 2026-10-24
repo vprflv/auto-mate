@@ -1,7 +1,12 @@
+
 import * as React from 'react';
+
 import { InboxItem } from '@/features/admin/lib/systemStore';
 import { storage } from '@/features/admin/lib/system-store/storage';
 import { StoredMasterModel } from '@/features/admin/lib/system-store/types';
+import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArticle';
+
+import type { OemSuggestion } from '../components/part-moderation/OemCrossSelect';
 
 interface UsePartModerationProps {
     item: InboxItem;
@@ -10,57 +15,245 @@ interface UsePartModerationProps {
     onReject: (id: string) => void;
 }
 
-export function usePartModeration({ item, isOpen, onApprove, onReject }: UsePartModerationProps) {
-    const initialBrand = item.partBrand || item.partSpecs?.brand || (item as any).specs?.brand || '';
-    const initialArticle = item.partArticle || item.partSpecs?.article || (item as any).specs?.article || '';
-    const initialName = item.partName || item.partSpecs?.name || (item as any).specs?.name || '';
-    const initialIsOem = item.isOem ?? item.partSpecs?.isOem ?? (item as any).specs?.isOem ?? false;
+const asString = (value: unknown): string =>
+    typeof value === 'string' ? value : '';
 
-    const [targetCar, setTargetCar] = React.useState<StoredMasterModel | null>(null);
+const asBoolean = (value: unknown): boolean =>
+    typeof value === 'boolean' ? value : false;
 
-    const [brand, setBrand] = React.useState<string>(initialBrand);
-    const [article, setArticle] = React.useState<string>(initialArticle);
-    const [name, setName] = React.useState<string>(initialName);
-    const [isOem, setIsOem] = React.useState<boolean>(initialIsOem);
-    const [oemCross, setOemCross] = React.useState<string>('');
+export function usePartModeration({
+                                      item,
+                                      isOpen,
+                                      onApprove,
+                                      onReject
+                                  }: UsePartModerationProps) {
 
-    const [nodeCategory, setNodeCategory] = React.useState<string>('service');
-    const [nodeTitle, setNodeTitle] = React.useState<string>('');
-    const [isCustomNode, setIsCustomNode] = React.useState<boolean>(false); // <-- НОВЫЙ СТЕЙТ
+    // Исходные данные пользовательского тикета
+    const initialBrand = asString(
+        item.partBrand ||
+        item.partSpecs?.brand ||
+        (item as any).specs?.brand
+    );
 
-    const [compatibilityType, setCompatibilityType] = React.useState<'all' | 'specific'>('all');
-    const [selectedModIds, setSelectedModIds] = React.useState<string[]>([]);
+    const initialArticle = asString(
+        item.partArticle ||
+        item.partSpecs?.article ||
+        (item as any).specs?.article
+    );
 
+    const initialName = asString(
+        item.partName ||
+        item.partSpecs?.name ||
+        (item as any).specs?.name
+    );
+
+    const initialIsOem = asBoolean(
+        item.isOem ??
+        item.partSpecs?.isOem ??
+        (item as any).specs?.isOem ??
+        false
+    );
+
+    // Состояния модерации
+    const [targetCar, setTargetCar] =
+        React.useState<StoredMasterModel | null>(null);
+
+    const [brand, setBrand] = React.useState(initialBrand);
+    const [article, setArticle] = React.useState(initialArticle);
+    const [name, setName] = React.useState(initialName);
+
+    const [isOem, setIsOem] = React.useState(initialIsOem);
+    const [oemCross, setOemCross] = React.useState('');
+
+    const [nodeCategory, setNodeCategory] =
+        React.useState('service');
+
+    const [nodeTitle, setNodeTitle] = React.useState('');
+    const [isCustomNode, setIsCustomNode] = React.useState(false);
+
+    const [compatibilityType, setCompatibilityType] =
+        React.useState<'all' | 'specific'>('all');
+
+    const [selectedModIds, setSelectedModIds] =
+        React.useState<string[]>([]);
+
+    // Определяем автомобиль тикета
     React.useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-            const state = storage.getState();
-            const car = state.masterModels.find(
-                m => m.brandName.toLowerCase() === (item.carBrand || '').toLowerCase() &&
-                    m.modelName.toLowerCase() === (item.carModel || '').toLowerCase()
-            );
-            setTargetCar(car || null);
-        } else {
-            document.body.style.overflow = '';
-        }
-        return () => { document.body.style.overflow = ''; };
-    }, [isOpen, item]);
+        if (!isOpen) return;
 
-    // АВТОПОДБОР СУЩЕСТВУЮЩИХ УЗЛОВ
-    const existingNodes = React.useMemo(() => {
         const state = storage.getState();
-        const bSlug = (item.carBrand || '').toLowerCase().replace(/\s+/g, '-');
-        const mSlug = (item.carModel || '').toLowerCase().replace(/\s+/g, '-');
 
-        const nodes = state.catalogNodes.filter(n =>
-            n.brandSlug === bSlug &&
-            n.modelSlug === mSlug &&
-            n.category === nodeCategory
+        const car = state.masterModels.find(
+            model =>
+                model.brandName.toLowerCase() ===
+                (item.carBrand || '').toLowerCase() &&
+                model.modelName.toLowerCase() ===
+                (item.carModel || '').toLowerCase()
         );
 
-        return Array.from(new Set(nodes.map(n => n.title)));
-    }, [item.carBrand, item.carModel, nodeCategory, isOpen]);
+        setTargetCar(car || null);
+    }, [isOpen, item]);
 
+    // Блокируем прокрутку страницы при открытой модалке
+    React.useEffect(() => {
+        if (!isOpen) return;
+
+        const previousOverflow = document.body.style.overflow;
+
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isOpen]);
+
+    // Существующие узлы выбранного автомобиля и категории
+    const existingNodes = React.useMemo(() => {
+        const state = storage.getState();
+
+        const brandSlug = (item.carBrand || '')
+            .toLowerCase()
+            .replace(/\s+/g, '-');
+
+        const modelSlug = (item.carModel || '')
+            .toLowerCase()
+            .replace(/\s+/g, '-');
+
+        const nodes = state.catalogNodes.filter(node =>
+            node.brandSlug === brandSlug &&
+            node.modelSlug === modelSlug &&
+            node.category === nodeCategory
+        );
+
+        return Array.from(
+            new Set(nodes.map(node => node.title))
+        );
+    }, [
+        item.carBrand,
+        item.carModel,
+        nodeCategory,
+        isOpen
+    ]);
+
+    // Глобальный поиск OEM по всему мастер-каталогу
+    const oemSuggestions = React.useMemo<OemSuggestion[]>(() => {
+        if (!isOpen || isOem) return [];
+
+        const state = storage.getState();
+        const query = normalizeArticle(oemCross);
+
+        const suggestions = new Map<string, OemSuggestion>();
+
+        // ВАЖНО: больше не ограничиваем поиск моделью
+        const allNodes = state.catalogNodes;
+
+        const currentBrandSlug = (item.carBrand || '')
+            .toLowerCase()
+            .replace(/\s+/g, '-');
+
+        const currentModelSlug = (item.carModel || '')
+            .toLowerCase()
+            .replace(/\s+/g, '-');
+
+        const isSameNode = (
+            node: (typeof allNodes)[number]
+        ): boolean =>
+            node.brandSlug === currentBrandSlug &&
+            node.modelSlug === currentModelSlug &&
+            node.category === nodeCategory &&
+            node.title.trim().toLowerCase() ===
+            nodeTitle.trim().toLowerCase();
+
+        // 1. Собираем оригинальные номера из кроссов аналогов
+        for (const node of allNodes) {
+            for (const part of node.items) {
+                if (part.isOem || !part.oemCross?.trim()) {
+                    continue;
+                }
+
+                const article = part.oemCross.trim();
+                const key = normalizeArticle(article);
+
+                if (!key) continue;
+
+                const sameNode = isSameNode(node);
+                const existing = suggestions.get(key);
+
+                if (
+                    !existing ||
+                    (!existing.sameNode && sameNode)
+                ) {
+                    suggestions.set(key, {
+                        id: `cross:${key}`,
+                        article,
+                        brand: '',
+                        name: '',
+                        nodeTitle: node.title,
+                        sameNode,
+                        source: 'cross'
+                    });
+                }
+            }
+        }
+
+        // 2. Собираем созданные оригинальные детали
+        for (const node of allNodes) {
+            for (const part of node.items) {
+                if (!part.isOem || !part.article.trim()) {
+                    continue;
+                }
+
+                const key = normalizeArticle(part.article);
+
+                if (!key) continue;
+
+                const sameNode = isSameNode(node);
+                const existing = suggestions.get(key);
+
+                // Созданный OEM важнее номера из кроссов
+                if (
+                    !existing ||
+                    existing.source === 'cross' ||
+                    (!existing.sameNode && sameNode)
+                ) {
+                    suggestions.set(key, {
+                        id: `catalog:${key}`,
+                        article: part.article,
+                        brand: part.brand,
+                        name: part.name,
+                        nodeTitle: node.title,
+                        sameNode,
+                        source: 'catalog'
+                    });
+                }
+            }
+        }
+
+        // 3. Фильтрация и сортировка
+        return Array.from(suggestions.values())
+            .filter(suggestion =>
+                !query ||
+                normalizeArticle(suggestion.article).includes(query)
+            )
+            .sort((a, b) =>
+                Number(b.sameNode) - Number(a.sameNode) ||
+                Number(b.source === 'catalog') -
+                Number(a.source === 'catalog') ||
+                a.article.localeCompare(b.article)
+            )
+            .slice(0, 5);
+
+    }, [
+        isOpen,
+        isOem,
+        oemCross,
+        nodeCategory,
+        nodeTitle,
+        item.carBrand,
+        item.carModel
+    ]);
+
+    // Подтверждение модерации
     const handleApprove = () => {
         const payload = {
             part: {
@@ -68,35 +261,66 @@ export function usePartModeration({ item, isOpen, onApprove, onReject }: UsePart
                 article: article.trim(),
                 name: name.trim(),
                 isOem,
-                oemCross: oemCross.trim()
+                oemCross: isOem ? '' : oemCross.trim()
             },
             node: {
                 category: nodeCategory,
                 title: nodeTitle.trim() || name.trim()
             },
-            compatibleModifications: compatibilityType === 'all' ? ['all'] : selectedModIds
+            compatibleModifications:
+                compatibilityType === 'all'
+                    ? ['all']
+                    : selectedModIds
         };
+
         onApprove(item.id, payload);
     };
 
     const handleReject = () => onReject(item.id);
 
     return {
-        incomingData: { brand: initialBrand, article: initialArticle, name: initialName },
+        incomingData: {
+            brand: initialBrand,
+            article: initialArticle,
+            name: initialName
+        },
+
         targetCar,
-        brand, setBrand,
-        article, setArticle,
-        name, setName,
-        isOem, setIsOem,
-        oemCross, setOemCross,
 
-        nodeCategory, setNodeCategory,
-        nodeTitle, setNodeTitle,
+        brand,
+        setBrand,
+
+        article,
+        setArticle,
+
+        name,
+        setName,
+
+        isOem,
+        setIsOem,
+
+        oemCross,
+        setOemCross,
+        oemSuggestions,
+
+        nodeCategory,
+        setNodeCategory,
+
+        nodeTitle,
+        setNodeTitle,
+
         existingNodes,
-        isCustomNode, setIsCustomNode, // <-- ПРОКИДЫВАЕМ
 
-        compatibilityType, setCompatibilityType,
-        selectedModIds, setSelectedModIds,
-        handleApprove, handleReject
+        isCustomNode,
+        setIsCustomNode,
+
+        compatibilityType,
+        setCompatibilityType,
+
+        selectedModIds,
+        setSelectedModIds,
+
+        handleApprove,
+        handleReject
     };
 }

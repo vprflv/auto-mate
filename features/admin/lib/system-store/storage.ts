@@ -1,5 +1,7 @@
-import { SystemState } from './types';
+import {StoredCatalogNode, StoredPartItem, SystemState} from './types';
 import { STORAGE_KEY, initialDefaultState, initialDefaultMasterModels, initialDefaultNodes } from './defaults';
+import {formatArticle, normalizeArticle} from "@/features/admin/lib/system-store/normalizeArticle";
+import {getOemCrosses, uniqueOemCrosses} from "@/features/admin/lib/system-store/oemCrosses";
 
 export const storage = {
     getState(): SystemState {
@@ -29,6 +31,41 @@ export const storage = {
         window.dispatchEvent(new Event('system-store-updated'));
     },
 
+    updatePartOemCrosses(
+        nodeId: string,
+        partId: string,
+        values: string[]
+    ): boolean {
+        const state = this.getState();
+
+        const node: StoredCatalogNode | undefined =
+            state.catalogNodes.find(
+                item => item.id === nodeId
+            );
+
+        if (!node) return false;
+
+        const part: StoredPartItem | undefined =
+            node.items.find(
+                (item: StoredPartItem) => item.id === partId
+            );
+
+        if (!part) return false;
+
+        const numbers = uniqueOemCrosses(values).filter(
+            value =>
+                !part.isOem ||
+                normalizeArticle(value) !== normalizeArticle(part.article)
+        );
+
+        part.oemCrosses = numbers;
+        part.oemCross = numbers[0] ?? '';
+
+        this.saveState(state);
+
+        return true;
+    },
+
     // --- ДОБАВЛЯЕМ ЭКШЕНЫ ПРЯМО СЮДА ---
 
     approvePartTicket(ticketId: string, payload: any) {
@@ -42,6 +79,15 @@ export const storage = {
 
         const { part, node, compatibleModifications } = payload;
 
+        const normalizedPartArticle = normalizeArticle(part.article);
+
+        if (!normalizedPartArticle) return;
+
+        const formattedPartArticle = formatArticle(part.article);
+        const incomingOemCrosses = part.isOem
+            ? []
+            : getOemCrosses(part);
+
         // Ищем существующий узел
         const existingNodeIndex = state.catalogNodes.findIndex(n =>
             n.brandSlug === brandSlug &&
@@ -51,7 +97,7 @@ export const storage = {
         );
 
         let newNodes = [...state.catalogNodes];
-        let targetNode;
+        let targetNode: StoredCatalogNode;
 
         // Если узел есть - обновляем его, если нет - создаем новый
         if (existingNodeIndex >= 0) {
@@ -78,19 +124,29 @@ export const storage = {
 
         // Ищем, есть ли уже такая деталь в этом узле
         const existingPartIndex = targetNode.items.findIndex(
-            p => p.brand.toLowerCase() === part.brand.toLowerCase() &&
-                p.article.toLowerCase() === part.article.toLowerCase()
+            p =>
+                p.brand.trim().toUpperCase() ===
+                part.brand.trim().toUpperCase() &&
+                normalizeArticle(p.article) === normalizedPartArticle
         );
 
         if (existingPartIndex >= 0) {
+
+            const mergedOemCrosses = uniqueOemCrosses([
+                ...getOemCrosses(targetNode.items[existingPartIndex]),
+                ...incomingOemCrosses
+            ]);
+
             // Деталь уже есть -> обновляем данные и плюсуем счетчик доверия
             targetNode.items[existingPartIndex] = {
                 ...targetNode.items[existingPartIndex],
                 name: part.name,
                 isOem: part.isOem,
-                oemCross: part.oemCross,
+                oemCrosses: mergedOemCrosses,
+                oemCross: mergedOemCrosses[0] ?? '',
                 isVerified: true,
-                installationsCount: targetNode.items[existingPartIndex].installationsCount + 1,
+                installationsCount:
+                    targetNode.items[existingPartIndex].installationsCount + 1,
                 compatibilityScore: 100
             };
         } else {
@@ -98,10 +154,11 @@ export const storage = {
             targetNode.items.push({
                 id: `part_${Date.now()}`,
                 brand: part.brand,
-                article: part.article,
+                article: formattedPartArticle,
                 name: part.name,
                 isOem: part.isOem,
-                oemCross: part.oemCross,
+                oemCrosses: incomingOemCrosses,
+                oemCross: incomingOemCrosses[0] ?? '',
                 isVerified: true,
                 installationsCount: 1,
                 compatibilityScore: 100

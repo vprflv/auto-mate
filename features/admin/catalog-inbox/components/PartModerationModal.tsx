@@ -72,11 +72,17 @@ export function PartModerationModal(props: Props) {
                                 </h3>
 
                                 <PartEditorBlock
-                                    brand={state.brand} setBrand={state.setBrand}
-                                    article={state.article} setArticle={state.setArticle}
-                                    name={state.name} setName={state.setName}
-                                    isOem={state.isOem} setIsOem={state.setIsOem}
-                                    oemCross={state.oemCross} setOemCross={state.setOemCross} // <-- ДОБАВИЛИ
+                                    brand={state.brand}
+                                    setBrand={state.setBrand}
+                                    article={state.article}
+                                    setArticle={state.setArticle}
+                                    name={state.name}
+                                    setName={state.setName}
+                                    isOem={state.isOem}
+                                    setIsOem={state.setIsOem}
+                                    oemCross={state.oemCross}
+                                    setOemCross={state.setOemCross}
+                                    oemSuggestions={state.oemSuggestions}
                                 />
 
                                 <NodeEditorBlock
