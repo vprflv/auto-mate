@@ -69,6 +69,13 @@ export interface InboxItem {
     drivetrain?: string;
     transmission?: string;
     carSpecs?: CarSpecs | Record<string, any>;
+    partSpecs?: {
+        brand?: string;
+        article?: string;
+        name?: string;
+        isOem?: boolean;
+        [key: string]: any;
+    };
     nodeTitle?: string;
     partBrand?: string;
     partArticle?: string;
@@ -111,6 +118,7 @@ export interface StoredPartItem {
     article: string;
     name: string;
     isOem: boolean;
+    oemCross?: string; // <--- ДОБАВЛЯЕМ СЮДА
     isVerified?: boolean;
     installationsCount: number;
     compatibilityScore: number;
