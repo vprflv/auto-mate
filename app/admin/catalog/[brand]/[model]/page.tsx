@@ -11,6 +11,7 @@ import { ModelCatalogFilters } from '@/features/admin/catalog/components/ModelCa
 import { ModelCatalogNodes } from '@/features/admin/catalog/components/ModelCatalogNodes';
 
 import type { CatalogSearchParams } from '@/features/admin/catalog/lib/catalogFilters';
+import {ModelModifications} from "@/features/admin/catalog/components/ModelModifications";
 
 interface Props {
     params: Promise<{
@@ -60,6 +61,10 @@ export default function ModelCatalogDashboard({
     return (
         <div className="mx-auto max-w-6xl space-y-8 pb-20">
             <ModelCatalogHeader
+                model={catalog.masterModel}
+            />
+
+            <ModelModifications
                 model={catalog.masterModel}
             />
 

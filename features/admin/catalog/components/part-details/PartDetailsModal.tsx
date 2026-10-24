@@ -6,15 +6,15 @@ import type {
     StoredPartItem,
     StoredCatalogNode
 } from '@/features/admin/lib/system-store/types';
+import {usePartDetails} from "@/features/admin/catalog/hooks/usePartDetails";
+import {PartDetailsHeader} from "@/features/admin/catalog/components/part-details/PartDetailsHeader";
+import {PartIdentity} from "@/features/admin/catalog/components/part-details/PartIdentity";
+import {OemCrossEditor} from "@/features/admin/catalog/components/OemCrossEditor";
+import {PartRelations} from "@/features/admin/catalog/components/part-details/PartRelations";
+import {PartStats} from "@/features/admin/catalog/components/part-details/PartStats";
+import {PartCompatibility} from "@/features/admin/catalog/components/part-details/PartCompatibility";
 
-import { usePartDetails } from '../hooks/usePartDetails';
 
-import { OemCrossEditor } from './OemCrossEditor';
-import { PartDetailsHeader } from './part-details/PartDetailsHeader';
-import { PartIdentity } from './part-details/PartIdentity';
-import { PartRelations } from './part-details/PartRelations';
-import { PartStats } from './part-details/PartStats';
-import { PartCompatibility } from './part-details/PartCompatibility';
 
 interface Props {
     isOpen: boolean;
