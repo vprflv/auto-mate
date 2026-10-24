@@ -68,118 +68,251 @@ export const storage = {
 
     // --- ДОБАВЛЯЕМ ЭКШЕНЫ ПРЯМО СЮДА ---
 
-    approvePartTicket(ticketId: string, payload: any) {
+    approvePartTicket(
+        ticketId: string,
+        payload: {
+            part: {
+                brand: string;
+                article: string;
+                name: string;
+                isOem: boolean;
+                oemCross?: string;
+                oemCrosses?: string[];
+            };
+            node: {
+                category: string;
+                title: string;
+            };
+            compatibleModifications: string[];
+        }
+    ) {
         const state = this.getState();
-        const ticket = state.inbox.find(t => t.id === ticketId);
-        if (!ticket) return;
 
-        // Генерируем slug'и для связи с мастер-моделью
-        const brandSlug = ticket.carBrand.toLowerCase().replace(/\s+/g, '-');
-        const modelSlug = ticket.carModel.toLowerCase().replace(/\s+/g, '-');
+        const ticket = state.inbox.find(
+            item => item.id === ticketId
+        );
+
+        if (!ticket) {
+            throw new Error('Заявка не найдена.');
+        }
 
         const { part, node, compatibleModifications } = payload;
 
-        const normalizedPartArticle = normalizeArticle(part.article);
+        const brandSlug = ticket.carBrand
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, '-');
 
-        if (!normalizedPartArticle) return;
+        const modelSlug = ticket.carModel
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, '-');
 
-        const formattedPartArticle = formatArticle(part.article);
+        const normalizedPartArticle = normalizeArticle(
+            part.article
+        );
+
+        if (
+            !part.brand.trim() ||
+            !normalizedPartArticle ||
+            !part.name.trim()
+        ) {
+            throw new Error(
+                'Укажите производителя, артикул и название детали.'
+            );
+        }
+
+        const masterModel = state.masterModels.find(
+            model =>
+                model.brandSlug === brandSlug &&
+                model.modelSlug === modelSlug
+        );
+
+        if (!masterModel) {
+            throw new Error(
+                'Сначала добавьте модель автомобиля в эталонный каталог.'
+            );
+        }
+
+        const selectedModIds = Array.from(
+            new Set(
+                compatibleModifications
+                    .map(id => id.trim())
+                    .filter(Boolean)
+            )
+        );
+
+        if (selectedModIds.length === 0) {
+            throw new Error(
+                'Выберите хотя бы одну модификацию или подтвердите применимость ко всем.'
+            );
+        }
+
+        const appliesToAll = selectedModIds.includes('all');
+
+        if (appliesToAll && selectedModIds.length > 1) {
+            throw new Error(
+                'Выберите либо все модификации, либо конкретные.'
+            );
+        }
+
+        const availableModIds = new Set(
+            masterModel.modifications.map(mod => mod.id)
+        );
+
+        if (
+            !appliesToAll &&
+            selectedModIds.some(id => !availableModIds.has(id))
+        ) {
+            throw new Error(
+                'Некоторые выбранные модификации не найдены у этой модели.'
+            );
+        }
+
+        const confirmedModIds = appliesToAll
+            ? ['all']
+            : selectedModIds;
+
+        const formattedPartArticle = formatArticle(
+            part.article
+        );
+
         const incomingOemCrosses = part.isOem
             ? []
             : getOemCrosses(part);
 
-        // Ищем существующий узел
-        const existingNodeIndex = state.catalogNodes.findIndex(n =>
-            n.brandSlug === brandSlug &&
-            n.modelSlug === modelSlug &&
-            n.category === node.category &&
-            n.title.toLowerCase() === node.title.toLowerCase()
+        const targetTitle =
+            node.title.trim() || part.name.trim();
+
+        const existingNodeIndex = state.catalogNodes.findIndex(
+            item =>
+                item.brandSlug === brandSlug &&
+                item.modelSlug === modelSlug &&
+                item.category === node.category &&
+                item.title.trim().toLowerCase() ===
+                targetTitle.toLowerCase()
         );
 
-        let newNodes = [...state.catalogNodes];
+        const newNodes = [...state.catalogNodes];
+
         let targetNode: StoredCatalogNode;
 
-        // Если узел есть - обновляем его, если нет - создаем новый
         if (existingNodeIndex >= 0) {
-            targetNode = { ...newNodes[existingNodeIndex] };
+            const existingNode = newNodes[existingNodeIndex];
 
-            // Сливаем массивы совместимостей без дублей
-            if (compatibleModifications.includes('all')) {
-                targetNode.compatibleModifications = ['all'];
-            } else if (!targetNode.compatibleModifications.includes('all')) {
-                const mergedMods = new Set([...targetNode.compatibleModifications, ...compatibleModifications]);
-                targetNode.compatibleModifications = Array.from(mergedMods);
-            }
+            targetNode = {
+                ...existingNode,
+                items: [...existingNode.items]
+            };
         } else {
             targetNode = {
                 id: `node_${Date.now()}`,
                 brandSlug,
                 modelSlug,
-                title: node.title,
+                title: targetTitle,
                 category: node.category,
-                compatibleModifications,
+                compatibleModifications: [],
                 items: []
             };
         }
 
-        // Ищем, есть ли уже такая деталь в этом узле
         const existingPartIndex = targetNode.items.findIndex(
-            p =>
-                p.brand.trim().toUpperCase() ===
+            item =>
+                item.brand.trim().toUpperCase() ===
                 part.brand.trim().toUpperCase() &&
-                normalizeArticle(p.article) === normalizedPartArticle
+                normalizeArticle(item.article) ===
+                normalizedPartArticle
         );
 
         if (existingPartIndex >= 0) {
+            const existingPart =
+                targetNode.items[existingPartIndex];
 
             const mergedOemCrosses = uniqueOemCrosses([
-                ...getOemCrosses(targetNode.items[existingPartIndex]),
+                ...getOemCrosses(existingPart),
                 ...incomingOemCrosses
             ]);
 
-            // Деталь уже есть -> обновляем данные и плюсуем счетчик доверия
+            // Берём применимость только самой детали.
+            // Старую общую применимость узла сюда не переносим.
+            const existingModIds =
+                existingPart.compatibleModifications ?? [];
+
+            const mergedModIds =
+                existingModIds.includes('all') ||
+                confirmedModIds.includes('all')
+                    ? ['all']
+                    : Array.from(
+                        new Set([
+                            ...existingModIds,
+                            ...confirmedModIds
+                        ])
+                    );
+
             targetNode.items[existingPartIndex] = {
-                ...targetNode.items[existingPartIndex],
-                name: part.name,
+                ...existingPart,
+                name: part.name.trim(),
                 isOem: part.isOem,
+
                 oemCrosses: mergedOemCrosses,
                 oemCross: mergedOemCrosses[0] ?? '',
+
+                compatibleModifications: mergedModIds,
+
                 isVerified: true,
                 installationsCount:
-                    targetNode.items[existingPartIndex].installationsCount + 1,
+                    existingPart.installationsCount + 1,
                 compatibilityScore: 100
             };
         } else {
-            // Новая деталь -> кладем в узел
             targetNode.items.push({
                 id: `part_${Date.now()}`,
-                brand: part.brand,
+                brand: part.brand.trim(),
                 article: formattedPartArticle,
-                name: part.name,
+                name: part.name.trim(),
                 isOem: part.isOem,
+
                 oemCrosses: incomingOemCrosses,
                 oemCross: incomingOemCrosses[0] ?? '',
+
+                compatibleModifications: [...confirmedModIds],
+
                 isVerified: true,
                 installationsCount: 1,
                 compatibilityScore: 100
             });
         }
 
-        // Возвращаем обновленный узел в массив
+        // У узла остаётся сводка для навигации по каталогу.
+        // Она не назначает применимость другим деталям.
+        const hasUniversalPart = targetNode.items.some(
+            item =>
+                item.compatibleModifications?.includes('all')
+        );
+
+        targetNode.compatibleModifications = hasUniversalPart
+            ? ['all']
+            : Array.from(
+                new Set(
+                    targetNode.items.flatMap(
+                        item =>
+                            item.compatibleModifications ?? []
+                    )
+                )
+            );
+
         if (existingNodeIndex >= 0) {
             newNodes[existingNodeIndex] = targetNode;
         } else {
             newNodes.push(targetNode);
         }
 
-        // Удаляем тикет из очереди
-        const newInbox = state.inbox.filter(t => t.id !== ticketId);
-
-        // Сохраняем весь новый стейт
         this.saveState({
             ...state,
             catalogNodes: newNodes,
-            inbox: newInbox
+            inbox: state.inbox.filter(
+                item => item.id !== ticketId
+            )
         });
     },
 

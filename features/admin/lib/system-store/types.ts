@@ -117,9 +117,21 @@ export interface StoredPartItem {
     brand: string;
     article: string;
     name: string;
+
     isOem: boolean;
+
+    // Связанные OEM-номера.
     oemCross?: string;
-    oemCrosses?: string[];// <--- ДОБАВЛЯЕМ СЮДА
+    oemCrosses?: string[];
+
+    /**
+     * Применимость этой детали внутри модели автомобиля:
+     * ['all'] — подтверждена для всех модификаций модели;
+     * ['mod_id_1', 'mod_id_2'] — конкретные модификации;
+     * undefined или [] — применимость пока не уточнена.
+     */
+    compatibleModifications?: string[];
+
     isVerified?: boolean;
     installationsCount: number;
     compatibilityScore: number;

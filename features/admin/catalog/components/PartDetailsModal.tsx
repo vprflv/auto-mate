@@ -65,6 +65,40 @@ export function PartDetailsModal({
 
     if (!isOpen || !part || !node) return null;
 
+    const compatibilityIds = Array.from(
+        new Set(part.compatibleModifications ?? [])
+    );
+
+    const appliesToAll = compatibilityIds.includes('all');
+
+    const modelModifications =
+        storage.getState().masterModels.find(
+            model =>
+                model.brandSlug === node.brandSlug &&
+                model.modelSlug === node.modelSlug
+        )?.modifications ?? [];
+
+    const compatibleModifications = compatibilityIds
+        .filter(id => id !== 'all')
+        .map(id => {
+            const modification = modelModifications.find(
+                item => item.id === id
+            );
+
+            return {
+                id,
+                name: modification?.name ??
+                    'Модификация не найдена',
+                description: [
+                    modification?.attributes?.engine,
+                    modification?.attributes?.transmission,
+                    modification?.attributes?.drivetrain
+                ]
+                    .filter(Boolean)
+                    .join(' · ')
+            };
+        });
+
     const targetNumbers = part.isOem
         ? [part.article, ...getOemCrosses(part)]
         : getOemCrosses(part);
@@ -296,17 +330,52 @@ export function PartDetailsModal({
                                 </p>
                             </div>
 
-                            {node.compatibleModifications.includes('all') ? (
-                                <p className="text-sm font-bold text-[var(--text)]">
-                                    Универсальная
-                                </p>
-                            ) : (
-                                <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                                    Подходит для{' '}
-                                    {node.compatibleModifications.length}{' '}
-                                    модификаций кузова.
-                                </p>
-                            )}
+                            <div className="rounded-2xl border border-[var(--border)]/40 bg-[var(--bg-elevated)]/30 p-4">
+                                <div className="mb-3 flex items-center gap-2">
+                                    <GitBranch className="h-4 w-4 text-[var(--text-muted)]" />
+
+                                    <p className="text-[10px] font-bold uppercase text-[var(--text-dim)]">
+                                        Применимость
+                                    </p>
+                                </div>
+
+                                {appliesToAll ? (
+                                    <div>
+                                        <p className="text-sm font-bold text-emerald-500">
+                                            Все модификации модели
+                                        </p>
+
+                                        <p className="mt-1 text-xs text-[var(--text-muted)]">
+                                            В рамках указанной модели автомобиля.
+                                        </p>
+                                    </div>
+                                ) : compatibleModifications.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {compatibleModifications.map(mod => (
+                                            <div
+                                                key={mod.id}
+                                                className="rounded-xl border border-[var(--border)]/40 bg-[var(--card)] p-3"
+                                            >
+                                                <p className="break-words text-sm font-bold text-[var(--text)]">
+                                                    {mod.name}
+                                                </p>
+
+                                                {mod.description && (
+                                                    <p className="mt-1 break-words text-[11px] leading-relaxed text-[var(--text-muted)]">
+                                                        {mod.description}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs leading-relaxed text-amber-500">
+                                        Применимость не уточнена.
+                                        Модификации для этой детали
+                                        пока не подтверждены.
+                                    </p>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

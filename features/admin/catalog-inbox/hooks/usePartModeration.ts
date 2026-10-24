@@ -7,6 +7,7 @@ import { StoredMasterModel } from '@/features/admin/lib/system-store/types';
 import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArticle';
 
 import type { OemSuggestion } from '../components/part-moderation/OemCrossSelect';
+import {toast} from "sonner";
 
 interface UsePartModerationProps {
     item: InboxItem;
@@ -72,7 +73,7 @@ export function usePartModeration({
     const [isCustomNode, setIsCustomNode] = React.useState(false);
 
     const [compatibilityType, setCompatibilityType] =
-        React.useState<'all' | 'specific'>('all');
+        React.useState<'all' | 'specific'>('specific');
 
     const [selectedModIds, setSelectedModIds] =
         React.useState<string[]>([]);
@@ -255,6 +256,52 @@ export function usePartModeration({
 
     // Подтверждение модерации
     const handleApprove = () => {
+        if (
+            !brand.trim() ||
+            !article.trim() ||
+            !name.trim()
+        ) {
+            toast.error(
+                'Укажите производителя, артикул и название детали.'
+            );
+            return;
+        }
+
+        if (!targetCar) {
+            toast.error(
+                'Сначала добавьте модель автомобиля в эталонный каталог.'
+            );
+            return;
+        }
+
+        const selectedIds = Array.from(
+            new Set(selectedModIds)
+        );
+
+        if (compatibilityType === 'specific') {
+            if (selectedIds.length === 0) {
+                toast.error(
+                    'Выберите хотя бы одну модификацию автомобиля.'
+                );
+                return;
+            }
+
+            const availableIds = new Set(
+                targetCar.modifications.map(mod => mod.id)
+            );
+
+            const hasInvalidSelection = selectedIds.some(
+                id => !availableIds.has(id)
+            );
+
+            if (hasInvalidSelection) {
+                toast.error(
+                    'Список модификаций изменился. Проверьте выбранные варианты.'
+                );
+                return;
+            }
+        }
+
         const payload = {
             part: {
                 brand: brand.trim(),
@@ -263,17 +310,27 @@ export function usePartModeration({
                 isOem,
                 oemCross: isOem ? '' : oemCross.trim()
             },
+
             node: {
                 category: nodeCategory,
                 title: nodeTitle.trim() || name.trim()
             },
+
             compatibleModifications:
                 compatibilityType === 'all'
                     ? ['all']
-                    : selectedModIds
+                    : selectedIds
         };
 
-        onApprove(item.id, payload);
+        try {
+            onApprove(item.id, payload);
+        } catch (error: unknown) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'Не удалось добавить запчасть в каталог.'
+            );
+        }
     };
 
     const handleReject = () => onReject(item.id);
