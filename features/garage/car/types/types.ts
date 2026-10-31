@@ -1,6 +1,8 @@
 export type CarSection =
     | 'overview'
-    | 'fluids'
-    | 'parts'
+    | 'catalog'
+    | 'ai-catalog'
     | 'service'
+    | 'add-service'
+    | 'edit'
     | 'danger';

@@ -1,222 +1,485 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { CarFluidItem, CarFluids, FluidCategory } from '@/types/oil';
-import { FLUID_CATEGORY_OPTIONS } from '@/features/garage/lib/config/serviceItemCategories';
-import { getUserFluidCategories, saveUserFluidCategories } from '@/features/garage/lib/userFluidCategories';
-import { systemStore } from '@/features/admin/lib/systemStore';
-import { CarSummaryInfo } from '@/features/garage/components/CarPartsCard';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
-type UseCarFluidsCardProps = {
+import type {
+    CarFluidItem,
+    CarFluids,
+} from '@/types/oil';
+
+import type { CarSummaryInfo } from '@/features/garage/components/CarPartsCard';
+
+import { FLUID_CATEGORY_OPTIONS } from '@/features/garage/lib/config/serviceItemCategories';
+import { getFluidCategoriesFor } from '@/features/garage/lib/getFluidCategories';
+import { addUserFluidCategory } from '@/features/garage/lib/userFluidCategories';
+import { systemStore } from '@/features/admin/lib/systemStore';
+
+import { useFluidCategoryPreferences } from './useFluidCategoryPreferences';
+
+type Params = {
     carId?: string;
     carInfo?: CarSummaryInfo;
     fluids?: CarFluids;
     onUpdateFluids?: (fluids: CarFluids) => void;
 };
 
-const SYSTEM_ORDER: FluidCategory[] = FLUID_CATEGORY_OPTIONS.map((o) => o.value);
+export type FluidCategoryOption = {
+    id: string;
+    label: string;
+    isCustom: boolean;
+    count: number;
+};
 
-const SYSTEM_LABELS = Object.fromEntries(
-    FLUID_CATEGORY_OPTIONS.map((o) => [o.value, o.label])
-) as Record<FluidCategory, string>;
+type Navigation = {
+    carId: string;
+    category: string | null;
+    editItem: CarFluidItem | null;
+    isCreating: boolean;
+};
+
+const normalize = (name: string) =>
+    name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru');
+
+const isMarker = (item: CarFluidItem) =>
+    item.name === 'Маркер категории';
 
 export function useCarFluidsCard({
                                      carId,
                                      carInfo,
                                      fluids,
                                      onUpdateFluids,
-                                 }: UseCarFluidsCardProps) {
-    const items = fluids?.items ?? [];
+                                 }: Params) {
+    const targetCarId = carId || carInfo?.id || '';
 
-    const [category, setCategory] = useState<string | null>(null);
-    const [editItem, setEditItem] = useState<CarFluidItem | null>(null);
-    const [isCreating, setIsCreating] = useState(false);
+    const storedItems = fluids?.items ?? [];
 
-    const [customCategories, setCustomCategories] = useState<
-        { id: string; label: string }[]
-    >([]);
-
-    useEffect(() => {
-        const existingCustomIds = Array.from(
-            new Set(
-                items
-                    .map((item) => item.category)
-                    .filter(
-                        (cat) =>
-                            !SYSTEM_ORDER.includes(cat as FluidCategory)
-                    )
-            )
-        );
-
-        const customCats = existingCustomIds.map((id) => {
-            const foundItem = items.find((item) => item.category === id);
-
-            return {
-                id,
-                label: foundItem?.categoryLabel || id,
-            };
-        });
-
-        setCustomCategories(customCats);
-    }, [items]);
-
-    const getCategoryLabel = (catId: string) => {
-        if (SYSTEM_LABELS[catId as FluidCategory]) {
-            return SYSTEM_LABELS[catId as FluidCategory];
-        }
-
-        const custom = customCategories.find((item) => item.id === catId);
-
-        return custom ? custom.label : catId;
-    };
-
-    const activeCategories = [
-        ...SYSTEM_ORDER.filter((cat) =>
-            items.some((item) => item.category === cat)
-        ),
-        ...customCategories.map((cat) => cat.id),
-    ];
-
-    const inCategory = category
-        ? items.filter((item) => item.category === category)
-        : [];
-
-    const displayItems = inCategory.filter(
-        (item) => item.name !== 'Маркер категории'
+    // Старые маркеры сохраняем, но не показываем как жидкости.
+    const items = storedItems.filter(
+        (item) => !isMarker(item)
     );
 
-    const title = category
-        ? getCategoryLabel(category)
-        : 'Масла и техжидкости';
+    const preferences =
+        useFluidCategoryPreferences(targetCarId);
 
-    const saveItem = (updated: CarFluidItem) => {
-        const exists = items.some((item) => item.id === updated.id);
+    const [, refresh] = useState(0);
 
-        if (!SYSTEM_LABELS[updated.category as FluidCategory]) {
-            updated.categoryLabel = getCategoryLabel(updated.category);
+    const emptyNavigation: Navigation = {
+        carId: targetCarId,
+        category: null,
+        editItem: null,
+        isCreating: false,
+    };
+
+    const [navigation, setNavigation] =
+        useState<Navigation>(emptyNavigation);
+
+    const current =
+        navigation.carId === targetCarId
+            ? navigation
+            : emptyNavigation;
+
+    const updateNavigation = (
+        patch: Partial<Omit<Navigation, 'carId'>>
+    ) => {
+        setNavigation((previous) => ({
+            ...(previous.carId === targetCarId
+                ? previous
+                : emptyNavigation),
+            ...patch,
+        }));
+    };
+
+    const counts = new Map<string, number>();
+
+    items.forEach((item) => {
+        counts.set(
+            item.category,
+            (counts.get(item.category) ?? 0) + 1
+        );
+    });
+
+    const systemIds = new Set<string>(
+        FLUID_CATEGORY_OPTIONS.map(
+            (option) => option.value
+        )
+    );
+
+    const presetNames = new Set(
+        FLUID_CATEGORY_OPTIONS.map(
+            (option) => normalize(option.label)
+        )
+    );
+
+    const definitions = new Map<
+        string,
+        {
+            id: string;
+            label: string;
+            isCustom: boolean;
         }
+    >();
 
-        const next = exists
-            ? items.map((item) =>
-                item.id === updated.id ? updated : item
-            )
-            : [...items, updated];
+    getFluidCategoriesFor().forEach((option) => {
+        definitions.set(option.id, option);
+    });
 
-        onUpdateFluids?.({ items: next });
-
-        const targetCarId = carId || carInfo?.id;
-        if (targetCarId && updated.name.trim() && updated.name !== 'Маркер категории') {
-            const categoryTitle = getCategoryLabel(updated.category);
-            const brand = (updated as any).brand || (updated as any).manufacturer || 'Не указан';
-            const article = (updated as any).article || (updated as any).oemNumber || (updated as any).spec || '—';
-            const specInfo = (updated as any).spec ? ` (Допуск: ${(updated as any).spec})` : '';
-
-            systemStore.addUserPart({
-                carId: targetCarId,
-                carBrand: carInfo?.brand,
-                carModel: carInfo?.model,
-                carYear: carInfo?.year,
-                carVin: carInfo?.vin,
-                carSpecs: carInfo?.carSpecs,
-                engine: carInfo?.engine,
-                engineCode: carInfo?.engineCode,
-                drivetrain: carInfo?.drivetrain,
-                transmission: carInfo?.transmission,
-                partName: updated.name.trim(),
-                partBrand: brand,
-                partArticle: article,
-                isOem: Boolean((updated as any).isOem),
-                itemType: 'Техническая жидкость',
-                category: categoryTitle,
-                quantity: (updated as any).volume || (updated as any).quantity || 1,
-                price: (updated as any).price,
-                source: 'user_manual',
-                note: `Добавлено вручную в раздел "${categoryTitle}"${specInfo}`,
+    // Поддерживаем старые категории, названия которых
+    // хранятся непосредственно в жидкостях или маркерах.
+    storedItems.forEach((item) => {
+        if (!definitions.has(item.category)) {
+            definitions.set(item.category, {
+                id: item.category,
+                label:
+                    item.categoryLabel ||
+                    item.category,
+                isCustom: !systemIds.has(item.category),
             });
         }
-    };
+    });
 
-    const deleteItem = (id: string) => {
-        onUpdateFluids?.({
-            items: items.filter((item) => item.id !== id),
-        });
-    };
+    const availableCategories: FluidCategoryOption[] =
+        [...definitions.values()].map((option) => ({
+            ...option,
+            isCustom:
+                option.isCustom &&
+                !presetNames.has(normalize(option.label)),
+            count: counts.get(option.id) ?? 0,
+        }));
 
-    const deleteCategory = (categoryId: string) => {
-        onUpdateFluids?.({
-            items: items.filter(
-                (item) => item.category !== categoryId
-            ),
-        });
+    const suggestedCategories = availableCategories.filter(
+        (option) => systemIds.has(option.id)
+    );
 
-        const userCategories = getUserFluidCategories();
 
-        saveUserFluidCategories(
-            userCategories.filter(
-                (item) => item.key !== categoryId
-            )
+
+    const legacyIds = new Set(
+        storedItems
+            .filter(isMarker)
+            .map((item) => item.category)
+    );
+
+    const categories = availableCategories.filter(
+        (option) =>
+            option.count > 0 ||
+            (!preferences.hidden.includes(option.id) &&
+                (preferences.enabled.includes(option.id) ||
+                    legacyIds.has(option.id)))
+    );
+
+    const getCategoryLabel = (id: string) =>
+        availableCategories.find(
+            (option) => option.id === id
+        )?.label || id;
+
+    const customCategories =
+        availableCategories.filter(
+            (option) => !systemIds.has(option.id)
         );
 
-        if (category === categoryId) {
-            setCategory(null);
-            setEditItem(null);
-            setIsCreating(false);
+    const commit = (next: CarFluidItem[]): boolean => {
+        if (!onUpdateFluids) {
+            toast.error(
+                'Сохранение жидкостей недоступно'
+            );
+            return false;
+        }
+
+        try {
+            onUpdateFluids({
+                ...fluids,
+                items: next,
+            });
+
+            return true;
+        } catch {
+            toast.error(
+                'Не удалось сохранить жидкости'
+            );
+            return false;
         }
     };
 
-    const openCreate = (cat?: string) => {
-        setEditItem({
-            id: crypto.randomUUID(),
-            category: cat ?? 'engineOil',
-            name: '',
-        });
+    const openCategory = (id: string): boolean => {
+        if (
+            !availableCategories.some(
+                (option) => option.id === id
+            )
+        ) {
+            return false;
+        }
 
-        setIsCreating(true);
+        try {
+            preferences.enable([id]);
+
+            updateNavigation({
+                category: id,
+            });
+
+            return true;
+        } catch {
+            toast.error(
+                'Не удалось сохранить выбранную категорию'
+            );
+            return false;
+        }
     };
 
-    const handleCreateCategory = (name: string): string | null => {
-        const trimmedName = name.trim();
+    const handleCreateCategory = (
+        name: string
+    ): string | null => {
+        const label = name.trim().replace(/\s+/g, ' ');
 
-        if (!trimmedName) {
+        if (!label) return null;
+
+        const existing = availableCategories.find(
+            (option) =>
+                normalize(option.label) === normalize(label)
+        );
+
+        if (existing) {
+            return openCategory(existing.id)
+                ? existing.id
+                : null;
+        }
+
+        try {
+            const created = addUserFluidCategory(label);
+
+            preferences.enable([created.key]);
+
+            refresh((value) => value + 1);
+
+            updateNavigation({
+                category: created.key,
+            });
+
+            return created.key;
+        } catch {
+            toast.error(
+                'Не удалось создать категорию'
+            );
             return null;
         }
+    };
 
-        const newId = `custom_${crypto.randomUUID()}`;
+    const openCreate = (
+        id = current.category || 'engineOil'
+    ) => {
+        if (!openCategory(id)) return;
 
-        const placeholderItem: CarFluidItem = {
-            id: crypto.randomUUID(),
-            category: newId,
-            categoryLabel: trimmedName,
-            name: 'Маркер категории',
-            spec: 'Служебная запись',
+        updateNavigation({
+            isCreating: true,
+            editItem: {
+                id: crypto.randomUUID(),
+                category: id,
+                categoryLabel: getCategoryLabel(id),
+                name: '',
+            },
+        });
+    };
+
+    const closeEdit = () => {
+        updateNavigation({
+            editItem: null,
+            isCreating: false,
+        });
+    };
+
+    const openEdit = (item: CarFluidItem) => {
+        updateNavigation({
+            editItem: item,
+            isCreating: false,
+        });
+    };
+
+    const saveItem = (
+        updated: CarFluidItem
+    ): boolean => {
+        const previous = storedItems.find(
+            (item) => item.id === updated.id
+        );
+
+        const saved: CarFluidItem & {
+            photo?: string;
+        } = {
+            ...previous,
+            ...updated,
+            categoryLabel: getCategoryLabel(
+                updated.category
+            ),
         };
 
-        onUpdateFluids?.({
-            items: [...items, placeholderItem],
+        // После изменения галереи старое поле photo
+        // не должно возвращать удалённую фотографию.
+        if ('photos' in updated) {
+            delete saved.photo;
+        }
+
+        try {
+            preferences.enable([
+                saved.category,
+                ...(previous
+                    ? [previous.category]
+                    : []),
+            ]);
+        } catch {
+            toast.error(
+                'Не удалось сохранить категорию'
+            );
+            return false;
+        }
+
+        const next = previous
+            ? storedItems.map((item) =>
+                item.id === saved.id ? saved : item
+            )
+            : [...storedItems, saved];
+
+        if (!commit(next)) return false;
+
+        updateNavigation({
+            category: saved.category,
         });
 
-        setCategory(newId);
+        // Сохраняем существующую связь с общим каталогом.
+        if (
+            targetCarId &&
+            saved.name.trim() &&
+            !isMarker(saved)
+        ) {
+            const extra = saved as CarFluidItem & {
+                manufacturer?: string;
+                article?: string;
+                oemNumber?: string;
+                isOem?: boolean;
+                quantity?: number;
+                price?: number;
+            };
 
-        return newId;
+            try {
+                systemStore.addUserPart({
+                    carId: targetCarId,
+                    carBrand: carInfo?.brand,
+                    carModel: carInfo?.model,
+                    carYear: carInfo?.year,
+                    carVin: carInfo?.vin,
+                    carSpecs: carInfo?.carSpecs,
+                    engine: carInfo?.engine,
+                    engineCode: carInfo?.engineCode,
+                    drivetrain: carInfo?.drivetrain,
+                    transmission: carInfo?.transmission,
+
+                    partName: saved.name.trim(),
+                    partBrand:
+                        extra.brand ||
+                        extra.manufacturer ||
+                        'Не указан',
+
+                    partArticle:
+                        extra.article ||
+                        extra.oemNumber ||
+                        extra.spec ||
+                        '—',
+
+                    isOem: Boolean(extra.isOem),
+                    itemType: 'Техническая жидкость',
+                    category: getCategoryLabel(saved.category),
+                    quantity: extra.quantity || 1,
+                    price: extra.price,
+                    source: 'user_manual',
+
+                    note: `Добавлено вручную в раздел «${getCategoryLabel(saved.category)}». Допуск: ${saved.spec || '—'}. Объём: ${saved.volume || '—'}`,
+                });
+            } catch {
+                toast.warning(
+                    'Жидкость сохранена, но отправить её в общий каталог не удалось'
+                );
+            }
+        }
+
+        return true;
+    };
+
+    const deleteItem = (id: string): boolean => {
+        const previous = items.find(
+            (item) => item.id === id
+        );
+
+        if (!previous) return false;
+
+        try {
+            // Категория останется после удаления
+            // последней жидкости.
+            preferences.enable([previous.category]);
+        } catch {
+            toast.error(
+                'Не удалось сохранить пустую категорию'
+            );
+            return false;
+        }
+
+        return commit(
+            storedItems.filter((item) => item.id !== id)
+        );
+    };
+
+    const deleteCategory = (id: string): boolean => {
+        if (
+            items.some(
+                (item) => item.category === id
+            )
+        ) {
+            toast.error(
+                'Сначала перенесите или удалите жидкости из этой категории'
+            );
+            return false;
+        }
+
+        try {
+            preferences.hide(id);
+
+            if (current.category === id) {
+                updateNavigation({
+                    category: null,
+                    editItem: null,
+                    isCreating: false,
+                });
+            }
+
+            return true;
+        } catch {
+            toast.error(
+                'Не удалось удалить категорию'
+            );
+            return false;
+        }
     };
 
     return {
+        ...current,
         items,
-        category,
-        setCategory,
-        editItem,
-        setEditItem,
-        isCreating,
-        setIsCreating,
+        categories,
+        availableCategories,
         customCategories,
-        activeCategories,
-        displayItems,
-        deleteCategory,
-        title,
-        getCategoryLabel,
+
+        displayItems: items.filter(
+            (item) =>
+                item.category === current.category
+        ),
+
+        title: current.category
+            ? getCategoryLabel(current.category)
+            : 'Масла и техжидкости',
+
+        openCategory,
+        suggestedCategories,
+        openCreate,
+        openEdit,
+        closeEdit,
         saveItem,
         deleteItem,
-        openCreate,
+        deleteCategory,
         handleCreateCategory,
     };
 }

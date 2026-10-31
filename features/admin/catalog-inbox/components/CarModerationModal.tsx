@@ -23,11 +23,13 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
     const [years, setYears] = React.useState<string>(item.carYear ? `${item.carYear} – н.в.` : '2015 – н.в.');
 
     // Стейты для эталонной модификации
-    const [createMod, setCreateMod] = React.useState(false);
+    const [createMod, setCreateMod] = React.useState(true);
     const [modName, setModName] = React.useState<string>('');
     const [isModNameEdited, setIsModNameEdited] = React.useState(false);
     const [modTrim, setModTrim] = React.useState<string>((specs.trim as string) || '');
-    const [modEngine, setModEngine] = React.useState<string>((item.engineCode as string) || (item.engine as string) || '');
+    const [modEngine, setModEngine] = React.useState<string>(
+        item.engine || item.engineCode || specs.engineCode || ''
+    );
     const [modTrans, setModTrans] = React.useState<string>((specs.transmission as string) || (item.transmission as string) || '');
     const [modDrive, setModDrive] = React.useState<string>((specs.driveType as string) || (item.drivetrain as string) || '');
 
@@ -90,11 +92,27 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                 id: `mod_${Date.now().toString(36)}`,
                 name: modName.trim(),
                 attributes: {
+                    ...customObj,
                     trim: modTrim.trim() || undefined,
                     engine: modEngine.trim() || undefined,
+                    engineCode:
+                        typeof specs.engineCode === 'string'
+                            ? specs.engineCode.trim() || undefined
+                            : item.engineCode?.trim() || undefined,
                     transmission: modTrans.trim() || undefined,
                     drivetrain: modDrive.trim() || undefined,
-                    ...customObj, // Подмешиваем кастомные поля
+                    displacementL:
+                        typeof specs.displacementL === 'string'
+                            ? specs.displacementL.trim() || undefined
+                            : undefined,
+                    fuel:
+                        typeof specs.fuel === 'string'
+                            ? specs.fuel.trim() || undefined
+                            : undefined,
+                    bodyClass:
+                        typeof specs.bodyClass === 'string'
+                            ? specs.bodyClass.trim() || undefined
+                            : undefined,
                 }
             } : undefined
         };

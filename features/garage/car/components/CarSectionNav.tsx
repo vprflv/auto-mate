@@ -1,64 +1,252 @@
 'use client';
 
-import { CarSection } from "@/features/garage/car/types/types";
+import { useRef } from 'react';
+import type { CSSProperties, KeyboardEvent } from 'react';
 
-const MENU: { id: CarSection; label: string }[] = [
-    { id: 'overview', label: 'Обзор' },
-    { id: 'fluids', label: 'Масла и жидкости' },
-    { id: 'parts', label: 'Запчасти' },
-    { id: 'service', label: 'История ТО' },
-    { id: 'danger', label: 'Удаление автомобиля' },
-];
+import {
+    BookOpen,
+    CarFront,
+    ChevronLeft,
+    ChevronRight, ClipboardPlus,
+    Component,
+    Droplets,
+    History, Pencil, Sparkles,
+    Trash2,
+} from 'lucide-react';
 
+import type { CarSection } from '@/features/garage/car/types/types';
+
+import styles from './CarSectionNav.module.css';
+
+const MENU = [
+    {
+        id: 'overview',
+        label: 'Обзор',
+        icon: CarFront,
+    },
+    {
+        id: 'catalog',
+        label: 'Мой каталог',
+        icon: BookOpen,
+    },
+    {
+        id: 'ai-catalog',
+        label: 'ИИ-каталог',
+        icon: Sparkles,
+    },
+    {
+        id: 'service',
+        label: 'История ТО',
+        icon: History,
+    },
+    {
+        id: 'add-service',
+        label: 'Добавить ТО',
+        icon: ClipboardPlus,
+    },
+    {
+        id: 'edit',
+        label: 'Редактировать',
+        icon: Pencil,
+    },
+    {
+        id: 'danger',
+        label: 'Удаление авто',
+        icon: Trash2,
+    },
+] satisfies {
+    id: CarSection;
+    label: string;
+    icon: typeof CarFront;
+}[];
 type Props = {
     section: CarSection;
     onChange: (section: CarSection) => void;
+    contentId?: string;
 };
 
-export default function CarSectionNav({ section, onChange }: Props) {
+type TileStyle = CSSProperties & {
+    '--section-offset': number;
+    '--section-scale': number;
+    '--section-drop': string;
+    '--section-turn': string;
+    '--section-opacity': number;
+};
+
+function getOffset(
+    index: number,
+    activeIndex: number
+): number {
+    return index - activeIndex;
+}
+
+export default function CarSectionNav({
+                                          section,
+                                          onChange,
+                                          contentId = 'car-section-content',
+                                      }: Props) {
+    const buttons = useRef(
+        new Map<CarSection, HTMLButtonElement>()
+    );
+
+    const activeIndex = MENU.findIndex(
+        (item) => item.id === section
+    );
+
+    const move = (
+        direction: number,
+        focusTab = false
+    ) => {
+        const nextIndex = Math.max(
+            0,
+            Math.min(
+                MENU.length - 1,
+                activeIndex + direction
+            )
+        );
+
+        if (nextIndex === activeIndex) return;
+
+        const nextSection: CarSection = MENU[nextIndex].id;
+
+        onChange(nextSection);
+
+        const nextButton = buttons.current[nextSection];
+
+        if (focusTab && nextButton) {
+            nextButton.focus();
+        }
+    };
+
+    const handleKeyDown = (
+        event: KeyboardEvent<HTMLDivElement>
+    ) => {
+        if (
+            event.key !== 'ArrowLeft' &&
+            event.key !== 'ArrowRight'
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const target = event.target;
+
+        const focusTab =
+            target instanceof HTMLElement &&
+            Boolean(target.closest('[role="tab"]'));
+
+        move(
+            event.key === 'ArrowRight' ? 1 : -1,
+            focusTab
+        );
+    };
+
     return (
-        <aside className="md:w-56 shrink-0 bg-transparent">
-            {/* Обертка навигации скроллится на мобилках и выстраивается в ряд */}
-            <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-none">
-                {MENU.map((item) => {
-                    const active = section === item.id;
+        <div
+            className={styles.root}
+            onKeyDown={handleKeyDown}
+        >
+            <button
+                type="button"
+                className={styles.arrow}
+                aria-label="Предыдущий раздел"
+                onClick={() => move(-1)}
+            >
+                <ChevronLeft size={48} strokeWidth={1.4} aria-hidden="true" />
+            </button>
+
+            <div
+                className={styles.viewport}
+                role="tablist"
+                aria-label="Разделы автомобиля"
+                aria-orientation="horizontal"
+            >
+                {MENU.map((item, index) => {
+                    const offset = getOffset(
+                        index,
+                        activeIndex
+                    );
+
+                    const distance = Math.abs(offset);
+                    const active = offset === 0;
+                    const Icon = item.icon;
+
+                    const tileStyle: TileStyle = {
+                        '--section-offset': offset,
+
+                        '--section-scale': active
+                            ? 1.08
+                            : distance === 1
+                                ? 0.8
+                                : 0.64,
+
+                        '--section-drop': active
+                            ? '0px'
+                            : distance === 1
+                                ? '13px'
+                                : '23px',
+
+                        '--section-turn':
+                            offset === 0
+                                ? '0deg'
+                                : offset < 0
+                                    ? '16deg'
+                                    : '-16deg',
+
+                        '--section-opacity': active
+                            ? 1
+                            : distance === 1
+                                ? 0.8
+                                : 0.46,
+
+                        zIndex: 5 - distance,
+                    };
 
                     return (
                         <button
                             key={item.id}
-                            onClick={() => onChange(item.id)}
-                            className={`
-                                whitespace-nowrap px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 text-left cursor-pointer active:scale-[0.98]
-                                
-                                /* ОБЫЧНЫЕ ТАБЫ: Активный и пассивный режимы на переменных */
-                                ${
-                                active && item.id !== 'danger'
-                                    ? 'bg-[var(--btn-primary)] text-[var(--btn-primary-text)] [html[data-theme=dark]_&]:shadow-[0_0_12px_rgba(57,255,20,0.15)]'
-                                    : item.id !== 'danger'
-                                        ? 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-elevated)]'
-                                        : ''
+                            ref={(element: HTMLButtonElement | null) => {
+                                buttons.current[item.id] = element;
+                            }}
+                            type="button"
+                            id={`${contentId}-tab-${item.id}`}
+                            role="tab"
+                            aria-selected={active}
+                            aria-controls={contentId}
+                            tabIndex={active ? 0 : -1}
+                            data-danger={
+                                item.id === 'danger'
                             }
-                                
-                                /* ДЕСТРУКТИВНЫЙ ТАБ (Удаление автомобиля): Пассивный режим */
-                                ${
-                                item.id === 'danger' && !active
-                                    ? 'md:mt-6 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10'
-                                    : ''
+                            className={styles.tab}
+                            style={tileStyle}
+                            onClick={() =>
+                                onChange(item.id)
                             }
-                                
-                                /* ДЕСТРУКТИВНЫЙ ТАБ (Удаление автомобиля): Активный режим */
-                                ${
-                                item.id === 'danger' && active
-                                    ? 'md:mt-6 bg-[var(--danger)] text-white font-bold shadow-sm'
-                                    : ''
-                            }
-                            `}
                         >
-                            {item.label}
+                            <span className={styles.tile}>
+                                <Icon
+                                    className={styles.icon}
+                                    aria-hidden="true"
+                                />
+                            </span>
+
+                            <span className={styles.label}>
+                                {item.label}
+                            </span>
                         </button>
                     );
                 })}
-            </nav>
-        </aside>
+            </div>
+
+            <button
+                type="button"
+                className={styles.arrow}
+                aria-label="Следующий раздел"
+                onClick={() => move(1)}
+            >
+                <ChevronRight size={48} strokeWidth={1.4} aria-hidden="true" />
+            </button>
+        </div>
     );
 }

@@ -13,6 +13,7 @@ import {OemCrossEditor} from "@/features/admin/catalog/components/OemCrossEditor
 import {PartRelations} from "@/features/admin/catalog/components/part-details/PartRelations";
 import {PartStats} from "@/features/admin/catalog/components/part-details/PartStats";
 import {PartCompatibility} from "@/features/admin/catalog/components/part-details/PartCompatibility";
+import {DeleteCatalogPartButton} from "@/features/admin/catalog/components/part-details/DeleteCatalogPartButton";
 
 
 
@@ -71,12 +72,22 @@ export function PartDetailsModal({
                         <PartStats part={part} />
 
                         <PartCompatibility
-                            appliesToAll={details.appliesToAll}
-                            modifications={
-                                details.compatibleModifications
-                            }
+                            key={JSON.stringify([
+                                node.id,
+                                part.id,
+                                part.compatibleModifications ?? []
+                            ])}
+                            part={part}
+                            node={node}
                         />
                     </div>
+
+                    <DeleteCatalogPartButton
+                        part={part}
+                        nodeId={node.id}
+                        onDeleted={onClose}
+                    />
+
                 </div>
             </div>
         </div>

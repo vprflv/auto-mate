@@ -55,8 +55,15 @@ export const storage = {
         const numbers = uniqueOemCrosses(values).filter(
             value =>
                 !part.isOem ||
-                normalizeArticle(value) !== normalizeArticle(part.article)
+                normalizeArticle(value) !==
+                normalizeArticle(part.article)
         );
+
+        if (!part.isOem && numbers.length === 0) {
+            throw new Error(
+                'У аналога должен оставаться хотя бы один OEM-номер.'
+            );
+        }
 
         part.oemCrosses = numbers;
         part.oemCross = numbers[0] ?? '';
@@ -232,6 +239,18 @@ export const storage = {
                 ...getOemCrosses(existingPart),
                 ...incomingOemCrosses
             ]);
+
+            if (!part.isOem && mergedOemCrosses.length === 0) {
+                throw new Error(
+                    'Укажите хотя бы один OEM-номер для аналога.'
+                );
+            }
+            if (!part.isOem && incomingOemCrosses.length === 0) {
+                throw new Error(
+                    'Укажите хотя бы один OEM-номер для аналога.'
+                );
+            }
+
 
             // Берём применимость только самой детали.
             // Старую общую применимость узла сюда не переносим.

@@ -1,45 +1,65 @@
-import Field from './Field';
-import { EditCarFormValues } from '../types';
+import type { ChangeEvent } from 'react';
 
-type Props = {
+import Field from './Field';
+import type { EditCarFormValues } from '../types';
+
+interface Props {
     form: EditCarFormValues;
     onChange: (
-        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+        event: ChangeEvent<
+            HTMLInputElement | HTMLTextAreaElement
+        >
     ) => void;
-};
+}
 
-export default function EditCarExtra({ form, onChange }: Props) {
+const fields: {
+    key: 'currentMileage' | 'cylinders' | 'doors' | 'plantCountry';
+    label: string;
+    placeholder: string;
+}[] = [
+    {
+        key: 'currentMileage',
+        label: 'Текущий пробег, км',
+        placeholder: 'Например, 125000',
+    },
+    {
+        key: 'cylinders',
+        label: 'Количество цилиндров',
+        placeholder: 'Например, 4',
+    },
+    {
+        key: 'doors',
+        label: 'Количество дверей',
+        placeholder: 'Например, 5',
+    },
+    {
+        key: 'plantCountry',
+        label: 'Страна сборки',
+        placeholder: 'Например, Китай',
+    },
+];
+
+export default function EditCarExtra({
+                                         form,
+                                         onChange,
+                                     }: Props) {
     return (
         <section className="space-y-5 rounded-3xl border border-[var(--border)] bg-[var(--bg-elevated)] p-6">
             <h2 className="text-lg font-semibold text-[var(--text)]">
-                Дополнительно (вручную)
+                Дополнительно
             </h2>
 
             <div className="grid gap-5 sm:grid-cols-2">
-                <Field
-                    label="Прозвище"
-                    name="nickname"
-                    value={form.nickname}
-                    onChange={onChange}
-                    placeholder="Например: Белая стрела"
-                />
-
-                <Field
-                    label="Цвет"
-                    name="color"
-                    value={form.color}
-                    onChange={onChange}
-                    placeholder="Чёрный, белый..."
-                />
-
-                <Field
-                    label="Текущий пробег (км)"
-                    name="currentMileage"
-                    type="number"
-                    value={form.currentMileage}
-                    onChange={onChange}
-                    placeholder="125000"
-                />
+                {fields.map(field => (
+                    <Field
+                        key={field.key}
+                        label={field.label}
+                        name={field.key}
+                        value={form[field.key]}
+                        onChange={onChange}
+                        placeholder={field.placeholder}
+                    />
+                ))}
             </div>
 
             <Field
@@ -47,7 +67,7 @@ export default function EditCarExtra({ form, onChange }: Props) {
                 name="notes"
                 value={form.notes}
                 onChange={onChange}
-                placeholder="Особенности, комплектация, что важно помнить..."
+                placeholder="Что важно помнить об автомобиле"
                 textarea
             />
         </section>

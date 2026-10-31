@@ -54,6 +54,7 @@ export default function CarPhotosGallery({ photos, onUpdatePhotos }: Props) {
                         <button
                             type="button"
                             onClick={prev}
+                            disabled={activeIndex <= 0}
                             className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition duration-200 cursor-pointer"
                         >
                             <ChevronLeft size={22} />
@@ -61,6 +62,7 @@ export default function CarPhotosGallery({ photos, onUpdatePhotos }: Props) {
                         <button
                             type="button"
                             onClick={next}
+                            disabled={activeIndex <= 0}
                             className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition duration-200 pointer-events-auto cursor-pointer"
                         >
                             <ChevronRight size={22} />

@@ -14,8 +14,6 @@ type EditFluidModalProps = {
     open: boolean;
     item: CarFluidItem | null;
     onClose: () => void;
-    onSave: (item: CarFluidItem) => void;
-    onDelete?: (id: string) => void;
 
     customCategories: {
         id: string;
@@ -23,16 +21,22 @@ type EditFluidModalProps = {
     }[];
 
     onCreateCategory: (name: string) => string | null;
+    isCreating?: boolean;
+
+    onSave: (item: CarFluidItem) => boolean | void;
+    onDelete?: (id: string) => boolean | void;
 };
 
 export default function EditFluidModal({
                                            open,
+                                           isCreating = false,
                                            item,
                                            onClose,
                                            onSave,
                                            onDelete,
                                            customCategories,
                                            onCreateCategory,
+
                                        }: EditFluidModalProps) {
     const {
         name,
@@ -45,7 +49,6 @@ export default function EditFluidModal({
         setVolume,
         category,
         setCategory,
-        photo,
         handlePhotoChange,
         removePhoto,
         isProcessingPhoto,
@@ -71,11 +74,10 @@ export default function EditFluidModal({
     }
 
     const handleDelete = () => {
-        if (!item?.id || !onDelete) {
-            return;
-        }
+        if (!item?.id || !onDelete) return;
 
-        onDelete(item.id);
+        if (onDelete(item.id) === false) return;
+
         onClose();
     };
 
@@ -95,9 +97,9 @@ export default function EditFluidModal({
                 {/* Header */}
                 <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)]/20 px-5 py-4">
                     <h3 className="text-lg font-semibold text-[var(--text)]">
-                        {item
-                            ? 'Редактирование жидкости'
-                            : 'Новая жидкость'}
+                        {isCreating
+                            ? 'Новая жидкость'
+                            : 'Редактирование жидкости'}
                     </h3>
 
                     <button
@@ -187,8 +189,8 @@ export default function EditFluidModal({
                 {/* Footer */}
                 <div className="flex shrink-0 gap-3 border-t border-[var(--border)]/20 bg-[var(--card)] px-5 py-4">
                     <EditFluidModalActions
-                        isEditing={Boolean(item)}
-                        canDelete={Boolean(onDelete)}
+                        isEditing={!isCreating && Boolean(item)}
+                        canDelete={!isCreating && Boolean(onDelete)}
                         isProcessingPhoto={isProcessingPhoto}
                         onDelete={handleDelete}
                         onClose={onClose}

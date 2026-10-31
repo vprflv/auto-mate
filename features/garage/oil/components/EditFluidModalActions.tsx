@@ -1,6 +1,8 @@
-import { Trash2 } from 'lucide-react';
+'use client';
 
-type EditFluidModalActionsProps = {
+import { Loader2, Trash2 } from 'lucide-react';
+
+type Props = {
     isEditing: boolean;
     canDelete: boolean;
     isProcessingPhoto: boolean;
@@ -14,27 +16,34 @@ export default function EditFluidModalActions({
                                                   isProcessingPhoto,
                                                   onDelete,
                                                   onClose,
-                                              }: EditFluidModalActionsProps) {
+                                              }: Props) {
+    const showDelete = isEditing && canDelete;
+
     return (
-        <div className="flex w-full items-center justify-between gap-3">
-            {isEditing && canDelete ? (
+        <div className="flex w-full flex-wrap items-center justify-between gap-3">
+            {showDelete ? (
                 <button
                     type="button"
+                    disabled={isProcessingPhoto}
                     onClick={onDelete}
-                    className="inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--danger)] transition hover:bg-[var(--danger)]/10 active:scale-[0.98]"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--danger)] transition-colors hover:bg-[var(--danger)]/10 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                    <Trash2 size={17} />
+                    <Trash2
+                        size={17}
+                        aria-hidden="true"
+                    />
+
                     Удалить
                 </button>
             ) : (
-                <div />
+                <div aria-hidden="true" />
             )}
 
-            <div className="flex gap-2">
+            <div className="ml-auto flex flex-wrap gap-2">
                 <button
                     type="button"
                     onClick={onClose}
-                    className="rounded-xl border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-elevated)] hover:text-[var(--text)] active:scale-[0.98]"
+                    className="min-h-11 rounded-xl border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]"
                 >
                     Отмена
                 </button>
@@ -43,9 +52,19 @@ export default function EditFluidModalActions({
                     type="submit"
                     form="edit-fluid-form"
                     disabled={isProcessingPhoto}
-                    className="rounded-xl bg-[var(--btn-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--btn-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--btn-primary-text)] transition-colors hover:bg-[var(--btn-primary-hover)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                    Сохранить
+                    {isProcessingPhoto && (
+                        <Loader2
+                            size={17}
+                            className="animate-spin"
+                            aria-hidden="true"
+                        />
+                    )}
+
+                    {isProcessingPhoto
+                        ? 'Обработка фото…'
+                        : 'Сохранить'}
                 </button>
             </div>
         </div>

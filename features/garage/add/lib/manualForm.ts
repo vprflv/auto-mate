@@ -27,7 +27,7 @@ export function mapManualFormToCar(form: ManualCarForm): Car {
         vin: form.vin.trim().toUpperCase() || 'UNKNOWN',
         make: form.make.trim(),
         model: form.model.trim(),
-        year: parseInt(form.year) || new Date().getFullYear(),
+        year: Number(form.year.trim()),
         trim: form.trim.trim() || undefined,
         bodyClass: form.bodyClass.trim() || undefined,
         displacementL: form.displacementL.trim() || undefined,
@@ -64,8 +64,35 @@ export function mapDecodedToManualForm(car: DecodedCar): ManualCarForm {
     };
 }
 
-export function isManualFormValid(form: ManualCarForm): boolean {
-    return Boolean(
-        form.make.trim() && form.model.trim() && form.year.trim()
-    );
+export function getManualFormError(
+    form: ManualCarForm
+): string | null {
+    if (!form.make.trim()) {
+        return 'Укажите марку автомобиля.';
+    }
+
+    if (!form.model.trim()) {
+        return 'Укажите модель автомобиля.';
+    }
+
+    const yearText = form.year.trim();
+    const year = Number(yearText);
+    const maxYear = new Date().getFullYear() + 1;
+
+    if (
+        !/^\d{4}$/.test(yearText) ||
+        !Number.isInteger(year) ||
+        year < 1886 ||
+        year > maxYear
+    ) {
+        return `Укажите год выпуска от 1886 до ${maxYear}.`;
+    }
+
+    return null;
+}
+
+export function isManualFormValid(
+    form: ManualCarForm
+): boolean {
+    return getManualFormError(form) === null;
 }

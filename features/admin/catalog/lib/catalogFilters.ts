@@ -2,6 +2,7 @@ import type {
     CatalogModification,
     StoredPartItem
 } from '@/features/admin/lib/system-store/types';
+import {resolvePartApplicability} from "@/features/admin/catalog/lib/resolvePartApplicability";
 
 export interface CatalogFilters {
     engine: string;
@@ -107,21 +108,26 @@ export function getMatchingModificationIds(
 }
 
 /** Проверяем применимость конкретной запчасти. */
+/** Проверяем собственную и унаследованную применимость детали. */
 export function matchesCatalogFilters(
     part: StoredPartItem,
     filters: CatalogFilters,
-    matchingModIds: ReadonlySet<string>
+    matchingModIds: ReadonlySet<string>,
+    modelParts: StoredPartItem[] = []
 ): boolean {
-    // Без фильтров показываем и неуточнённые записи.
+    // Без фильтров показываем все записи.
     if (!hasCatalogFilters(filters)) return true;
 
     // Такого сочетания параметров нет у модели.
     if (matchingModIds.size === 0) return false;
 
-    const ids = part.compatibleModifications ?? [];
+    const { effectiveIds } = resolvePartApplicability(
+        part,
+        modelParts
+    );
 
     return (
-        ids.includes('all') ||
-        ids.some(id => matchingModIds.has(id))
+        effectiveIds.includes('all') ||
+        effectiveIds.some(id => matchingModIds.has(id))
     );
 }

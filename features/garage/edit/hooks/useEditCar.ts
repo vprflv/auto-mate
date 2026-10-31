@@ -1,123 +1,256 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Car } from '@/types';
-import { getGarageCars, saveGarageCars } from '@/features/garage/add/lib/storage';
-import { EditCarFormValues } from '../types';
 
-const emptyForm: EditCarFormValues = {
-    make: '',
-    model: '',
-    year: '',
-    vin: '',
-    trim: '', // <-- ДОБАВЛЕНО
-    bodyClass: '',
-    displacementL: '',
-    cylinders: '',
-    engine: '',
-    fuel: '',
-    driveType: '',
-    transmission: '',
-    doors: '',
-    plantCountry: '',
-    color: '',
-    nickname: '',
-    currentMileage: '',
-    notes: '',
-};
+import type { Car } from '@/types';
+import {
+    getGarageCars,
+    saveGarageCars,
+} from '@/features/garage/add/lib/storage';
+import {
+    createEmptyManualForm,
+    getManualFormError,
+    mapDecodedToManualForm,
+    mapManualFormToCar,
+} from '@/features/garage/add/lib/manualForm';
+import type {
+    EditCarField,
+    EditCarFormValues,
+} from '../types';
+import {submitCarCatalogReview} from "@/features/admin/lib/system-store/carCatalogReview";
+
+function createEmptyEditForm(): EditCarFormValues {
+    return {
+        ...createEmptyManualForm(),
+        currentMileage: '',
+        notes: '',
+    };
+}
 
 export function useEditCar() {
     const params = useParams();
     const router = useRouter();
-    const id = params.id as string;
+
+    const id = typeof params.id === 'string'
+        ? params.id
+        : '';
 
     const [car, setCar] = useState<Car | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [form, setForm] = useState<EditCarFormValues>(emptyForm);
+    const [error, setError] = useState('');
+
+    const [form, setForm] = useState<EditCarFormValues>(
+        createEmptyEditForm
+    );
 
     useEffect(() => {
-        const cars = getGarageCars();
-        const found = cars.find((c) => c.id === id);
+        setLoading(true);
+        setError('');
 
-        if (found) {
+        try {
+            const found = getGarageCars().find(
+                candidate => candidate.id === id
+            );
+
+            if (!found) {
+                setCar(null);
+                setForm(createEmptyEditForm());
+                return;
+            }
+
             setCar(found);
+
             setForm({
-                make: found.make || '',
-                model: found.model || '',
-                year: String(found.year || ''),
-                vin: found.vin || '',
-                trim: found.trim || '', // <-- ЧИТАЕМ ИЗ БАЗЫ
-                bodyClass: found.bodyClass || '',
-                displacementL: found.displacementL || '',
-                cylinders: found.cylinders || '',
-                engine: found.engine || '',
-                fuel: found.fuel || '',
-                driveType: found.driveType || '',
-                transmission: found.transmission || '',
-                doors: found.doors || '',
-                plantCountry: found.plantCountry || '',
-                color: found.color || '',
-                nickname: found.nickname || '',
+                ...mapDecodedToManualForm(found),
+                catalogBrandSlug: found.catalogBrandSlug ?? '',
+                catalogModelSlug: found.catalogModelSlug ?? '',
+                catalogModificationId:
+                    found.catalogModificationId ?? '',
+                modificationName: found.modificationName ?? '',
+                color: found.color ?? '',
+                nickname: found.nickname ?? '',
                 currentMileage:
                     found.currentMileage !== undefined
                         ? String(found.currentMileage)
                         : '',
-                notes: found.notes || '',
+                notes: found.notes ?? '',
             });
+        } catch {
+            setCar(null);
+            setError('Не удалось загрузить автомобиль.');
+        } finally {
+            setLoading(false);
         }
-
-        setLoading(false);
     }, [id]);
 
-    const handleChange = (
-        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    const updateField = (
+        field: EditCarField,
+        value: string
     ) => {
-        const { name, value } = e.target;
-        setForm((prev) => ({ ...prev, [name]: value }));
+        if (field === 'year' && !/^\d{0,4}$/.test(value)) {
+            return;
+        }
+
+        if (
+            field === 'currentMileage' &&
+            !/^\d*$/.test(value)
+        ) {
+            return;
+        }
+
+        if (
+            field === 'displacementL' &&
+            /[-−–—﹣－]/.test(value)
+        ) {
+            return;
+        }
+
+        setForm(previous => ({
+            ...previous,
+            [field]: value,
+        }));
+
+        setError('');
     };
 
-    const handleSave = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!car) return;
+    const handleChange = (
+        event: ChangeEvent<
+            HTMLInputElement |
+            HTMLTextAreaElement |
+            HTMLSelectElement
+        >
+    ) => {
+        const { name, value } = event.target;
+
+        if (!Object.prototype.hasOwnProperty.call(form, name)) {
+            return;
+        }
+
+        updateField(name as EditCarField, value);
+    };
+
+    const handleSave = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (!car || saving) return;
+
+        const validationError = getManualFormError(form);
+
+        if (validationError) {
+            setError(validationError);
+            return;
+        }
+
+        const mileageText = form.currentMileage.trim();
+        const mileage = mileageText
+            ? Number(mileageText)
+            : undefined;
+
+        if (
+            mileage !== undefined &&
+            (
+                !/^\d+$/.test(mileageText) ||
+                !Number.isSafeInteger(mileage) ||
+                mileage < 0
+            )
+        ) {
+            setError('Пробег должен быть целым числом от нуля.');
+            return;
+        }
 
         setSaving(true);
+        setError('');
 
-        const cars = getGarageCars();
-        const updatedCars = cars.map((c) => {
-            if (c.id !== id) return c;
+        try {
+            const cars = getGarageCars();
 
-            return {
-                ...c,
-                make: form.make.trim() || c.make,
-                model: form.model.trim() || c.model,
-                year: parseInt(form.year) || c.year,
-                vin: form.vin.trim().toUpperCase() || c.vin,
-                trim: form.trim.trim() || undefined, // <-- СОХРАНЯЕМ В БАЗУ
-                bodyClass: form.bodyClass.trim() || undefined,
-                displacementL: form.displacementL.trim() || undefined,
-                cylinders: form.cylinders.trim() || undefined,
-                engine: form.engine.trim() || undefined,
-                fuel: form.fuel.trim() || undefined,
-                driveType: form.driveType.trim() || undefined,
-                transmission: form.transmission.trim() || undefined,
-                doors: form.doors.trim() || undefined,
-                plantCountry: form.plantCountry.trim() || undefined,
-                color: form.color.trim() || undefined,
-                nickname: form.nickname.trim() || undefined,
-                currentMileage: form.currentMileage
-                    ? parseInt(form.currentMileage)
-                    : undefined,
+            const existingCar = cars.find(
+                candidate => candidate.id === id
+            );
+
+            if (!existingCar) {
+                setError('Автомобиль больше не найден в гараже.');
+                return;
+            }
+
+            const manualValues = mapManualFormToCar(form);
+
+            const updatedCar: Car = {
+                ...existingCar,
+                ...manualValues,
+                id: existingCar.id,
+                addedAt: existingCar.addedAt,
+                catalogBrandSlug:
+                    form.catalogBrandSlug?.trim() || undefined,
+                catalogModelSlug:
+                    form.catalogModelSlug?.trim() || undefined,
+                catalogModificationId:
+                    form.catalogModificationId?.trim() ||
+                    undefined,
+                modificationName:
+                    form.modificationName?.trim() || undefined,
+                currentMileage: mileage,
                 notes: form.notes.trim() || undefined,
                 updatedAt: new Date().toISOString(),
             };
-        });
 
-        saveGarageCars(updatedCars);
-        setSaving(false);
-        router.push(`/garage/${id}`);
+            saveGarageCars(
+                cars.map(candidate =>
+                    candidate.id === id
+                        ? updatedCar
+                        : candidate
+                )
+            );
+
+            setCar(updatedCar);
+
+            try {
+                submitCarCatalogReview({
+                    brand: updatedCar.make,
+                    model: updatedCar.model,
+                    year: updatedCar.year,
+                    engine: updatedCar.engine ?? '',
+                    carSpecs: {
+                        vin: updatedCar.vin,
+                        bodyClass: updatedCar.bodyClass,
+                        displacementL: updatedCar.displacementL,
+                        fuel: updatedCar.fuel,
+                        transmission: updatedCar.transmission,
+                        driveType: updatedCar.driveType,
+                        color: updatedCar.color,
+                        trim: updatedCar.trim,
+                    },
+                });
+            } catch {
+                setError(
+                    'Автомобиль сохранён, но отправить характеристики на модерацию не удалось. Попробуйте сохранить ещё раз.'
+                );
+
+                return;
+            }
+
+            router.push(`/garage/${id}`);
+
+        } catch {
+            setError(
+                'Не удалось сохранить изменения. Попробуйте ещё раз.'
+            );
+        } finally {
+            setSaving(false);
+        }
     };
 
-    return { car, loading, saving, form, handleChange, handleSave };
+    return {
+        car,
+        loading,
+        saving,
+        error,
+        form,
+        updateField,
+        handleChange,
+        handleSave,
+    };
 }

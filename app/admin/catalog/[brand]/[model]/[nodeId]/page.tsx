@@ -8,9 +8,10 @@ import { useNodeCatalog } from '@/features/admin/catalog/hooks/useNodeCatalog';
 
 import { NodeCatalogHeader } from '@/features/admin/catalog/components/NodeCatalogHeader';
 import { CatalogPartCard } from '@/features/admin/catalog/components/CatalogPartCard';
-import { PartDetailsModal } from '@/features/admin/catalog/components/PartDetailsModal';
+
 
 import type { CatalogSearchParams } from '@/features/admin/catalog/lib/catalogFilters';
+import {PartDetailsModal} from "@/features/admin/catalog/components/part-details/PartDetailsModal";
 
 interface Props {
     params: Promise<{

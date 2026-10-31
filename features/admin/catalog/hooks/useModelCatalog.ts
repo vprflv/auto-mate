@@ -132,6 +132,10 @@ export function useModelCatalog(
         ).sort((a, b) => a.localeCompare(b));
     }
 
+    const modelParts = catalogNodes.flatMap(
+        node => node.items
+    );
+
     // Создаём отфильтрованные копии узлов,
     // исходные данные каталога не изменяем.
     const visibleNodes = catalogNodes
@@ -141,7 +145,8 @@ export function useModelCatalog(
                 matchesCatalogFilters(
                     part,
                     filters,
-                    matchingModIds
+                    matchingModIds,
+                    modelParts
                 )
             )
         }))

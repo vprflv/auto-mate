@@ -1,0 +1,253 @@
+.root {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 8px 0;
+}
+
+/* Стрелки */
+
+.arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 44px;
+    height: 64px;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    transition:
+            color 180ms,
+            transform 180ms;
+}
+
+.arrow svg {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+}
+
+.arrow:not(:disabled):hover {
+    color: var(--btn-primary);
+    transform: scale(1.12);
+}
+
+.arrow:not(:disabled):active {
+    transform: scale(0.95);
+}
+
+
+.arrow:focus-visible,
+.tab:focus-visible {
+    outline: 2px solid var(--btn-primary);
+    outline-offset: 5px;
+}
+
+.arrow:disabled {
+    opacity: 0.2;
+    cursor: default;
+}
+
+/* Область карусели */
+
+.viewport {
+    --section-step: clamp(100px, 15vw, 160px);
+    --section-tile-height: 106px;
+
+    position: relative;
+    min-width: 0;
+    height: 218px;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.viewport::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    width: 220px;
+    height: 170px;
+
+    transform: translateX(-50%);
+
+    background: radial-gradient(
+            ellipse,
+            color-mix(
+                    in srgb,
+                    var(--btn-primary) 15%,
+                    transparent
+            ),
+            transparent 70%
+    );
+
+    pointer-events: none;
+}
+
+/* Плитки расположены на одной горизонтали */
+
+.tab {
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    width: 120px;
+    margin-left: -60px;
+    padding: 0;
+    border: 0;
+    border-radius: 22px;
+
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    text-align: center;
+    cursor: pointer;
+
+    opacity: var(--section-opacity);
+
+    /* Центр значка остаётся на одной высоте при масштабировании. */
+    transform-origin:
+            50%
+            calc(var(--section-tile-height) / 2);
+
+    transform:
+            translateX(
+                    calc(
+                            var(--section-offset) *
+                            var(--section-step)
+                    )
+            )
+            scale(var(--section-scale));
+
+    transition:
+            transform 420ms cubic-bezier(0.22, 0.7, 0.25, 1),
+            opacity 300ms;
+}
+
+.tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--section-tile-height);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+
+    background: var(--bg-elevated);
+    color: var(--text);
+
+    transition:
+            background 250ms,
+            color 250ms,
+            box-shadow 250ms;
+}
+
+.icon {
+    width: 34px;
+    height: 34px;
+    stroke-width: 1.5;
+}
+
+.label {
+    position: relative;
+    left: 50%;
+    display: block;
+    width: max-content;
+    margin-top: 16px;
+
+    font-size: calc(13px / var(--section-scale));
+    line-height: 1.4;
+    font-weight: 500;
+    white-space: nowrap;
+
+    transform: translateX(-50%);
+}
+
+/* Выбранный раздел */
+
+.tab[aria-selected='true'] {
+    color: var(--text);
+}
+
+.tab[aria-selected='true'] .tile {
+    border-color: var(--btn-primary);
+    background: var(--btn-primary);
+    color: var(--btn-primary-text);
+
+    outline: 1px solid var(--btn-primary);
+    outline-offset: 6px;
+
+    box-shadow: 0 14px 35px color-mix(
+            in srgb,
+            var(--btn-primary) 22%,
+            transparent
+    );
+}
+
+/* Раздел удаления автомобиля */
+
+.tab[data-danger='true'] .icon {
+    color: var(--danger);
+}
+
+.tab[data-danger='true'][aria-selected='true'] .tile {
+    border-color: var(--danger);
+    background: var(--danger);
+    color: #fff;
+    outline-color: var(--danger);
+
+    box-shadow: 0 14px 35px color-mix(
+            in srgb,
+            var(--danger) 20%,
+            transparent
+    );
+}
+
+.tab[data-danger='true'][aria-selected='true'] .icon {
+    color: inherit;
+}
+
+/* Мобильная версия */
+
+@media (max-width: 600px) {
+    .root {
+        gap: 4px;
+    }
+
+    .viewport {
+        --section-step: 96px;
+        --section-tile-height: 90px;
+
+        height: 200px;
+    }
+
+    .tab {
+        top: 32px;
+        width: 100px;
+        margin-left: -50px;
+    }
+
+    .tile {
+        border-radius: 19px;
+    }
+
+    .label {
+        font-size: calc(12px / var(--section-scale));
+    }
+}
+
+/* Учитываем настройку уменьшения анимаций */
+
+@media (prefers-reduced-motion: reduce) {
+    .arrow,
+    .tab,
+    .tile {
+        transition: none;
+    }
+}

@@ -1,6 +1,21 @@
 import {CarFluids, FluidCategory} from "@/types/oil";
 
-export type Car = {
+
+
+export type CarCatalogSelection = {
+    // Выбранные записи эталонного каталога.
+    catalogBrandSlug?: string;
+    catalogModelSlug?: string;
+    catalogModificationId?: string;
+
+    // Название выбранной или предложенной модификации.
+    modificationName?: string;
+};
+
+
+
+
+export type Car = CarCatalogSelection & {
     id: string;
     vin: string;
     make: string;
@@ -45,7 +60,7 @@ export type DecodedCar = {
     plantCountry?: string;
 };
 
-export type ManualCarForm = {
+export type ManualCarForm = CarCatalogSelection & {
     vin: string;
     make: string;
     model: string;

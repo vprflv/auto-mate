@@ -1,16 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { CarParts, PartCategory } from '@/types';
-import EditPartModal from '@/features/garage/parts/components/EditPartModal';
-import NamePromptModal from '@/features/garage/parts/components/NamePromptModal';
-import { useCarPartsCard } from '@/features/garage/parts/hooks/useCarPartsCard';
-import CarPartsCategoryView from '@/features/garage/parts/components/CarPartsCategoryView';
-import CarPartsSubcategoryView from '@/features/garage/parts/components/CarPartsSubcategoryView';
-import CarPartsItemsView from '@/features/garage/parts/components/CarPartsItemsView';
-import { getSubcategoriesFor } from '@/features/garage/lib/getSubcategories';
-import ConfirmDeleteCategoryModal from '@/features/garage/components/ConfirmDeleteCategoryModal';
 
+import type { CarParts } from '@/types';
+
+import { useCarPartsCard } from '@/features/garage/parts/hooks/useCarPartsCard';
+
+import CarPartsNavigation from '@/features/garage/parts/components/CarPartsNavigation';
+import CarPartsContent from '@/features/garage/parts/components/CarPartsContent';
+import CarPartsDialogs from '@/features/garage/parts/components/CarPartsDialogs';
+
+// Оставляем экспорт здесь, чтобы существующие импорты работали.
 export type CarSummaryInfo = {
     id: string;
     brand: string;
@@ -32,70 +32,33 @@ type Props = {
 };
 
 export default function CarPartsCard({
-                                         parts,
-                                         onUpdateParts,
                                          carId,
                                          carInfo,
+                                         parts,
+                                         onUpdateParts,
                                      }: Props) {
-    const [namePrompt, setNamePrompt] = useState<
-        'category' | 'subcategory' | null
-    >(null);
-
-    const [deleteCategoryId, setDeleteCategoryId] =
-        useState<string | null>(null);
-
-    const {
-        category,
-        sub,
-        editItem,
-        setEditItem,
-        categories,
-        inCategory,
-        subs,
-        inSub,
-        openCategory,
-        openSubcategory,
-        back,
-        saveItem,
-        deleteItem,
-        deleteCategory,
-        createCategory,
-        createSubcategory,
-        addItemToSection,
-    } = useCarPartsCard({
+    const card = useCarPartsCard({
         carId,
         carInfo,
         parts,
         onUpdateParts,
     });
 
-    const selectedCategory = categories.find(
-        (item) => item.id === category
-    );
+    const [categoryModalOpen, setCategoryModalOpen] =
+        useState(false);
 
-    const selectedSubcategory = subs.find(
-        (item) => item.id === sub
-    );
+    const [subcategoryModalOpen, setSubcategoryModalOpen] =
+        useState(false);
 
-    const categoryToDelete = categories.find(
-        (item) => item.id === deleteCategoryId
-    );
+    const [deleteCategoryId, setDeleteCategoryId] =
+        useState<string | null>(null);
 
-    const deleteCategoryItemsCount = deleteCategoryId
-        ? (parts?.items ?? []).filter(
-            (item) => item.category === deleteCategoryId
-        ).length
-        : 0;
-
-    const deleteCategorySubcategoryCount = deleteCategoryId
-        ? getSubcategoriesFor(
-            deleteCategoryId as PartCategory
-        ).filter((item) => item.isCustom).length
-        : 0;
+    const openCategoryModal = () => {
+        setCategoryModalOpen(true);
+    };
 
     return (
         <section className="overflow-hidden rounded-3xl border border-[var(--border)]/20 bg-[var(--card)] transition-colors duration-200">
-            {/* Header */}
             <div className="flex items-center gap-3 border-b border-[var(--border)] px-5 py-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-accent)]">
                     <span className="text-lg">🔧</span>
@@ -112,156 +75,70 @@ export default function CarPartsCard({
                 </div>
             </div>
 
-            {/* Mobile categories */}
-            <div className="border-b border-[var(--border)] px-4 py-3 md:hidden">
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                    {categories.map((item) => {
-                        const isActive = category === item.id;
+            <CarPartsNavigation
+                variant="mobile"
+                categories={card.categories}
+                activeCategory={card.category}
+                onOpenCategory={card.openCategory}
+                onCreateCategory={openCategoryModal}
+                onDeleteCategory={setDeleteCategoryId}
+            />
 
-                        return (
-                            <button
-                                key={item.id}
-                                type="button"
-                                onClick={() => openCategory(item.id)}
-                                className={[
-                                    'shrink-0 rounded-xl px-3 py-2 text-sm font-medium transition',
-                                    isActive
-                                        ? 'bg-[var(--btn-primary)] text-[var(--btn-primary-text)]'
-                                        : 'bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text)]',
-                                ].join(' ')}
-                            >
-                                {item.isCustom && '★ '}
-                                {item.label}
-                            </button>
-                        );
-                    })}
-
-                    <button
-                        type="button"
-                        onClick={() => setNamePrompt('category')}
-                        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--btn-primary)] hover:text-[var(--text)]"
-                    >
-                        <span>＋</span>
-                        Категория
-                    </button>
-                </div>
-            </div>
-
-            {/* Desktop layout */}
             <div className="flex min-h-[360px]">
-                {/* Categories sidebar */}
-                <div className="hidden w-48 shrink-0 border-r border-[var(--border)] bg-[var(--bg-elevated)]/30 md:block">
-                    <CarPartsCategoryView
-                        categories={categories}
-                        activeCategory={category}
-                        onOpenCategory={openCategory}
-                        onCreateCategory={() =>
-                            setNamePrompt('category')
-                        }
-                        onDeleteCategory={setDeleteCategoryId}
-                    />
-                </div>
+                <CarPartsNavigation
+                    variant="desktop"
+                    categories={card.categories}
+                    activeCategory={card.category}
+                    onOpenCategory={card.openCategory}
+                    onCreateCategory={openCategoryModal}
+                    onDeleteCategory={setDeleteCategoryId}
+                />
 
-                {/* Main content */}
-                <div className="min-w-0 flex-1 p-4 md:p-5">
-                    {!category ? (
-                        <div className="flex min-h-[300px] items-center justify-center">
-                            <div className="max-w-sm text-center">
-                                <p className="text-sm font-medium text-[var(--text)]">
-                                    Выберите категорию
-                                </p>
-
-                                <p className="mt-1 text-sm text-[var(--text-muted)]">
-                                    Выберите категорию слева, чтобы увидеть
-                                    подкатегории и запчасти.
-                                </p>
-                            </div>
-                        </div>
-                    ) : !sub ? (
-                        <div>
-                            <div className="mb-5">
-                                <h3 className="text-base font-semibold text-[var(--text)]">
-                                    {selectedCategory?.label}
-                                </h3>
-
-                                <p className="mt-0.5 text-sm text-[var(--text-muted)]">
-                                    Выберите подкатегорию
-                                </p>
-                            </div>
-
-                            <CarPartsSubcategoryView
-                                subs={subs}
-                                inCategory={inCategory}
-                                onOpenSub={openSubcategory}
-                                onCreateSub={() =>
-                                    setNamePrompt('subcategory')
-                                }
-                            />
-                        </div>
-                    ) : (
-                        <CarPartsItemsView
-                            carId={carId}
-                            items={inSub}
-                            onEdit={setEditItem}
-                            onAdd={addItemToSection}
-                            onBack={back}
-                            title={
-                                selectedSubcategory?.label ??
-                                'Запчасти'
-                            }
-                        />
-                    )}
-                </div>
+                <CarPartsContent
+                    carId={carId}
+                    category={card.category}
+                    sub={card.sub}
+                    categories={card.categories}
+                    subs={card.subs}
+                    inCategory={card.inCategory}
+                    inSub={card.inSub}
+                    openSubcategory={card.openSubcategory}
+                    setEditItem={card.setEditItem}
+                    addItemToSection={card.addItemToSection}
+                    back={card.back}
+                    onCreateSubcategory={() =>
+                        setSubcategoryModalOpen(true)
+                    }
+                />
             </div>
 
-            {/* Edit part */}
-            <EditPartModal
-                open={!!editItem}
-                item={editItem}
-                onClose={() => setEditItem(null)}
-                onSave={saveItem}
-                onDelete={deleteItem}
-            />
-
-            {/* Create category / subcategory */}
-            <NamePromptModal
-                open={!!namePrompt}
-                title={
-                    namePrompt === 'subcategory'
-                        ? 'Новая подкатегория'
-                        : 'Новая категория'
+            <CarPartsDialogs
+                carId={carId}
+                category={card.category}
+                subs={card.subs}
+                openSubcategory={card.openSubcategory}
+                items={card.items}
+                categories={card.categories}
+                editItem={card.editItem}
+                setEditItem={card.setEditItem}
+                saveItem={card.saveItem}
+                deleteItem={card.deleteItem}
+                createCategory={card.createCategory}
+                createSubcategory={card.createSubcategory}
+                deleteCategory={card.deleteCategory}
+                openCategory={card.openCategory}
+                categoryModalOpen={categoryModalOpen}
+                onCloseCategoryModal={() =>
+                    setCategoryModalOpen(false)
                 }
-                placeholder={
-                    namePrompt === 'subcategory'
-                        ? 'Колодки, диски…'
-                        : 'Электрика, салон…'
+                subcategoryModalOpen={subcategoryModalOpen}
+                onCloseSubcategoryModal={() =>
+                    setSubcategoryModalOpen(false)
                 }
-                onClose={() => setNamePrompt(null)}
-                onSubmit={(name) => {
-                    if (namePrompt === 'category') {
-                        createCategory(name);
-                    }
-
-                    if (namePrompt === 'subcategory') {
-                        createSubcategory(name);
-                    }
-
-                    setNamePrompt(null);
-                }}
-            />
-
-            <ConfirmDeleteCategoryModal
-                open={!!deleteCategoryId}
-                categoryName={categoryToDelete?.label ?? ''}
-                itemCount={deleteCategoryItemsCount}
-                subcategoryCount={deleteCategorySubcategoryCount}
-                onClose={() => setDeleteCategoryId(null)}
-                onConfirm={() => {
-                    if (!deleteCategoryId) return;
-
-                    deleteCategory(deleteCategoryId);
-                    setDeleteCategoryId(null);
-                }}
+                deleteCategoryId={deleteCategoryId}
+                onCloseDeleteModal={() =>
+                    setDeleteCategoryId(null)
+                }
             />
         </section>
     );

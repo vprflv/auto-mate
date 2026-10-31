@@ -119,12 +119,14 @@ export function useNodeCatalog(
         currentSnapshot?.masterModel?.modifications ?? [],
         filters
     );
+    const modelParts = currentSnapshot?.modelParts ?? [];
 
     const matches = (part: StoredPartItem): boolean =>
         matchesCatalogFilters(
             part,
             filters,
-            matchingModIds
+            matchingModIds,
+            modelParts
         );
 
     // Только детали, подходящие выбранным параметрам.

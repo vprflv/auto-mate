@@ -1,20 +1,6 @@
-export type EditCarFormValues = {
-    make: string;
-    model: string;
-    year: string;
-    vin: string;
-    trim: string; // <-- ДОБАВИТЬ ЭТУ СТРОКУ
-    bodyClass: string;
-    displacementL: string;
-    cylinders: string;
-    engine: string;
-    fuel: string;
-    driveType: string;
-    transmission: string;
-    doors: string;
-    plantCountry: string;
-    color: string;
-    nickname: string;
+import type { ManualCarForm } from '@/types';
+
+export type EditCarFormValues = ManualCarForm & {
     currentMileage: string;
     notes: string;
 };

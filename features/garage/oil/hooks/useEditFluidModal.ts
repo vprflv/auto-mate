@@ -8,7 +8,7 @@ type UseEditFluidModalProps = {
     open: boolean;
     item: CarFluidItem | null;
     onClose: () => void;
-    onSave: (item: CarFluidItem) => void;
+    onSave: (item: CarFluidItem) => boolean | void;
 };
 
 const MAX_PHOTOS = 5;
@@ -246,11 +246,9 @@ export function useEditFluidModal({
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
 
-        if (!name.trim()) {
-            return;
-        }
+        if (!name.trim()) return;
 
-        onSave({
+        const saved = onSave({
             id: item?.id || crypto.randomUUID(),
             category,
             name: name.trim(),
@@ -259,6 +257,8 @@ export function useEditFluidModal({
             volume: volume.trim() || undefined,
             photos: photos.length ? photos : undefined,
         });
+
+        if (saved === false) return;
 
         onClose();
     };

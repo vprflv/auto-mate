@@ -8,6 +8,7 @@ import { FLUID_CATEGORY_OPTIONS } from '@/features/garage/lib/config/serviceItem
 type CustomCategory = {
     id: string;
     label: string;
+    isCustom?: boolean;
 };
 
 type Props = {
@@ -178,7 +179,8 @@ export default function FluidCategorySelect({
                                                 }`}
                                             >
                                                 <span className="truncate">
-                                                    ★ {custom.label}
+                                                    {custom.isCustom !== false && '★ '}
+                                                    {custom.label}
                                                 </span>
 
                                                 {isSelected && (
