@@ -1,4 +1,6 @@
 import { storage } from '../storage';
+import { getGarageCars, saveGarageCars } from '@/features/garage/add/lib/storage';
+import { carReviewVersion, modificationValues } from '@/features/catalog/lib/carCatalogIdentity';
 import { normalizeSlug, normalizeOem } from '../utils';
 
 export function resolveInboxItem(id: string) {
@@ -60,6 +62,8 @@ export function approveCarModel(
         masterModel.registeredCount = (masterModel.registeredCount || 0) + 1;
     }
 
+    masterModel.verified = true;
+
     // --- УРОВЕНЬ 2: МОДИФИКАЦИЯ ---
     if (payload?.modification) {
         if (!masterModel.modifications) masterModel.modifications = [];
@@ -80,12 +84,31 @@ export function approveCarModel(
         }
     }
 
+    const approvedModification = masterModel.modifications.find(
+        modification => modification.id === payload?.modification?.id
+    );
+
+    if (approvedModification) {
+        const versions = item.garageCarVersions ?? {};
+        const cars = getGarageCars();
+        saveGarageCars(cars.map(car => {
+            if (versions[car.id] !== carReviewVersion(car)) return car;
+            return {
+                ...car,
+                ...modificationValues(approvedModification),
+                make: masterModel!.brandName,
+                model: masterModel!.modelName,
+                catalogBrandSlug: masterModel!.brandSlug,
+                catalogModelSlug: masterModel!.modelSlug,
+                catalogModificationId: approvedModification.id,
+                modificationName: approvedModification.name,
+                updatedAt: new Date().toISOString(),
+            };
+        }));
+    }
+
     state.inbox = state.inbox.filter((i) => i.id !== id);
     storage.saveState(state);
-
-    if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('system-store-updated'));
-    }
 }
 
 export function approveInboxItem(id: string, payload?: any) {

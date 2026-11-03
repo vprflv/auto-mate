@@ -1,149 +1,283 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useId, useRef } from 'react';
 
-import { PartCategory } from '@/types';
-import {
-    PART_CATEGORY_LABELS,
-    PART_CATEGORY_ORDER,
-} from '@/features/garage/lib/config/partCategories';
-import {
-    PART_SUBCATEGORY_LABELS,
-    PART_SUBCATEGORY_ORDER,
-} from '@/features/garage/lib/config/partSubcategories';
-import {CatalogArticle} from "@/types/catalog/catalog";
-import {detectCategory} from "@/features/catalog/lib/saveToPersonalCatalog";
+import type { CatalogArticle } from '@/types/catalog/catalog';
 
+import {
+    useSaveToCatalogModal,
+} from '../hooks/useSaveToCatalogModal';
+
+import type {
+    SavedPartDestination,
+} from '../hooks/useSaveToCatalogModal';
+import {PartInstallationFields} from "@/features/garage/components/PartInstallationFields";
+import {PART_AXLE_LABELS, PART_SIDE_LABELS} from "@/types/partInstallation";
+import {installationKey} from "@/features/catalog/lib/partInstallations";
 
 type Props = {
-    open: boolean;
-    article: CatalogArticle | null;
+    carId: string;
+    article: CatalogArticle;
     nodeName?: string;
     onClose: () => void;
-    onConfirm: (data: {
-        category: PartCategory;
-        subcategory: string;
-    }) => void;
+    onSaved: (destination: SavedPartDestination) => void;
 };
 
+const inputClassName =
+    'w-full rounded-xl border border-[var(--border)] ' +
+    'bg-[var(--bg-elevated)] px-3 py-2.5 text-sm ' +
+    'text-[var(--text)] outline-none focus:border-[var(--link)]';
+
 export default function SaveToCatalogModal({
-                                               open,
+                                               carId,
                                                article,
                                                nodeName,
                                                onClose,
-                                               onConfirm,
+                                               onSaved,
                                            }: Props) {
-    const [category, setCategory] = useState<PartCategory>('other');
-    const [subcategory, setSubcategory] = useState('other');
+    const dialogRef = useRef<HTMLDialogElement>(null);
+    const titleId = useId();
 
-    // При открытии подставляем авто-определённую категорию
+    const form = useSaveToCatalogModal({
+        carId,
+        article,
+        nodeName,
+        onSaved,
+    });
+
     useEffect(() => {
-        if (open && article) {
-            const detected = detectCategory(article, nodeName);
-            setCategory(detected);
-            const subs = PART_SUBCATEGORY_ORDER[detected] || ['other'];
-            setSubcategory(subs[0] || 'other');
-        }
-    }, [open, article, nodeName]);
+        const dialog = dialogRef.current;
 
-    // Когда меняем категорию — сбрасываем подкатегорию на первую
-    useEffect(() => {
-        const subs = PART_SUBCATEGORY_ORDER[category] || ['other'];
-        if (!subs.includes(subcategory)) {
-            setSubcategory(subs[0] || 'other');
-        }
-    }, [category]);
+        if (!dialog) return;
 
-    if (!open || !article) return null;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
 
-    const subOptions = PART_SUBCATEGORY_ORDER[category] || ['other'];
+        if (!dialog.open) dialog.showModal();
+
+        return () => {
+            if (dialog.open) dialog.close();
+            document.body.style.overflow = previousOverflow;
+        };
+    }, []);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                onClick={onClose}
-            />
+        <dialog
+            ref={dialogRef}
+            aria-labelledby={titleId}
+            onCancel={event => {
+                event.preventDefault();
+                onClose();
+            }}
+            onClick={event => {
+                if (event.target === event.currentTarget) {
+                    onClose();
+                }
+            }}
+            className="fixed inset-0 m-auto max-h-[85vh] w-[calc(100%_-_2rem)] max-w-md overflow-y-auto rounded-3xl border border-[var(--border)] bg-[var(--bg)] p-0 text-[var(--text)] backdrop:bg-black/60"
+        >
+            <form
+                onSubmit={event => {
+                    event.preventDefault();
+                    form.save();
+                }}
+                className="space-y-5 p-5 sm:p-6"
+            >
+                <h2 id={titleId} className="text-xl font-semibold">
+                    Добавить в личный каталог
+                </h2>
 
-            {/* Modal */}
-            <div className="relative w-full sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-xl">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-lg font-semibold">Добавить в мой каталог</h2>
-                    <button
-                        onClick={onClose}
-                        className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                    >
-                        <X size={18} />
-                    </button>
+                <div className="rounded-xl bg-[var(--bg-elevated)] p-3">
+                    <p className="font-medium">{article.name}</p>
+
+                    <p className="mt-1 text-sm text-[var(--text-muted)]">
+                        {article.brand} · {article.oem}
+                    </p>
                 </div>
 
-                {/* Информация о детали */}
-                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-5">
-                    <p className="text-xs font-mono text-zinc-400 mb-1">{article.oem}</p>
-                    <p className="font-medium leading-snug">{article.name}</p>
-                    {article.brand && (
-                        <p className="text-sm text-zinc-500 mt-1">{article.brand}</p>
-                    )}
-                    {article.note && (
-                        <p className="text-xs text-zinc-500 mt-1">{article.note}</p>
-                    )}
-                </div>
+                <label className="block space-y-2">
+                    <span className="text-sm">Категория</span>
 
-                {/* Выбор категории */}
-                <div className="mb-4">
-                    <label className="block text-sm text-zinc-400 mb-1.5">
-                        Категория
-                    </label>
                     <select
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value as PartCategory)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-600"
+                        required
+                        value={form.category}
+                        onChange={event =>
+                            form.changeCategory(event.target.value)
+                        }
+                        className={inputClassName}
                     >
-                        {PART_CATEGORY_ORDER.map((cat) => (
-                            <option key={cat} value={cat}>
-                                {PART_CATEGORY_LABELS[cat]}
+                        <option value="">Выберите категорию</option>
+
+                        {form.categories.map(item => (
+                            <option key={item.id} value={item.id}>
+                                {item.label}
                             </option>
                         ))}
-                    </select>
-                </div>
 
-                {/* Выбор подкатегории */}
-                <div className="mb-6">
-                    <label className="block text-sm text-zinc-400 mb-1.5">
-                        Подкатегория
+                        <option value={form.newCategoryValue}>
+                            + Создать / подключить категорию
+                        </option>
+                    </select>
+                </label>
+
+                {form.creatingCategory && (
+                    <label className="block space-y-2">
+                        <span className="text-sm">
+                            Название категории
+                        </span>
+
+                        <input
+                            required
+                            value={form.newCategoryName}
+                            onChange={event =>
+                                form.setNewCategoryName(event.target.value)
+                            }
+                            placeholder="Например, Двигатель"
+                            className={inputClassName}
+                        />
                     </label>
+                )}
+
+                <label className="block space-y-2">
+                    <span className="text-sm">Подкатегория</span>
+
                     <select
-                        value={subcategory}
-                        onChange={(e) => setSubcategory(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-600"
+                        required
+                        disabled={!form.category}
+                        value={form.subcategory}
+                        onChange={event =>
+                            form.setSubcategory(event.target.value)
+                        }
+                        className={inputClassName}
                     >
-                        {subOptions.map((sub) => (
-                            <option key={sub} value={sub}>
-                                {PART_SUBCATEGORY_LABELS[sub] || sub}
+                        <option value="">Выберите подкатегорию</option>
+
+                        {form.subcategories.map(item => (
+                            <option key={item.id} value={item.id}>
+                                {item.label}
                             </option>
                         ))}
+
+                        <option value={form.newSubcategoryValue}>
+                            + Создать / подключить подкатегорию
+                        </option>
                     </select>
+                </label>
+
+                {form.creatingSubcategory && (
+                    <label className="block space-y-2">
+                        <span className="text-sm">
+                            Название подкатегории
+                        </span>
+
+                        <input
+                            required
+                            value={form.newSubcategoryName}
+                            onChange={event =>
+                                form.setNewSubcategoryName(
+                                    event.target.value
+                                )
+                            }
+                            placeholder="Например, Масляный фильтр"
+                            className={inputClassName}
+                        />
+                    </label>
+                )}
+
+                {form.installationOptions.length > 1 && (
+                    <label className="block space-y-2">
+                        <span className="text-sm">
+                            Подтверждённые места установки
+                        </span>
+
+                        <select
+                            value={
+                                form.installationOptions.some(
+                                    option =>
+                                        installationKey(option) ===
+                                        installationKey(form.installation)
+                                )
+                                    ? installationKey(form.installation)
+                                    : ''
+                            }
+                            onChange={event => {
+                                const selected =
+                                    form.installationOptions.find(
+                                        option =>
+                                            installationKey(option) ===
+                                            event.target.value
+                                    );
+
+                                form.setInstallation(
+                                    selected ? { ...selected } : {}
+                                );
+                            }}
+                            className={inputClassName}
+                        >
+                            <option value="">
+                                Выбрать / указать вручную
+                            </option>
+
+                            {form.installationOptions.map(option => (
+                                <option
+                                    key={installationKey(option)}
+                                    value={installationKey(option)}
+                                >
+                                    {[
+                                        option.axle
+                                            ? PART_AXLE_LABELS[option.axle]
+                                            : '',
+                                        option.side
+                                            ? PART_SIDE_LABELS[option.side]
+                                            : '',
+                                    ].filter(Boolean).join(' · ')}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                )}
+
+                <PartInstallationFields
+                    value={form.installation}
+                    onChange={patch =>
+                        form.setInstallation(previous => ({
+                            ...previous,
+                            ...patch,
+                        }))
+                    }
+                />
+
+                <div className="rounded-xl border border-[var(--border)] p-3 text-sm">
+                    <p className="text-xs text-[var(--text-muted)]">
+                        Место сохранения
+                    </p>
+
+                    <p className="mt-1">{form.path}</p>
                 </div>
 
-                {/* Кнопки */}
+                {form.error && (
+                    <p role="alert" className="text-sm text-[var(--danger)]">
+                        {form.error}
+                    </p>
+                )}
+
                 <div className="flex gap-3">
                     <button
+                        type="button"
                         onClick={onClose}
-                        className="flex-1 py-2.5 rounded-xl border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition text-sm font-medium"
+                        className="flex-1 rounded-xl border border-[var(--border)] px-4 py-3 text-sm"
                     >
                         Отмена
                     </button>
+
                     <button
-                        onClick={() => onConfirm({ category, subcategory })}
-                        className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition text-sm font-medium"
+                        type="submit"
+                        className="flex-1 rounded-xl bg-[var(--btn-primary)] px-4 py-3 text-sm font-medium text-[var(--btn-primary-text)]"
                     >
                         Добавить
                     </button>
                 </div>
-            </div>
-        </div>
+            </form>
+        </dialog>
     );
 }

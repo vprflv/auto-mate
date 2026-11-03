@@ -110,6 +110,11 @@ export function useEditCar() {
 
         setForm(previous => ({
             ...previous,
+            ...(['make', 'model', 'year', 'engine', 'transmission', 'driveType',
+                'trim', 'displacementL', 'fuel', 'bodyClass'].includes(field) &&
+                previous[field] !== value
+                ? { catalogModificationId: '', modificationName: '' }
+                : {}),
             [field]: value,
         }));
 
@@ -208,22 +213,35 @@ export function useEditCar() {
             setCar(updatedCar);
 
             try {
-                submitCarCatalogReview({
-                    brand: updatedCar.make,
-                    model: updatedCar.model,
-                    year: updatedCar.year,
-                    engine: updatedCar.engine ?? '',
-                    carSpecs: {
-                        vin: updatedCar.vin,
-                        bodyClass: updatedCar.bodyClass,
-                        displacementL: updatedCar.displacementL,
-                        fuel: updatedCar.fuel,
-                        transmission: updatedCar.transmission,
-                        driveType: updatedCar.driveType,
-                        color: updatedCar.color,
-                        trim: updatedCar.trim,
-                    },
-                });
+                const modificationChanged =
+                    carReviewVersion(existingCar) !==
+                    carReviewVersion(updatedCar) ||
+                    existingCar.catalogBrandSlug !==
+                    updatedCar.catalogBrandSlug ||
+                    existingCar.catalogModelSlug !==
+                    updatedCar.catalogModelSlug ||
+                    existingCar.catalogModificationId !==
+                    updatedCar.catalogModificationId;
+
+                if (modificationChanged) {
+                    submitCarCatalogReview({
+                        garageCarId: updatedCar.id,
+                        brand: updatedCar.make,
+                        model: updatedCar.model,
+                        year: updatedCar.year,
+                        engine: updatedCar.engine ?? '',
+                        carSpecs: {
+                            vin: updatedCar.vin,
+                            bodyClass: updatedCar.bodyClass,
+                            displacementL: updatedCar.displacementL,
+                            fuel: updatedCar.fuel,
+                            transmission: updatedCar.transmission,
+                            driveType: updatedCar.driveType,
+                            color: updatedCar.color,
+                            trim: updatedCar.trim,
+                        },
+                    });
+                }
             } catch {
                 setError(
                     'Автомобиль сохранён, но отправить характеристики на модерацию не удалось. Попробуйте сохранить ещё раз.'

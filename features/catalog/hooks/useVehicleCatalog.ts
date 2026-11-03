@@ -1,10 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-
 import { catalogProvider } from '@/features/catalog/lib/providers';
-import { getCachedCatalog, saveCatalog } from '@/features/catalog/lib/storage';
-import {VehicleCatalog} from "@/types/catalog/catalog";
+import { STORAGE_KEY } from '@/features/admin/lib/system-store/defaults';
+import { STORAGE_KEYS } from '@/features/garage/add/lib/config/storage';
+import type { VehicleCatalog } from '@/types/catalog/catalog';
 
 type Params = {
     carId: string;
@@ -15,56 +16,39 @@ type Params = {
     enabled?: boolean;
 };
 
-export function useVehicleCatalog({
-                                      carId,
-                                      vin,
-                                      make,
-                                      model,
-                                      year,
-                                      enabled = true,
-                                  }: Params) {
+export function useVehicleCatalog({ enabled = true, ...params }: Params) {
     const queryClient = useQueryClient();
-
     const query = useQuery<VehicleCatalog>({
-        queryKey: ['vehicle-catalog', carId],
-        enabled: enabled && !!carId && !!make && !!model,
-        queryFn: async () => {
-            // 1. Сначала пробуем кэш
-            const cached = getCachedCatalog(carId);
-            if (cached) {
-                return cached;
-            }
-
-            // 2. Если кэша нет — идём в провайдер
-            const catalog = await catalogProvider.getCatalog({
-                carId,
-                vin,
-                make,
-                model,
-                year,
-            });
-
-            // 3. Сохраняем
-            saveCatalog(catalog);
-            return catalog;
-        },
-        staleTime: 1000 * 60 * 60 * 24,
+        queryKey: ['vehicle-catalog', params.carId, params.vin, params.make, params.model, params.year],
+        enabled: enabled && !!params.carId && !!params.make && !!params.model,
+        queryFn: () => catalogProvider.getCatalog(params),
+        staleTime: 0,
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: true,
     });
 
-    /** Принудительно обновить каталог */
-    const refresh = async () => {
-        // Очищаем кэш
-        localStorage.removeItem(`automate-catalog-${carId}`);
-
-        // Инвалидируем и перезапрашиваем
-        await queryClient.invalidateQueries({ queryKey: ['vehicle-catalog', carId] });
-    };
+    useEffect(() => {
+        const update = () => {
+            void queryClient.invalidateQueries({ queryKey: ['vehicle-catalog', params.carId] });
+        };
+        const onStorage = (event: StorageEvent) => {
+            if (event.key === null || event.key === STORAGE_KEY || event.key === STORAGE_KEYS.garage) update();
+        };
+        window.addEventListener('system-store-updated', update);
+        window.addEventListener('garage-updated', update);
+        window.addEventListener('storage', onStorage);
+        return () => {
+            window.removeEventListener('system-store-updated', update);
+            window.removeEventListener('garage-updated', update);
+            window.removeEventListener('storage', onStorage);
+        };
+    }, [params.carId, queryClient]);
 
     return {
         catalog: query.data,
         isLoading: query.isLoading,
         isFetching: query.isFetching,
         error: query.error,
-        refresh,
+        refresh: async () => { await query.refetch(); },
     };
 }

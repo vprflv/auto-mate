@@ -1,5 +1,6 @@
 
 import { PartForm } from '@/features/garage/add/types/serviceForm';
+import {PartInstallationFields} from "@/features/garage/components/PartInstallationFields";
 
 type Props = {
     part: PartForm;
@@ -112,6 +113,34 @@ export default function ServicePartDetails({
                         className={fieldClass}
                     />
                 </div>
+
+                {part.itemType === 'part' && (
+                    <div className="mt-4">
+                        <PartInstallationFields
+                            value={{
+                                axle: part.axle || undefined,
+                                side: part.side || undefined,
+                            }}
+                            onChange={patch => {
+                                if ('axle' in patch) {
+                                    onChange(
+                                        part.id,
+                                        'axle',
+                                        patch.axle ?? ''
+                                    );
+                                }
+
+                                if ('side' in patch) {
+                                    onChange(
+                                        part.id,
+                                        'side',
+                                        patch.side ?? ''
+                                    );
+                                }
+                            }}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );

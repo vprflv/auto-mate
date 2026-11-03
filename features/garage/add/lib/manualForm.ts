@@ -40,6 +40,10 @@ export function mapManualFormToCar(form: ManualCarForm): Car {
         plantCountry: form.plantCountry.trim() || undefined,
         color: form.color.trim() || undefined,
         nickname: form.nickname.trim() || undefined,
+        catalogBrandSlug: form.catalogBrandSlug || undefined,
+        catalogModelSlug: form.catalogModelSlug || undefined,
+        catalogModificationId: form.catalogModificationId || undefined,
+        modificationName: form.modificationName || undefined,
         addedAt: new Date().toISOString(),
     };
 }

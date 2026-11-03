@@ -1,19 +1,24 @@
-import Link from 'next/link';
-import { CheckCircle2, ShieldCheck, AlertTriangle } from 'lucide-react';
+'use client';
 
-import { CatalogArticle } from '@/types/catalog/catalog';
-import { calculateCompatibilityScore } from '../lib/compatibility';
+import Link from 'next/link';
+
+import type { CatalogArticle } from '@/types/catalog/catalog';
+
+import { useCatalogArticleDialog } from '../hooks/useCatalogArticleDialog';
+import { CatalogArticleDialog } from './article-card/CatalogArticleDialog';
+import { CopyNumberButton } from './article-card/CopyNumberButton';
+import {installationKey} from "@/features/catalog/lib/partInstallations";
+import {PartInstallationBadge} from "@/features/garage/components/PartInstallationBadge";
 
 type Props = {
     carId: string;
-    article: CatalogArticle & {
-        compatibilityScore?: number;
-        installationsCount?: number;
-        isOem?: boolean;
-    };
+    article: CatalogArticle;
     alreadyAdded: boolean;
     onAdd: () => void;
     onRemove: () => void;
+    onRemoveVariant: (article: CatalogArticle) => void;
+    isAlreadyAdded: (articleNumber: string) => boolean;
+    onAddVariant: (article: CatalogArticle) => void;
 };
 
 export default function CatalogArticleCard({
@@ -22,139 +27,126 @@ export default function CatalogArticleCard({
                                                alreadyAdded,
                                                onAdd,
                                                onRemove,
+                                               isAlreadyAdded,
+                                               onRemoveVariant,
+                                               onAddVariant,
                                            }: Props) {
-    const isOem = article.isOem ?? (!article.brand || article.brand.toLowerCase() === 'oem' || article.brand.toLowerCase() === 'vag');
+    const dialog = useCatalogArticleDialog();
 
-    // Алгоритмический расчёт без участия нейросети
-    const compat = calculateCompatibilityScore({
-        explicitScore: article.compatibilityScore,
-        isOem,
-        brand: article.brand,
-        installationsCount: article.installationsCount,
-    });
-
-    const isHigh = compat.tier === 'high';
-    const isMedium = compat.tier === 'medium';
-    const isLow = compat.tier === 'low';
+    const originalNumbers = article.originalNumbers ?? [];
+    const variantsCount = article.variants?.length ?? 0;
+    const canSave = article.canSave !== false;
 
     return (
-        <div className="group flex flex-col justify-between rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4 transition-colors hover:border-[var(--link)]/40">
-            <div>
-                {/* Верхняя строка: OEM + Бренд и Индикатор совместимости */}
-                <div className="mb-3 flex items-start justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="rounded-md bg-[var(--bg)] px-2 py-0.5 font-mono text-xs text-[var(--text-muted)] border border-[var(--border)]/60">
-                            {article.oem}
+        <>
+            <article className="flex flex-col rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
+                <div className="flex-1">
+                    <p className="text-xs text-[var(--text-muted)]">
+                        Оригинальный номер
+                    </p>
+
+                    <div className="mt-1 space-y-1">
+                        {originalNumbers.map(number => (
+                            <div
+                                key={number}
+                                className="flex items-center gap-2"
+                            >
+                                <span className="break-all font-mono text-xl font-semibold text-[var(--text)]">
+                                    {number}
+                                </span>
+
+                                <CopyNumberButton value={number} />
+                            </div>
+                        ))}
+
+                        {!originalNumbers.length && (
+                            <p className="text-sm text-[var(--text-muted)]">
+                                OEM-номер не указан
+                            </p>
+                        )}
+                    </div>
+
+                    {article.brand && (
+                        <p className="mt-1 text-xs text-[var(--text-muted)]">
+                            {article.brand}
+                        </p>
+                    )}
+
+                    {article.installationOptions?.map(position => (
+                        <PartInstallationBadge
+                            key={installationKey(position)}
+                            value={position}
+                        />
+                    ))}
+
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-lg bg-[var(--bg)] px-2 py-1 text-[var(--text-muted)]">
+                            Аналогов: {variantsCount}
                         </span>
 
-                        {article.brand && (
-                            <span className="text-xs font-semibold text-[var(--text)]">
-                                {article.brand}
-                            </span>
-                        )}
-
-                        {isOem && (
-                            <span className="rounded-md bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[10px] font-bold text-blue-500 uppercase tracking-wide">
-                                OEM
+                        {canSave && (
+                            <span className="rounded-lg bg-emerald-500/10 px-2 py-1 text-emerald-500">
+                                Для вашей модификации
                             </span>
                         )}
                     </div>
 
-                    {/* Шкала и процент совместимости */}
-                    <div className="flex flex-col items-end shrink-0">
-                        <div className="flex items-center gap-1">
-                            {isHigh && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
-                            {isMedium && <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />}
-                            {isLow && <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />}
-
-                            <span
-                                className={`text-xs font-bold font-mono ${
-                                    isHigh
-                                        ? 'text-emerald-500'
-                                        : isMedium
-                                            ? 'text-amber-500'
-                                            : 'text-rose-500'
-                                }`}
-                            >
-                                {compat.score}%
-                            </span>
-                        </div>
-
-                        {/* Индикаторная полоска */}
-                        <div className="mt-1 h-1 w-16 rounded-full bg-[var(--bg)] overflow-hidden">
-                            <div
-                                className={`h-full rounded-full transition-all ${
-                                    isHigh
-                                        ? 'bg-emerald-500'
-                                        : isMedium
-                                            ? 'bg-amber-500'
-                                            : 'bg-rose-500'
-                                }`}
-                                style={{ width: `${compat.score}%` }}
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <h3 className="mb-1 text-[15px] font-medium leading-snug text-[var(--text)]">
-                    {article.name}
-                </h3>
-
-                {article.note && (
-                    <p className="mb-2 text-xs text-[var(--text-dim)]">
-                        {article.note}
-                    </p>
-                )}
-
-                {/* Предупреждение для низкого процента совместимости */}
-                {isLow && compat.warning && (
-                    <div className="mb-3 flex items-start gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 p-2 text-[11px] font-medium text-rose-500 leading-tight">
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                        <span>{compat.warning}</span>
-                    </div>
-                )}
-            </div>
-
-            {/* Подвал карточки: количество и кнопки */}
-            <div className="mt-4 flex items-center justify-between gap-2 border-t border-[var(--border)] pt-3">
-                <div className="text-xs text-[var(--text-dim)]">
-                    {article.quantity ? `${article.quantity} шт.` : '—'}
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <Link
-                        href={{
-                            pathname: `/garage/${carId}/buy`,
-                            query: {
-                                name: article.name,
-                                oem: article.oem,
-                                brand: article.brand || '',
-                            },
-                        }}
-                        className="rounded-xl bg-[var(--bg)] px-3 py-1.5 text-xs font-medium text-[var(--text)] transition-colors hover:bg-[var(--border)]"
+                    <button
+                        type="button"
+                        onClick={dialog.open}
+                        aria-haspopup="dialog"
+                        className="mt-4 rounded-lg text-sm text-[var(--link)] transition-colors hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--link)]"
                     >
-                        Где купить
-                    </Link>
+                        Открыть аналоги →
+                    </button>
+                </div>
 
-                    {alreadyAdded ? (
-                        <button
-                            type="button"
-                            onClick={onRemove}
-                            className="rounded-xl bg-[var(--danger)]/15 px-3 py-1.5 text-xs font-medium text-[var(--danger)] transition-colors hover:bg-[var(--danger)] hover:text-[var(--btn-primary-text)]"
-                        >
-                            Убрать
-                        </button>
+                <div className="mt-4 border-t border-[var(--border)] pt-3">
+                    {canSave ? (
+                        <div className="flex flex-wrap justify-end gap-2">
+                            <Link
+                                href={{
+                                    pathname: `/garage/${carId}/buy`,
+                                    query: {
+                                        name: article.name,
+                                        oem: article.oem,
+                                        brand: article.brand ?? '',
+                                    },
+                                }}
+                                className="rounded-xl bg-[var(--bg)] px-3 py-2 text-xs text-[var(--text)] transition-colors hover:bg-[var(--border)]"
+                            >
+                                Где купить
+                            </Link>
+
+                            <button
+                                type="button"
+                                onClick={alreadyAdded ? onRemove : onAdd}
+                                className="rounded-xl bg-[var(--btn-primary)] px-3 py-2 text-xs font-medium text-[var(--btn-primary-text)] transition-colors hover:bg-[var(--btn-primary-hover)]"
+                            >
+                                {alreadyAdded
+                                    ? 'Убрать из личного каталога'
+                                    : 'Добавить в личный каталог'}
+                            </button>
+                        </div>
                     ) : (
-                        <button
-                            type="button"
-                            onClick={onAdd}
-                            className="rounded-xl bg-[var(--btn-primary)] px-3 py-1.5 text-xs font-medium text-[var(--btn-primary-text)] transition-colors hover:bg-[var(--btn-primary-hover)]"
-                        >
-                            В мой каталог
-                        </button>
+                        <p className="text-xs text-[var(--text-muted)]">
+                            Откройте карточку, чтобы выбрать
+                            проверенный аналог.
+                        </p>
                     )}
                 </div>
-            </div>
-        </div>
+            </article>
+
+            {dialog.isOpen && (
+                <CatalogArticleDialog
+                    dialogRef={dialog.dialogRef}
+                    article={article}
+                    isAlreadyAdded={isAlreadyAdded}
+                    onAdd={onAddVariant}
+                    onRemove={onRemoveVariant}
+                    onClose={dialog.close}
+                />
+            )}
+        </>
     );
 }

@@ -69,10 +69,9 @@ export default function ManualCarForm({
                 onChange={onChange}
             />
 
-            <CarSpecificationFields
-                form={form}
-                onChange={onChange}
-            />
+            <fieldset disabled={!!form.catalogModificationId} className="min-w-0">
+                <CarSpecificationFields form={form} onChange={onChange} />
+            </fieldset>
 
             {error && (
                 <div

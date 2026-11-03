@@ -10,6 +10,7 @@ export function getGarageCars(): Car[] {
 
 export function saveGarageCars(cars: Car[]) {
     localStorage.setItem(STORAGE_KEYS.garage, JSON.stringify(cars));
+    window.dispatchEvent(new Event('garage-updated'));
 }
 
 export function addCarToGarage(car: Car) {

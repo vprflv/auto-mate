@@ -4,6 +4,7 @@
 import { ServiceRecord } from '@/types';
 import { Pencil, Trash2 } from 'lucide-react';
 import ServicePhotoViewer from './ServicePhotoViewer';
+import {PartInstallationBadge} from "@/features/garage/components/PartInstallationBadge";
 
 type Props = {
     record: ServiceRecord;
@@ -92,6 +93,8 @@ export default function ServiceRecordCard({
                                 {part.oemNumber
                                     ? ` • ${part.oemNumber}`
                                     : ''}
+
+                                <PartInstallationBadge value={part} />
                             </p>
                         ))}
                     </div>

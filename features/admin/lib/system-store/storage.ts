@@ -2,6 +2,8 @@ import {StoredCatalogNode, StoredPartItem, SystemState} from './types';
 import { STORAGE_KEY, initialDefaultState, initialDefaultMasterModels, initialDefaultNodes } from './defaults';
 import {formatArticle, normalizeArticle} from "@/features/admin/lib/system-store/normalizeArticle";
 import {getOemCrosses, uniqueOemCrosses} from "@/features/admin/lib/system-store/oemCrosses";
+import {PartInstallationMap} from "@/types/partInstallation";
+import {uniqueInstallations} from "@/features/catalog/lib/partInstallations";
 
 export const storage = {
     getState(): SystemState {
@@ -91,7 +93,9 @@ export const storage = {
                 title: string;
             };
             compatibleModifications: string[];
+            installationsByModification?: PartInstallationMap;
         }
+
     ) {
         const state = this.getState();
 
@@ -163,8 +167,14 @@ export const storage = {
             );
         }
 
+        const modifications = Array.isArray(
+            masterModel.modifications
+        )
+            ? masterModel.modifications
+            : [];
+
         const availableModIds = new Set(
-            masterModel.modifications.map(mod => mod.id)
+            modifications.map(modification => modification.id)
         );
 
         if (
@@ -179,6 +189,36 @@ export const storage = {
         const confirmedModIds = appliesToAll
             ? ['all']
             : selectedModIds;
+
+        const reviewedInstallations: PartInstallationMap = {};
+
+        for (
+            const [modificationId, positions]
+            of Object.entries(
+            payload.installationsByModification ?? {}
+        )
+            ) {
+            if (
+                !availableModIds.has(modificationId) ||
+                (
+                    !appliesToAll &&
+                    !selectedModIds.includes(modificationId)
+                )
+            ) {
+                throw new Error(
+                    'Расположение указано для невыбранной модификации.'
+                );
+            }
+
+            if (!Array.isArray(positions)) {
+                throw new Error(
+                    'Некорректный список расположений.'
+                );
+            }
+
+            reviewedInstallations[modificationId] =
+                uniqueInstallations(positions);
+        }
 
         const formattedPartArticle = formatArticle(
             part.article
@@ -278,6 +318,11 @@ export const storage = {
 
                 compatibleModifications: mergedModIds,
 
+                installationsByModification: {
+                    ...existingPart.installationsByModification,
+                    ...reviewedInstallations,
+                },
+
                 isVerified: true,
                 installationsCount:
                     existingPart.installationsCount + 1,
@@ -295,6 +340,9 @@ export const storage = {
                 oemCross: incomingOemCrosses[0] ?? '',
 
                 compatibleModifications: [...confirmedModIds],
+
+                installationsByModification:
+                reviewedInstallations,
 
                 isVerified: true,
                 installationsCount: 1,

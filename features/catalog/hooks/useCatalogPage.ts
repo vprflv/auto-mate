@@ -20,6 +20,10 @@ import {
     PART_SUBCATEGORY_ORDER,
 } from '@/features/garage/lib/config/partSubcategories';
 import { CarFluidItem } from '@/types/oil';
+import {error} from "next/dist/build/output/log";
+import {toast} from "sonner";
+import {router} from "next/client";
+import {SavedPartDestination} from "@/features/catalog/hooks/useSaveToCatalogModal";
 
 function getPersonalParts(carId: string): CarPartItem[] {
     const car = getGarageCars().find((item) => item.id === carId);
@@ -31,20 +35,7 @@ function getPersonalFluids(carId: string): CarFluidItem[] {
     return car?.fluids?.items || [];
 }
 
-function detectSubcategory(category: PartCategory, text: string): string {
-    const q = text.toLowerCase();
-    const keys = PART_SUBCATEGORY_ORDER[category] || ['other'];
 
-    for (const key of keys) {
-        if (key === 'other') continue;
-        const label = PART_SUBCATEGORY_LABELS[key] || key;
-        if (q.includes(label.toLowerCase()) || q.includes(key.toLowerCase())) {
-            return key;
-        }
-    }
-
-    return 'other';
-}
 
 export function useCatalogPage(carId: string) {
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -52,12 +43,15 @@ export function useCatalogPage(carId: string) {
     const [personalParts, setPersonalParts] = useState<CarPartItem[]>([]);
     const [personalFluids, setPersonalFluids] = useState<CarFluidItem[]>([]);
 
-    const car = useMemo(
-        () => getGarageCars().find((item) => item.id === carId) || null,
-        [carId]
-    );
+    const [partToSave, setPartToSave] = useState<{
+        article: CatalogArticle;
+        nodeName?: string;
+    } | null>(null);
 
-    const { catalog, isLoading, isFetching, refresh } = useVehicleCatalog({
+
+    const car = getGarageCars().find(item => item.id === carId) || null;
+
+    const { catalog, isLoading, isFetching, error, refresh } = useVehicleCatalog({
         carId,
         vin: car?.vin,
         make: car?.make || '',
@@ -73,7 +67,7 @@ export function useCatalogPage(carId: string) {
 
     useEffect(() => {
         if (!catalog?.nodes.length) return;
-        if (selectedNodeId) return;
+        if (selectedNodeId && catalog.nodes.some(node => node.id === selectedNodeId)) return;
         setSelectedNodeId(catalog.nodes[0].id);
     }, [catalog, selectedNodeId]);
 
@@ -83,11 +77,17 @@ export function useCatalogPage(carId: string) {
         const q = search.trim().toLowerCase();
 
         if (q) {
-            return catalog.articles.filter(
-                (art) =>
-                    art.name.toLowerCase().includes(q) ||
-                    art.oem.toLowerCase().includes(q) ||
-                    (art.brand && art.brand.toLowerCase().includes(q))
+            return catalog.articles.filter(article =>
+                [article, ...(article.variants ?? [])].some(item =>
+                    [
+                        item.name,
+                        item.oem,
+                        item.brand ?? '',
+                        ...(item.originalNumbers ?? []),
+                    ].some(value =>
+                        value.toLowerCase().includes(q)
+                    )
+                )
             );
         }
 
@@ -112,31 +112,40 @@ export function useCatalogPage(carId: string) {
             (item) => item.spec?.toLowerCase() === oem.toLowerCase()
         );
 
-    const addToPersonal = (art: CatalogArticle) => {
+    const addToPersonal = (article: CatalogArticle) => {
         if (!catalog) return;
 
-        if (isFluidArticle(art)) {
-            const result = saveFluidToPersonalCatalog(carId, art);
-            if (result.success) setPersonalFluids(getPersonalFluids(carId));
+        if (isFluidArticle(article)) {
+            const result = saveFluidToPersonalCatalog(
+                carId,
+                article
+            );
+
+            if (result.success) {
+                setPersonalFluids(getPersonalFluids(carId));
+                toast.success(result.message);
+            } else {
+                toast.error(result.message);
+            }
+
             return;
         }
 
-        const nodeName = findNodeName(catalog.nodes, art.nodeId) || undefined;
-        const category = detectCategory(art, nodeName);
-        const subcategory = detectSubcategory(
-            category,
-            `${art.name} ${nodeName || ''} ${art.note || ''}`
-        );
-
-        const result = saveArticleToPersonalCatalog(carId, art, {
-            category,
-            subcategory,
-            nodeName,
+        setPartToSave({
+            article,
+            nodeName:
+                findNodeName(catalog.nodes, article.nodeId) ??
+                undefined,
         });
+    };
 
-        if (result.success) {
-            setPersonalParts(getPersonalParts(carId));
-        }
+    const closeSaveModal = () => {
+        setPartToSave(null);
+    };
+
+    const finishSavingPart = () => {
+        setPersonalParts(getPersonalParts(carId));
+        setPartToSave(null);
     };
 
     const removeFromPersonal = (art: CatalogArticle) => {
@@ -153,6 +162,8 @@ export function useCatalogPage(carId: string) {
     };
 
     return {
+
+        error,
         car,
         catalog,
         isLoading,
@@ -166,6 +177,9 @@ export function useCatalogPage(carId: string) {
         selectedNodeName,
         isAlreadyAdded,
         addToPersonal,
+        partToSave,
+        closeSaveModal,
+        finishSavingPart,
         removeFromPersonal,
     };
 }

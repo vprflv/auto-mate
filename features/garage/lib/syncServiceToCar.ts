@@ -101,79 +101,75 @@ function upsertPart(
     parts: CarParts,
     part: ServicePart
 ): CarParts {
-    const category =
-        part.partCategory || 'other';
+    const category = part.partCategory || 'other';
+    const name = part.name.trim();
 
-    const name =
-        part.name.trim();
-
-    if (!name) {
-        return parts;
-    }
+    if (!name) return parts;
 
     const subcategory =
         part.subcategory?.trim() ||
-        detectSubcategory(
-            category,
-            name
-        ) ||
+        detectSubcategory(category, name) ||
         'other';
 
-    const items = [
-        ...(parts.items || []),
-    ];
+    const items = [...(parts.items || [])];
 
     const newItem: CarPartItem = {
         id: part.id,
         category,
         subcategory,
         name,
-        brand:
-            part.brand?.trim() || undefined,
-        oemNumber:
-            part.oemNumber?.trim() || undefined,
-        quantity:
-            part.quantity > 0
-                ? part.quantity
-                : 1,
+        brand: part.brand?.trim() || undefined,
+        oemNumber: part.oemNumber?.trim() || undefined,
+        quantity: part.quantity > 0 ? part.quantity : 1,
+        axle: part.axle,
+        side: part.side,
     };
 
-    const normalizedName =
-        name.toLowerCase();
+    const normalize = (value?: string) =>
+        (value ?? '').trim().toLowerCase();
 
-    const normalizedOem =
-        newItem.oemNumber?.toLowerCase();
+    const normalizeNumber = (value?: string) =>
+        normalize(value).replace(/[\s-]/g, '');
 
-    const index = items.findIndex(
-        (item) => {
-            if (
-                item.id === newItem.id
-            ) {
-                return true;
-            }
+    const index = items.findIndex(item => {
+        if (item.id === newItem.id) {
+            return true;
+        }
 
-            if (
-                normalizedOem &&
-                item.oemNumber
-            ) {
-                return (
-                    item.oemNumber
-                        .trim()
-                        .toLowerCase() ===
-                    normalizedOem
-                );
-            }
+        // Разные места установки сохраняем отдельно.
+        if (
+            item.axle !== newItem.axle ||
+            item.side !== newItem.side
+        ) {
+            return false;
+        }
 
-            return (
-                item.category ===
-                category &&
-                item.name
-                    .trim()
-                    .toLowerCase() ===
-                normalizedName
+        if (normalize(item.brand) !== normalize(newItem.brand)) {
+            return false;
+        }
+
+        const incomingNumber = normalizeNumber(
+            newItem.oemNumber
+        );
+
+        const existingNumber = normalizeNumber(
+            item.oemNumber
+        );
+
+        // Если хотя бы у одной записи есть номер,
+        // совпадения названия недостаточно.
+        if (incomingNumber || existingNumber) {
+            return Boolean(
+                incomingNumber &&
+                incomingNumber === existingNumber
             );
         }
-    );
+
+        return (
+            item.category === category &&
+            normalize(item.name) === normalize(name)
+        );
+    });
 
     if (index >= 0) {
         items[index] = {
@@ -184,9 +180,7 @@ function upsertPart(
         items.push(newItem);
     }
 
-    return {
-        items,
-    };
+    return { items };
 }
 
 export function syncServicePartsToCar(

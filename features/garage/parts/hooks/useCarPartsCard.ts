@@ -119,8 +119,40 @@ export function useCarPartsCard({
         );
 
         setLoadedCarId(targetCarId);
-        setCategory(null);
-        setSub(null);
+
+        const query = new URLSearchParams(
+            window.location.search
+        );
+
+        const requestedCategory =
+            query.get('section') === 'catalog'
+                ? query.get('partCategory')
+                : null;
+
+        const validCategory =
+            requestedCategory &&
+            getCategoriesFor().some(
+                item => item.id === requestedCategory
+            )
+                ? requestedCategory
+                : null;
+
+        const requestedSubcategory =
+            query.get('partSubcategory');
+
+        const validSubcategory =
+            validCategory &&
+            requestedSubcategory &&
+            getSubcategoriesFor(
+                validCategory as PartCategory
+            ).some(
+                item => item.id === requestedSubcategory
+            )
+                ? requestedSubcategory
+                : null;
+
+        setCategory(validCategory);
+        setSub(validSubcategory);
         setEditItem(null);
     }, [targetCarId]);
 
@@ -256,6 +288,8 @@ export function useCarPartsCard({
                 carBrand: carInfo?.brand,
                 carModel: carInfo?.model,
                 carYear: carInfo?.year,
+                axle: updated.axle,
+                side: updated.side,
                 carSpecs: carInfo?.carSpecs,
                 carVin: carInfo?.vin,
                 engine: carInfo?.engine,

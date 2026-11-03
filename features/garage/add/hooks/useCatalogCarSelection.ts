@@ -1,6 +1,7 @@
 'use client';
 
 import type { ManualCarForm } from '@/types';
+import { modificationValues } from '@/features/catalog/lib/carCatalogIdentity';
 
 import { useCarCatalog } from './useCarCatalog';
 
@@ -69,6 +70,27 @@ export function useCatalogCarSelection({
             item =>
                 normalizeName(item.modelName) === normalizeName(form.model)
         );
+
+    const modifications = model?.verified ? model.modifications : [];
+
+    const selectModification = (id: string) => {
+        const selected = modifications.find(item => item.id === id);
+        if (!selected || !model || !brand) {
+            onChange('catalogModificationId', '');
+            onChange('modificationName', '');
+            return;
+        }
+
+        const values = modificationValues(selected);
+        for (const field of Object.keys(values) as (keyof typeof values)[]) {
+            onChange(field, values[field]);
+        }
+        onChange('catalogBrandSlug', brand.value);
+        onChange('catalogModelSlug', model.modelSlug);
+        onChange('modificationName', selected.name);
+        // Последним: изменение характеристик сбрасывает прежнюю связь.
+        onChange('catalogModificationId', selected.id);
+    };
 
     const engineNames = new Map<string, string>();
 
@@ -156,6 +178,20 @@ export function useCatalogCarSelection({
 
     return {
         loaded: catalog.loaded,
+        modification: {
+            value: form.catalogModificationId ?? '',
+            options: modifications.map(item => ({
+                value: item.id,
+                label: [
+                    item.name,
+                    item.attributes.engine,
+                    item.attributes.transmission,
+                    item.attributes.drivetrain,
+                ].filter(Boolean).join(' · '),
+            })),
+            disabled: !catalog.loaded || !model,
+            onChange: selectModification,
+        },
 
         brand: {
             value: form.make,
@@ -207,7 +243,7 @@ export function useCatalogCarSelection({
             disabled:
                 !catalog.loaded ||
                 !form.make.trim() ||
-                !form.model.trim(),
+                !form.model.trim() || !!form.catalogModificationId,
 
             onChange: changeEngine,
 

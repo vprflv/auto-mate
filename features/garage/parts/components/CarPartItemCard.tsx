@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Package } from 'lucide-react';
 
 import { CarPartItem } from '@/types';
+import {PartInstallationBadge} from "@/features/garage/components/PartInstallationBadge";
 
 type Props = {
     carId: string;
@@ -81,7 +82,10 @@ export default function CarPartItemCard({
                                 : ''}
                             {item.name}
                         </p>
+                        <PartInstallationBadge value={item} />
                     </div>
+
+
 
                     {item.oemNumber && (
                         <p className="mt-2 truncate font-mono text-xs font-medium text-[var(--text-dim)]">

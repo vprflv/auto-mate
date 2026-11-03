@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import {useEffect, useState} from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -30,6 +30,14 @@ export default function CarPage() {
 
     const [section, setSection] =
         useState<CarSection>('overview');
+
+    useEffect(() => {
+        const query = new URLSearchParams(window.location.search);
+
+        if (query.get('section') === 'catalog') {
+            setSection('catalog');
+        }
+    }, [id]);
 
     if (loading) {
         return (

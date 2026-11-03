@@ -6,6 +6,7 @@ import { CarPartItem } from '@/types';
 import { useEditPartModal } from '@/features/garage/parts/hooks/useEditPartModal';
 import PartCategorySelect from '@/features/garage/parts/components/PartCategorySelect';
 import PartSubcategorySelect from '@/features/garage/parts/components/PartSubcategorySelect';
+import {PartInstallationFields} from "@/features/garage/components/PartInstallationFields";
 
 type Props = {
     item: CarPartItem | null;
@@ -150,6 +151,11 @@ export default function EditPartModal({
                         onNewSubOpen={setNewSubOpen}
                     />
                 </div>
+
+                <PartInstallationFields
+                    value={form}
+                    onChange={patch => set(patch)}
+                />
 
                 {/* Название */}
                 <div>

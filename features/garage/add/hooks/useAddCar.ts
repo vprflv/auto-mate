@@ -16,6 +16,8 @@ import { addCarToGarage } from "@/features/garage/add/lib/storage";
 
 // Импортируем глобальный стор админки
 import { systemStore } from '@/features/admin/lib/systemStore';
+import { submitCarCatalogReview } from '@/features/admin/lib/system-store/carCatalogReview';
+import {resolveCarCatalogIdentity} from "@/features/catalog/lib/carCatalogIdentity";
 
 export function useAddCar() {
     const router = useRouter();
@@ -95,76 +97,100 @@ export function useAddCar() {
     };
 
     const updateManualField = (field: keyof ManualCarForm, value: string) => {
-        setManualForm((prev) => ({ ...prev, [field]: value }));
+        setManualForm(prev => ({
+            ...prev,
+            ...(['make', 'model', 'engine', 'transmission', 'driveType',
+                'trim', 'displacementL', 'fuel', 'bodyClass'].includes(field) &&
+                prev[field] !== value
+                ? { catalogModificationId: '', modificationName: '' }
+                : {}),
+            [field]: value,
+        }));
     };
 
     // Синхронизация расшифрованного авто с админкой
     // 1. Сохранение декодированного авто
-    const saveDecodedCar = () => {
-        if (!decoded) return;
-
-        addCarToGarage({
-            ...decoded,
-            id: Date.now().toString(),
-            addedAt: new Date().toISOString(),
-        });
-
-        // Отправляем в админку с полным паспортом характеристик
-        const currentUser = systemStore.getState().users[0];
-        if (currentUser) {
-            systemStore.addCar({
-                userId: currentUser.id,
-                brand: decoded.make,
-                model: decoded.model,
-                year: Number(decoded.year) || new Date().getFullYear(),
-                vin: decoded.vin,
-                mileage: 0,
-                engine: decoded.engine || '',
-                displacementL: decoded.displacementL || '',
-                fuel: decoded.fuel || '',
-                transmission: decoded.transmission || '',
-                driveType: decoded.driveType || '',
-                bodyClass: decoded.bodyClass || '',
-                carSpecs: { trim: decoded.trim || '' }, // <-- ДОБАВИТЬ ВОТ ЭТУ СТРОКУ
-            });
-        }
-
-        router.push('/garage');
-    };
+    const saveDecodedCar = editDecodedCar;
 
     // 2. Сохранение авто из ручной формы
     const saveManualCar = (e: React.FormEvent) => {
         e.preventDefault();
+        setError('');
 
         if (!isManualFormValid(manualForm)) {
             setError('Укажи хотя бы марку, модель и год');
             return;
         }
 
-        addCarToGarage(mapManualFormToCar(manualForm));
+        const savedCar = {
+            ...mapManualFormToCar(manualForm),
 
-        // Отправляем в админку со всеми полями ручной формы
-        const currentUser = systemStore.getState().users[0];
-        if (currentUser) {
-            systemStore.addCar({
-                userId: currentUser.id,
-                brand: manualForm.make,
-                model: manualForm.model,
-                year: Number(manualForm.year) || new Date().getFullYear(),
-                vin: manualForm.vin,
-                mileage: 0,
-                engine: manualForm.engine || '',
-                displacementL: manualForm.displacementL || '',
-                fuel: manualForm.fuel || '',
-                transmission: manualForm.transmission || '',
-                driveType: manualForm.driveType || '',
-                bodyClass: manualForm.bodyClass || '',
-                color: manualForm.color || '',
-                carSpecs: { trim: manualForm.trim || '' }, // <-- И ДОБАВИТЬ СЮДА
-            });
+            id: crypto.randomUUID(),
+
+            catalogBrandSlug:
+                manualForm.catalogBrandSlug || undefined,
+
+            catalogModelSlug:
+                manualForm.catalogModelSlug || undefined,
+
+            catalogModificationId:
+                manualForm.catalogModificationId || undefined,
+
+            modificationName:
+                manualForm.modificationName || undefined,
+        };
+
+        const state = systemStore.getState();
+
+        // Выбранную готовую модификацию нельзя молча
+        // отправлять на проверку как неизвестную.
+        if (
+            savedCar.catalogModificationId &&
+            !resolveCarCatalogIdentity(
+                savedCar,
+                state.masterModels
+            )
+        ) {
+            setError(
+                'Характеристики не соответствуют выбранной модификации. Выбери её повторно или укажи свой вариант.'
+            );
+            return;
         }
 
-        router.push('/garage');
+        try {
+            addCarToGarage(savedCar);
+
+            const currentUser = state.users[0];
+
+            // Единственная точка регистрации и отправки на проверку.
+            systemStore.addCar({
+                userId: currentUser?.id ?? '',
+                garageCarId: savedCar.id,
+                brand: savedCar.make,
+                model: savedCar.model,
+                year: savedCar.year,
+                vin: savedCar.vin,
+                mileage: savedCar.currentMileage ?? 0,
+                engine: savedCar.engine ?? '',
+                displacementL: savedCar.displacementL,
+                fuel: savedCar.fuel,
+                transmission: savedCar.transmission,
+                driveType: savedCar.driveType,
+                bodyClass: savedCar.bodyClass,
+                color: savedCar.color,
+                carSpecs: {
+                    trim: savedCar.trim,
+                },
+            });
+
+            router.push('/garage');
+        } catch (error) {
+            setError(
+                error instanceof Error
+                    ? error.message
+                    : 'Не удалось завершить сохранение автомобиля.'
+            );
+        }
     };
 
     return {

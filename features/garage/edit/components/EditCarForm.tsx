@@ -91,10 +91,9 @@ export default function EditCarForm() {
                         onChange={updateField}
                     />
 
-                    <CarSpecificationFields
-                        form={form}
-                        onChange={updateField}
-                    />
+                    <fieldset disabled={!!form.catalogModificationId} className="min-w-0">
+                        <CarSpecificationFields form={form} onChange={updateField} />
+                    </fieldset>
 
                     {error && (
                         <p

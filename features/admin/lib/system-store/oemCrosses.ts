@@ -20,9 +20,10 @@ export function uniqueOemCrosses(values: string[]): string[] {
 export function getOemCrosses(
     part: Pick<StoredPartItem, 'oemCross' | 'oemCrosses'>
 ): string[] {
-    return uniqueOemCrosses(
-        part.oemCrosses ?? [part.oemCross ?? '']
-    );
+    return uniqueOemCrosses([
+        ...(part.oemCrosses ?? []),
+        part.oemCross ?? '',
+    ]);
 }
 
 /** Находим детали, у которых есть общий OEM-номер. */

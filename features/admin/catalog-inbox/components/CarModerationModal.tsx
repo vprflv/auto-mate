@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import { X, Copy, Check, CarFront, GitBranchPlus, ShieldCheck, ChevronDown, Plus } from 'lucide-react';
-import { InboxItem } from '@/features/admin/lib/systemStore';
+import { InboxItem, normalizeSlug } from '@/features/admin/lib/systemStore';
+import { useCarCatalog } from '@/features/garage/add/hooks/useCarCatalog';
 
 interface Props {
     item: InboxItem;
@@ -23,6 +24,15 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
     const [years, setYears] = React.useState<string>(item.carYear ? `${item.carYear} – н.в.` : '2015 – н.в.');
 
     // Стейты для эталонной модификации
+    const catalog = useCarCatalog();
+    const [existingModificationId, setExistingModificationId] = React.useState('');
+    const existingModel = catalog.models.find(candidate =>
+        candidate.brandSlug === normalizeSlug(brand) &&
+        candidate.modelSlug === normalizeSlug(model)
+    );
+    const existingModification = existingModel?.modifications.find(
+        candidate => candidate.id === existingModificationId
+    );
     const [createMod, setCreateMod] = React.useState(true);
     const [modName, setModName] = React.useState<string>('');
     const [isModNameEdited, setIsModNameEdited] = React.useState(false);
@@ -88,7 +98,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
             brandName: brand.trim(),
             modelName: model.trim(),
             years: years.trim(),
-            modification: createMod && modName.trim() ? {
+            modification: existingModification ?? (createMod && modName.trim() ? {
                 id: `mod_${Date.now().toString(36)}`,
                 name: modName.trim(),
                 attributes: {
@@ -114,7 +124,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                             ? specs.bodyClass.trim() || undefined
                             : undefined,
                 }
-            } : undefined
+            } : undefined)
         };
         onApprove(item.id, payload);
     };
@@ -208,11 +218,11 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
                                             <label className="mb-1 block text-xs text-[var(--text-muted)]">Марка</label>
-                                            <input value={brand} onChange={(e) => setBrand(e.target.value)} className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
+                                            <input value={brand} onChange={(e) => { setBrand(e.target.value); setExistingModificationId(''); }} className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
                                         </div>
                                         <div>
                                             <label className="mb-1 block text-xs text-[var(--text-muted)]">Модель</label>
-                                            <input value={model} onChange={(e) => setModel(e.target.value)} className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
+                                            <input value={model} onChange={(e) => { setModel(e.target.value); setExistingModificationId(''); }} className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
                                         </div>
                                         <div className="col-span-2">
                                             <label className="mb-1 block text-xs text-[var(--text-muted)]">Поколение / Годы (напр. 2013-2020)</label>
@@ -221,7 +231,26 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                                     </div>
                                 </div>
 
-                                <div className={`mt-4 rounded-2xl border transition-colors p-5 ${createMod ? 'border-[var(--link)]/50 bg-[var(--link)]/5' : 'border-[var(--border)]/40 bg-[var(--bg-elevated)]/20'}`}>
+                                <label className="mt-4 block space-y-2 text-sm text-[var(--text)]">
+                                    <span>Связать с существующей модификацией</span>
+                                    <select
+                                        value={existingModificationId}
+                                        onChange={event => setExistingModificationId(event.target.value)}
+                                        className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] p-3"
+                                    >
+                                        <option value="">Создать новую / одобрить только модель</option>
+                                        {(existingModel?.modifications ?? []).map(modification => (
+                                            <option key={modification.id} value={modification.id}>
+                                                {modification.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {existingModification && <span className="block text-xs text-[var(--text-muted)]">
+                                        Машина будет связана с выбранной модификацией и получит её характеристики.
+                                    </span>}
+                                </label>
+
+                                {!existingModification && <div className={`mt-4 rounded-2xl border transition-colors p-5 ${createMod ? 'border-[var(--link)]/50 bg-[var(--link)]/5' : 'border-[var(--border)]/40 bg-[var(--bg-elevated)]/20'}`}>
                                     <button
                                         type="button"
                                         onClick={() => setCreateMod(!createMod)}
@@ -343,7 +372,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
 
                                         </div>
                                     )}
-                                </div>
+                                </div>}
                             </div>
                         </div>
                     </div>

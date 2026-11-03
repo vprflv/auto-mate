@@ -2,6 +2,7 @@
 import { Car, CarPartItem, CarParts, PartCategory } from '@/types';
 import {CatalogArticle} from "@/types/catalog/catalog";
 import {CarFluidItem, CarFluids, FluidCategory} from "@/types/oil";
+import {PartInstallation} from "@/types/partInstallation";
 
 
 const STORAGE_KEY = 'automate-garage';
@@ -139,6 +140,7 @@ export function catalogArticleToCarPart(
         category?: PartCategory;
         subcategory?: string;
         nodeName?: string;
+        installation?: PartInstallation;
     }
 ): CarPartItem {
     const category =
@@ -153,6 +155,8 @@ export function catalogArticleToCarPart(
         oemNumber: article.oem,
         quantity: article.quantity || 1,
         notes: article.note,
+        axle: options?.installation?.axle,
+        side: options?.installation?.side,
     };
 }
 
@@ -166,6 +170,7 @@ export function saveArticleToPersonalCatalog(
         category?: PartCategory;
         subcategory?: string;
         nodeName?: string;
+        installation?: PartInstallation;
     }
 ): { success: boolean; message: string } {
 

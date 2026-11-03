@@ -26,6 +26,8 @@ type Props = {
 function partsToForm(parts: ServicePart[]): PartForm[] {
     return parts.map((p) => ({
         id: p.id,
+        axle: p.axle ?? '',
+        side: p.side ?? '',
         name: p.name || '',
         brand: p.brand || '',
         oemNumber: p.oemNumber || '',
@@ -57,6 +59,13 @@ function formToParts(parts: PartForm[]): ServicePart[] {
                     : undefined,
             subcategory:
                 p.subcategory.trim() || undefined,
+            axle: p.itemType === 'part'
+                ? p.axle || undefined
+                : undefined,
+
+            side: p.itemType === 'part'
+                ? p.side || undefined
+                : undefined,
         }));
 }
 
@@ -253,11 +262,13 @@ export default function EditServiceModal({
                 const calculatedIsOem = Boolean(sp.oemNumber && (!sp.brand || isCarBrand));
 
                 systemStore.addUserPart({
-                    carId: adminCar?.id || record.carId,
+                    carId: record.carId,
                     carBrand: effectiveBrand,
                     carModel: effectiveModel,
                     carYear: effectiveYear,
                     carVin: effectiveVin,
+                    axle: sp.axle,
+                    side: sp.side,
                     engine: effectiveEngine,
                     engineCode: effectiveEngineCode,
                     transmission: effectiveTransmission,

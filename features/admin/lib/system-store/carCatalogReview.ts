@@ -4,11 +4,14 @@ import type {
     SystemState,
 } from './types';
 import { storage } from './storage';
+import { getGarageCars } from '@/features/garage/add/lib/storage';
+import { carReviewVersion, resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIdentity';
 import { normalizeSlug } from './utils';
-import {CarVariant, getModificationVariant, isSameCarVariant} from "@/features/admin/lib/carVariant";
+import {CarVariant, isSameCarVariant} from "@/features/admin/lib/carVariant";
 
 
 export interface CarCatalogReviewInput {
+    garageCarId?: string;
     userId?: string;
     brand: string;
     model: string;
@@ -69,17 +72,57 @@ export function queueCarCatalogReview(
         trim: specs.trim,
     };
 
-    const knownVariant = masterModel?.modifications.some(
-        modification =>
-            isSameCarVariant(
-                variant,
-                getModificationVariant(modification)
-            )
-    ) ?? false;
+    const garageCar = input.garageCarId
+        ? getGarageCars().find(car => car.id === input.garageCarId)
+        : undefined;
 
-    if (knownVariant) return false;
+    if (
+        garageCar &&
+        resolveCarCatalogIdentity(garageCar, state.masterModels)
+    ) {
+        let changed = false;
 
-    const alreadyInInbox = state.inbox.some(
+        // Если раньше машина ожидала проверки,
+        // а теперь выбрана готовая модификация,
+        // убираем её из старой заявки.
+        state.inbox = state.inbox.filter(ticket => {
+            if (
+                ticket.type !== 'car_model' ||
+                !ticket.garageCarVersions ||
+                !Object.prototype.hasOwnProperty.call(
+                    ticket.garageCarVersions,
+                    garageCar.id
+                )
+            ) {
+                return true;
+            }
+
+            const remainingVersions = {
+                ...ticket.garageCarVersions,
+            };
+
+            delete remainingVersions[garageCar.id];
+            changed = true;
+
+            // В общей заявке могут ожидать другие машины.
+            if (Object.keys(remainingVersions).length > 0) {
+                ticket.garageCarVersions = remainingVersions;
+                return true;
+            }
+
+            return false;
+        });
+
+        // true означает, что изменения очереди нужно сохранить.
+        // Новую заявку здесь не создаём.
+        return changed;
+    }
+
+    const garageCarVersions = garageCar
+        ? { [garageCar.id]: carReviewVersion(garageCar) }
+        : {};
+
+    const alreadyInInbox = state.inbox.find(
         item =>
             item.type === 'car_model' &&
             normalizeSlug(item.carBrand) === brandSlug &&
@@ -90,7 +133,14 @@ export function queueCarCatalogReview(
             )
     );
 
-    if (alreadyInInbox) return false;
+    if (alreadyInInbox) {
+        const before = JSON.stringify(alreadyInInbox.garageCarVersions ?? {});
+        alreadyInInbox.garageCarVersions = {
+            ...alreadyInInbox.garageCarVersions,
+            ...garageCarVersions,
+        };
+        return before !== JSON.stringify(alreadyInInbox.garageCarVersions);
+    }
 
     const user = input.userId
         ? state.users.find(candidate => candidate.id === input.userId)
@@ -99,6 +149,7 @@ export function queueCarCatalogReview(
     state.inbox.unshift({
         id: `inbox_car_${crypto.randomUUID()}`,
         type: 'car_model',
+        garageCarVersions,
         source: 'user_manual',
         carBrand: masterModel?.brandName ?? brand,
         carModel: masterModel?.modelName ?? model,

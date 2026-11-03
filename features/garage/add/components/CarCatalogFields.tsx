@@ -13,7 +13,7 @@ export function CarCatalogFields({ selection }: Props) {
         <section className="space-y-5 rounded-3xl border border-[var(--border)] bg-[var(--bg-elevated)] p-6">
             <div>
                 <h2 className="text-lg font-semibold text-[var(--text)]">
-                    Марка, модель и двигатель
+                    Автомобиль и модификация
                 </h2>
 
                 <p className="mt-1 text-sm text-[var(--text-muted)]">
@@ -37,6 +37,30 @@ export function CarCatalogFields({ selection }: Props) {
                     required
                 />
             </div>
+
+            <label className="block space-y-2">
+                <span className="text-sm font-medium text-[var(--text)]">
+                    Проверенная модификация
+                </span>
+                <select
+                    value={selection.modification.value}
+                    disabled={selection.modification.disabled}
+                    onChange={event => selection.modification.onChange(event.target.value)}
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-3 text-[var(--text)]"
+                >
+                    <option value="">Моей модификации нет / укажу характеристики</option>
+                    {selection.modification.options.map(option => (
+                        <option key={option.value} value={option.value}>
+                            {option.label}
+                        </option>
+                    ))}
+                </select>
+                <span role="status" className="block text-sm text-[var(--text-muted)]">
+                    {selection.modification.value
+                        ? 'ИИ-каталог будет доступен сразу после сохранения автомобиля.'
+                        : 'Укажите характеристики. ИИ-каталог откроется после подтверждения модификации администратором.'}
+                </span>
+            </label>
 
             <CatalogAutocompleteField
                 {...selection.engine}

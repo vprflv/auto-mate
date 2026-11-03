@@ -1,4 +1,5 @@
 import {CarFluids, FluidCategory} from "@/types/oil";
+import {PartInstallation} from "@/types/partInstallation";
 
 
 
@@ -92,7 +93,7 @@ export type PartCategory =
 
 
 
-export type ServicePart = {
+export type ServicePart = PartInstallation & {
     id: string;
     name: string;
     brand?: string;
@@ -128,7 +129,7 @@ export type ServicePart = {
 //     other?: FluidItem[];
 // };
 
-export type CarPartItem = {
+export type CarPartItem = PartInstallation & {
     id: string;
     category: PartCategory;
     subcategory?: string;

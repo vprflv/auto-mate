@@ -1,3 +1,5 @@
+import {PartInstallation, PartInstallationMap} from "@/types/partInstallation";
+
 export interface AppUser {
     id: string;
     name: string;
@@ -57,6 +59,8 @@ export interface AppServiceRecord {
 }
 
 export interface InboxItem {
+    /** Личные машины, ожидающие это решение; значение — снимок характеристик. */
+    garageCarVersions?: Record<string, string>;
     id: string;
     type: 'part' | 'car_model';
     source?: 'user_manual' | 'user_service';
@@ -78,6 +82,8 @@ export interface InboxItem {
     };
     nodeTitle?: string;
     partBrand?: string;
+    proposedInstallation?: PartInstallation;
+    catalogModificationId?: string;
     partArticle?: string;
     partName?: string;
     isOem?: boolean;
@@ -117,6 +123,7 @@ export interface StoredPartItem {
     brand: string;
     article: string;
     name: string;
+    installationsByModification?: PartInstallationMap;
 
     isOem: boolean;
 

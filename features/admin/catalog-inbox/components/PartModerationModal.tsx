@@ -11,6 +11,7 @@ import { PartEditorBlock } from './part-moderation/PartEditorBlock';
 import { NodeEditorBlock } from './part-moderation/NodeEditorBlock';
 import { CompatibilityBlock } from './part-moderation/CompatibilityBlock';
 import {usePartModeration} from "@/features/admin/catalog-inbox/hooks/usePartModeration";
+import {PartInstallationsBlock} from "@/features/admin/catalog-inbox/components/part-moderation/PartInstallationsBlock";
 
 interface Props {
     item: InboxItem;
@@ -94,8 +95,32 @@ export function PartModerationModal(props: Props) {
 
                                 <CompatibilityBlock
                                     targetCar={state.targetCar}
-                                    compatibilityType={state.compatibilityType} setCompatibilityType={state.setCompatibilityType}
-                                    selectedModIds={state.selectedModIds} setSelectedModIds={state.setSelectedModIds}
+                                    compatibilityType={state.compatibilityType}
+                                    setCompatibilityType={state.setCompatibilityType}
+                                    selectedModIds={state.selectedModIds}
+                                    setSelectedModIds={state.setSelectedModIds}
+                                />
+
+                                <PartInstallationsBlock
+                                    modifications={
+                                        (
+                                            state.targetCar?.modifications ?? []
+                                        ).filter(modification =>
+                                            state.compatibilityType === 'all' ||
+                                            state.selectedModIds.includes(
+                                                modification.id
+                                            )
+                                        )
+                                    }
+                                    value={
+                                        state.installationsByModification
+                                    }
+                                    proposed={
+                                        item.proposedInstallation
+                                    }
+                                    onChange={
+                                        state.setInstallationsByModification
+                                    }
                                 />
                             </div>
                         </div>

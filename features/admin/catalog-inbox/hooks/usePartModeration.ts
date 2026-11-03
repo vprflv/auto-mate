@@ -8,6 +8,8 @@ import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArt
 
 import type { OemSuggestion } from '../components/part-moderation/OemCrossSelect';
 import {toast} from "sonner";
+import {PartInstallationMap} from "@/types/partInstallation";
+import {uniqueInstallations} from "@/features/catalog/lib/partInstallations";
 
 interface UsePartModerationProps {
     item: InboxItem;
@@ -77,6 +79,11 @@ export function usePartModeration({
 
     const [selectedModIds, setSelectedModIds] =
         React.useState<string[]>([]);
+
+    const [
+        installationsByModification,
+        setInstallationsByModification,
+    ] = React.useState<PartInstallationMap>({});
 
     // Определяем автомобиль тикета
     React.useEffect(() => {
@@ -254,6 +261,59 @@ export function usePartModeration({
         item.carModel
     ]);
 
+
+    React.useEffect(() => {
+        if (!isOpen || !targetCar) {
+            setInstallationsByModification({});
+            return;
+        }
+
+        const state = storage.getState();
+        const result: PartInstallationMap = {};
+
+        for (const node of state.catalogNodes) {
+            if (
+                node.brandSlug !== targetCar.brandSlug ||
+                node.modelSlug !== targetCar.modelSlug
+            ) {
+                continue;
+            }
+
+            for (const part of node.items) {
+                if (
+                    part.brand.trim().toLowerCase() !==
+                    brand.trim().toLowerCase() ||
+                    normalizeArticle(part.article) !==
+                    normalizeArticle(article)
+                ) {
+                    continue;
+                }
+
+                for (
+                    const [modificationId, positions]
+                    of Object.entries(
+                    part.installationsByModification ?? {}
+                )
+                    ) {
+                    result[modificationId] =
+                        uniqueInstallations([
+                            ...(result[modificationId] ?? []),
+                            ...positions,
+                        ]);
+                }
+            }
+        }
+
+        setInstallationsByModification(result);
+    }, [
+        isOpen,
+        item.id,
+        targetCar?.brandSlug,
+        targetCar?.modelSlug,
+        brand,
+        article,
+    ]);
+
     // Подтверждение модерации
     const handleApprove = () => {
         if (
@@ -308,18 +368,27 @@ export function usePartModeration({
                 article: article.trim(),
                 name: name.trim(),
                 isOem,
-                oemCross: isOem ? '' : oemCross.trim()
+                oemCross: isOem ? '' : oemCross.trim(),
             },
 
             node: {
                 category: nodeCategory,
-                title: nodeTitle.trim() || name.trim()
+                title: nodeTitle.trim() || name.trim(),
             },
 
             compatibleModifications:
                 compatibilityType === 'all'
                     ? ['all']
-                    : selectedIds
+                    : selectedIds,
+
+            installationsByModification: Object.fromEntries(
+                Object.entries(
+                    installationsByModification
+                ).filter(([modificationId]) =>
+                    compatibilityType === 'all' ||
+                    selectedIds.includes(modificationId)
+                )
+            ),
         };
 
         try {

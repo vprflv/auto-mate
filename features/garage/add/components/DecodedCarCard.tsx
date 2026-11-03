@@ -43,7 +43,7 @@ export default function DecodedCarCard({ car, onSave, onEdit }: Props) {
                 onClick={onSave}
                 className="w-full mt-6 bg-[#39FF14] hover:bg-[#57FF3A] text-black font-medium py-4 rounded-2xl transition"
             >
-                Сохранить в гараж
+                Продолжить — выбрать модификацию
             </button>
 
             <button
