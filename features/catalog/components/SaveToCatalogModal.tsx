@@ -184,58 +184,7 @@ export default function SaveToCatalogModal({
                     </label>
                 )}
 
-                {form.installationOptions.length > 1 && (
-                    <label className="block space-y-2">
-                        <span className="text-sm">
-                            Подтверждённые места установки
-                        </span>
 
-                        <select
-                            value={
-                                form.installationOptions.some(
-                                    option =>
-                                        installationKey(option) ===
-                                        installationKey(form.installation)
-                                )
-                                    ? installationKey(form.installation)
-                                    : ''
-                            }
-                            onChange={event => {
-                                const selected =
-                                    form.installationOptions.find(
-                                        option =>
-                                            installationKey(option) ===
-                                            event.target.value
-                                    );
-
-                                form.setInstallation(
-                                    selected ? { ...selected } : {}
-                                );
-                            }}
-                            className={inputClassName}
-                        >
-                            <option value="">
-                                Выбрать / указать вручную
-                            </option>
-
-                            {form.installationOptions.map(option => (
-                                <option
-                                    key={installationKey(option)}
-                                    value={installationKey(option)}
-                                >
-                                    {[
-                                        option.axle
-                                            ? PART_AXLE_LABELS[option.axle]
-                                            : '',
-                                        option.side
-                                            ? PART_SIDE_LABELS[option.side]
-                                            : '',
-                                    ].filter(Boolean).join(' · ')}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                )}
 
                 <PartInstallationFields
                     value={form.installation}

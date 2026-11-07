@@ -4,12 +4,25 @@ import { useEffect, useRef, useState } from 'react';
 import { CarPartItem } from '@/types';
 import { learnKeywords } from '@/features/garage/lib/userSubcategories';
 import { getSubcategoriesFor } from '@/features/garage/lib/getSubcategories';
+import {formatPartNameWithInstallation, suggestServicePartName} from "@/features/garage/add/lib/suggestServicePartName";
 
 type Props = {
     item: CarPartItem | null;
     onSave: (item: CarPartItem) => void;
     onClose: () => void;
 };
+
+
+function getAutomaticPartName(item: CarPartItem): string {
+    const baseName = suggestServicePartName({
+        itemType: 'part',
+        partCategory: item.category,
+        subcategory: item.subcategory || 'other',
+        fluidCategory: 'engineOil',
+    });
+
+    return formatPartNameWithInstallation(baseName, item);
+}
 
 export function useEditPartModal({
                                      item,
@@ -23,7 +36,7 @@ export function useEditPartModal({
     >(null);
 
     const dropdownRef = useRef<HTMLDivElement>(null);
-
+    const nameEditedManually = useRef(false);
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (
@@ -42,22 +55,31 @@ export function useEditPartModal({
     }, []);
 
     useEffect(() => {
+        nameEditedManually.current = false;
+
         if (!item) {
             setForm(null);
             return;
         }
 
         const cloned = structuredClone(item);
-
         const category = cloned.category || 'maintenance';
 
-        setForm({
+        const initialForm: CarPartItem = {
             ...cloned,
             category,
             subcategory:
                 cloned.subcategory ||
                 getSubcategoriesFor(category)[0]?.id ||
                 'other',
+        };
+
+        setForm({
+            ...initialForm,
+            name:
+                initialForm.name.trim()
+                    ? initialForm.name
+                    : getAutomaticPartName(initialForm),
         });
 
         setOpenDropdown(null);
@@ -65,7 +87,41 @@ export function useEditPartModal({
     }, [item]);
 
     const set = (patch: Partial<CarPartItem>) => {
-        setForm((prev) => (prev ? { ...prev, ...patch } : prev));
+        if ('name' in patch) {
+            nameEditedManually.current = true;
+        }
+
+        const canUpdateName = !nameEditedManually.current;
+        const classificationChanged =
+            'category' in patch ||
+            'subcategory' in patch ||
+            'axle' in patch ||
+            'side' in patch;
+
+        setForm(previous => {
+            if (!previous) return previous;
+
+            const updated = { ...previous, ...patch };
+
+            if (!canUpdateName || !classificationChanged) {
+                return updated;
+            }
+
+            const previousSuggestion =
+                getAutomaticPartName(previous);
+
+            if (
+                previous.name.trim() &&
+                previous.name !== previousSuggestion
+            ) {
+                return updated;
+            }
+
+            return {
+                ...updated,
+                name: getAutomaticPartName(updated),
+            };
+        });
     };
 
     const subs = form ? getSubcategoriesFor(form.category) : [];

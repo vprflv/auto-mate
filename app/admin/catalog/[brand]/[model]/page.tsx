@@ -12,6 +12,7 @@ import { ModelCatalogNodes } from '@/features/admin/catalog/components/ModelCata
 
 import type { CatalogSearchParams } from '@/features/admin/catalog/lib/catalogFilters';
 import {ModelModifications} from "@/features/admin/catalog/components/ModelModifications";
+import {AddCatalogPartModal} from "@/features/admin/catalog/components/AddCatalogPartModal";
 
 interface Props {
     params: Promise<{
@@ -30,7 +31,7 @@ export default function ModelCatalogDashboard({
     const query = React.use(searchParams);
 
     const catalog = useModelCatalog(brand, model, query);
-
+    const [isAddPartOpen, setIsAddPartOpen] = React.useState(false);
     if (!catalog.loaded) {
         return (
             <div className="py-12 text-center text-sm text-[var(--text-muted)]">
@@ -62,7 +63,15 @@ export default function ModelCatalogDashboard({
         <div className="mx-auto max-w-6xl space-y-8 pb-20">
             <ModelCatalogHeader
                 model={catalog.masterModel}
+                onAddPart={() => setIsAddPartOpen(true)}
             />
+
+            {isAddPartOpen && (
+                <AddCatalogPartModal
+                    model={catalog.masterModel}
+                    onClose={() => setIsAddPartOpen(false)}
+                />
+            )}
 
             <ModelModifications
                 model={catalog.masterModel}

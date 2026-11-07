@@ -41,9 +41,13 @@ export default function CatalogArticleCard({
         <>
             <article className="flex flex-col rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
                 <div className="flex-1">
+                    <h3 className="mb-3 text-base font-semibold text-[var(--text)]">
+                        {article.name}
+                    </h3>
                     <p className="text-xs text-[var(--text-muted)]">
                         Оригинальный номер
                     </p>
+
 
                     <div className="mt-1 space-y-1">
                         {originalNumbers.map(number => (
@@ -58,6 +62,7 @@ export default function CatalogArticleCard({
                                 <CopyNumberButton value={number} />
                             </div>
                         ))}
+
 
                         {!originalNumbers.length && (
                             <p className="text-sm text-[var(--text-muted)]">

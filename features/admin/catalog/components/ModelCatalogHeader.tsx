@@ -3,16 +3,17 @@ import {
     ChevronLeft,
     CarFront,
     Users,
-    CheckCircle2
+    CheckCircle2, Plus
 } from 'lucide-react';
 
 import type { StoredMasterModel } from '@/features/admin/lib/system-store/types';
 
 interface Props {
     model: StoredMasterModel;
+    onAddPart?: () => void;
 }
 
-export function ModelCatalogHeader({ model }: Props) {
+export function ModelCatalogHeader({ model, onAddPart }: Props) {
     return (
         <div className="space-y-4">
             <Link
@@ -59,6 +60,16 @@ export function ModelCatalogHeader({ model }: Props) {
                             <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">
                                 В гаражах пользователей
                             </p>
+                            {onAddPart && (
+                                <button
+                                    type="button"
+                                    onClick={onAddPart}
+                                    className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--btn-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)]"
+                                >
+                                    <Plus className="h-4 w-4" aria-hidden="true" />
+                                    Добавить запчасть
+                                </button>
+                            )}
 
                             <p className="text-xl font-black text-[var(--text)]">
                                 {model.registeredCount || 0} авто

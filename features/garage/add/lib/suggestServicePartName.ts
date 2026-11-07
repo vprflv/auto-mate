@@ -2,6 +2,7 @@ import type { PartForm } from '../types/serviceForm';
 
 import { getSubcategoriesFor } from '@/features/garage/lib/getSubcategories';
 import { getFluidCategoriesFor } from '@/features/garage/lib/getFluidCategories';
+import {PART_AXLE_LABELS, PART_SIDE_LABELS} from "@/types/partInstallation";
 
 type Classification = Pick<
     PartForm,
@@ -70,4 +71,40 @@ export function suggestServicePartName(
     // Для пользовательских — выбранное пользователем название.
     return SUBCATEGORY_NAMES[subcategory.id] ??
         subcategory.label;
+}
+
+export function formatPartNameWithInstallation(
+    name: string,
+    { axle, side }: PartInstallation
+): string {
+    if (!name.trim() || (!axle && !side)) {
+        return name;
+    }
+
+    if (name === 'Диск тормозной') {
+        const axleLabels = {
+            front: 'передний',
+            rear: 'задний',
+            both: 'передний и задний',
+        };
+
+        const sideLabels = {
+            left: 'левый',
+            right: 'правый',
+            both: 'левый и правый',
+        };
+
+        return [
+            name,
+            axle ? axleLabels[axle] : '',
+            side ? sideLabels[side] : '',
+        ].filter(Boolean).join(' ');
+    }
+
+    const location = [
+        axle ? PART_AXLE_LABELS[axle].toLowerCase() : '',
+        side ? PART_SIDE_LABELS[side].toLowerCase() : '',
+    ].filter(Boolean).join(', ');
+
+    return `${name} (${location})`;
 }

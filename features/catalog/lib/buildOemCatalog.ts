@@ -329,26 +329,57 @@ export function buildOemCatalog(
         };
     }
 
+
+
+    const categoryLabels: Record<string, string> = {
+        service: 'Расходники ТО',
+        brakes: 'Тормозная система',
+        suspension: 'Подвеска и рулевое',
+        fluids: 'Масла и жидкости',
+        ignition: 'Зажигание / Электрика',
+    };
+
+    const categoryMap = new Map<string, CatalogNode>();
     const nodeMap = new Map<string, CatalogNode>();
 
     function getNodeId(entry: Entry): string {
         const { node } = entry;
-        const prefix = node.category === 'fluids'
-            ? 'fluids-master'
-            : 'master-node';
+
+        const isFluid = node.category === 'fluids';
+        const prefix = isFluid ? 'fluids-master' : 'master-node';
 
         const id = `${prefix}:${JSON.stringify([
             node.category,
             node.title.trim().toLowerCase(),
         ])}`;
 
-        if (!nodeMap.has(id)) {
-            nodeMap.set(id, {
-                id,
-                name: node.title,
-                hasArticles: true,
-            });
+        if (nodeMap.has(id)) return id;
+
+        const categoryId = isFluid
+            ? 'fluids'
+            : `master-category:${node.category}`;
+
+        let category = categoryMap.get(categoryId);
+
+        if (!category) {
+            category = {
+                id: categoryId,
+                name: categoryLabels[node.category] ?? node.category,
+                children: [],
+            };
+
+            categoryMap.set(categoryId, category);
         }
+
+        const child: CatalogNode = {
+            id,
+            parentId: categoryId,
+            name: node.title,
+            hasArticles: true,
+        };
+
+        nodeMap.set(id, child);
+        category.children?.push(child);
 
         return id;
     }
@@ -463,7 +494,7 @@ export function buildOemCatalog(
         });
     }
 
-    catalog.nodes = Array.from(nodeMap.values());
+    catalog.nodes = Array.from(categoryMap.values());
 
     return catalog;
 }

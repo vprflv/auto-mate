@@ -1,5 +1,5 @@
 import {CarFluids, FluidCategory} from "@/types/oil";
-import {PartInstallation} from "@/types/partInstallation";
+import {PartInstallation, PartInstallationMap} from "@/types/partInstallation";
 
 
 
@@ -11,6 +11,23 @@ export type CarCatalogSelection = {
 
     // Название выбранной или предложенной модификации.
     modificationName?: string;
+};
+
+export type CatalogPartPayload = {
+    part: {
+        brand: string;
+        article: string;
+        name: string;
+        isOem: boolean;
+        oemCross?: string;
+        oemCrosses?: string[];
+    };
+    node: {
+        category: string;
+        title: string;
+    };
+    compatibleModifications: string[];
+    installationsByModification?: PartInstallationMap;
 };
 
 

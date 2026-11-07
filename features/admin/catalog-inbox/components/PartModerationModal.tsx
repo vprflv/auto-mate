@@ -12,6 +12,7 @@ import { NodeEditorBlock } from './part-moderation/NodeEditorBlock';
 import { CompatibilityBlock } from './part-moderation/CompatibilityBlock';
 import {usePartModeration} from "@/features/admin/catalog-inbox/hooks/usePartModeration";
 import {PartInstallationsBlock} from "@/features/admin/catalog-inbox/components/part-moderation/PartInstallationsBlock";
+import {PartInstallationFields} from "@/features/garage/components/PartInstallationFields";
 
 interface Props {
     item: InboxItem;
@@ -86,12 +87,37 @@ export function PartModerationModal(props: Props) {
                                     oemSuggestions={state.oemSuggestions}
                                 />
 
+                                <PartInstallationFields
+                                    key={item.id}
+                                    partName={state.name}
+                                    value={state.installation}
+                                    onChange={patch => {
+                                        state.setInstallation(previous => ({
+                                            ...previous,
+                                            ...patch,
+                                        }));
+                                    }}
+                                />
+
                                 <NodeEditorBlock
                                     nodeCategory={state.nodeCategory} setNodeCategory={state.setNodeCategory}
                                     nodeTitle={state.nodeTitle} setNodeTitle={state.setNodeTitle}
                                     existingNodes={state.existingNodes}
+                                    existingCategories={state.existingCategories}
                                     isCustomNode={state.isCustomNode} setIsCustomNode={state.setIsCustomNode} // <-- ДОБАВИЛИ ЭТИ ДВЕ СТРОКИ
                                 />
+
+                                {state.categoryWarning && (
+                                    <div
+                                        role="alert"
+                                        className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-600 dark:text-amber-400"
+                                    >
+                                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                                        <p className="text-sm">
+                                            {state.categoryWarning}
+                                        </p>
+                                    </div>
+                                )}
 
                                 <CompatibilityBlock
                                     targetCar={state.targetCar}
@@ -101,27 +127,7 @@ export function PartModerationModal(props: Props) {
                                     setSelectedModIds={state.setSelectedModIds}
                                 />
 
-                                <PartInstallationsBlock
-                                    modifications={
-                                        (
-                                            state.targetCar?.modifications ?? []
-                                        ).filter(modification =>
-                                            state.compatibilityType === 'all' ||
-                                            state.selectedModIds.includes(
-                                                modification.id
-                                            )
-                                        )
-                                    }
-                                    value={
-                                        state.installationsByModification
-                                    }
-                                    proposed={
-                                        item.proposedInstallation
-                                    }
-                                    onChange={
-                                        state.setInstallationsByModification
-                                    }
-                                />
+
                             </div>
                         </div>
                     </div>

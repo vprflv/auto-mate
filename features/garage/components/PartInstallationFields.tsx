@@ -1,19 +1,21 @@
 'use client';
 
-import { useId } from 'react';
+import { useId, useState } from 'react';
 
 import type {
     PartAxle,
-    PartSide,
     PartInstallation,
+    PartSide,
 } from '@/types/partInstallation';
 
 import {
+    getPartInstallationFields,
     PART_AXLE_LABELS,
     PART_SIDE_LABELS,
 } from '@/types/partInstallation';
 
 type Props = {
+    partName: string;
     value: PartInstallation;
     onChange: (patch: PartInstallation) => void;
 };
@@ -24,90 +26,120 @@ const inputClassName =
     'text-[var(--text)] outline-none focus:border-[var(--link)]';
 
 export function PartInstallationFields({
+                                           partName,
                                            value,
                                            onChange,
                                        }: Props) {
     const id = useId();
 
+    const [manualEnabled, setManualEnabled] =
+        useState<boolean | null>(null);
+
+    const suggested = getPartInstallationFields(partName);
+    const hasSuggestion = suggested.axle || suggested.side;
+    const hasValue = Boolean(value.axle || value.side);
+    const enabled = manualEnabled ?? (hasValue || hasSuggestion);
+
+    const showAxle =
+        !hasSuggestion || suggested.axle || Boolean(value.axle);
+
+    const showSide =
+        !hasSuggestion || suggested.side || Boolean(value.side);
+
     return (
-        <details
-            key={Boolean(value.axle || value.side) ? 'filled' : 'empty'}
-            open={Boolean(value.axle || value.side) || undefined}
-            className="rounded-xl border border-[var(--border)] p-3"
-        >
-            <summary className="cursor-pointer text-sm text-[var(--text-muted)]">
-                Расположение · необязательно
-            </summary>
+        <div className="rounded-xl border border-[var(--border)] p-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--text)]">
+                <input
+                    type="checkbox"
+                    checked={enabled}
+                    onChange={event => {
+                        const checked = event.target.checked;
+                        setManualEnabled(checked);
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div>
-                    <label
-                        htmlFor={`${id}-axle`}
-                        className="mb-1.5 block text-xs text-[var(--text-muted)]"
-                    >
-                        Ось
-                    </label>
-
-                    <select
-                        id={`${id}-axle`}
-                        value={value.axle ?? ''}
-                        onChange={event =>
+                        if (!checked) {
                             onChange({
-                                axle: event.target.value
-                                    ? event.target.value as PartAxle
-                                    : undefined,
-                            })
+                                axle: undefined,
+                                side: undefined,
+                            });
                         }
-                        className={inputClassName}
-                    >
-                        <option value="">Не указано</option>
+                    }}
+                    className="h-4 w-4 accent-[var(--btn-primary)]"
+                />
 
-                        {Object.entries(PART_AXLE_LABELS).map(
-                            ([key, label]) => (
-                                <option key={key} value={key}>
-                                    {label}
-                                </option>
-                            )
-                        )}
-                    </select>
+                Указать расположение
+            </label>
+
+            {enabled && (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {showAxle && (
+                        <div>
+                            <label
+                                htmlFor={`${id}-axle`}
+                                className="mb-1.5 block text-xs text-[var(--text-muted)]"
+                            >
+                                Ось / перед–зад
+                            </label>
+
+                            <select
+                                id={`${id}-axle`}
+                                value={value.axle ?? ''}
+                                onChange={event => {
+                                    const axle = event.target.value as
+                                        | PartAxle
+                                        | '';
+
+                                    onChange({ axle: axle || undefined });
+                                }}
+                                className={inputClassName}
+                            >
+                                <option value="">Не указано</option>
+
+                                {Object.entries(PART_AXLE_LABELS).map(
+                                    ([key, label]) => (
+                                        <option key={key} value={key}>
+                                            {label}
+                                        </option>
+                                    )
+                                )}
+                            </select>
+                        </div>
+                    )}
+
+                    {showSide && (
+                        <div>
+                            <label
+                                htmlFor={`${id}-side`}
+                                className="mb-1.5 block text-xs text-[var(--text-muted)]"
+                            >
+                                Сторона
+                            </label>
+
+                            <select
+                                id={`${id}-side`}
+                                value={value.side ?? ''}
+                                onChange={event => {
+                                    const side = event.target.value as
+                                        | PartSide
+                                        | '';
+
+                                    onChange({ side: side || undefined });
+                                }}
+                                className={inputClassName}
+                            >
+                                <option value="">Не указано</option>
+
+                                {Object.entries(PART_SIDE_LABELS).map(
+                                    ([key, label]) => (
+                                        <option key={key} value={key}>
+                                            {label}
+                                        </option>
+                                    )
+                                )}
+                            </select>
+                        </div>
+                    )}
                 </div>
-
-                <div>
-                    <label
-                        htmlFor={`${id}-side`}
-                        className="mb-1.5 block text-xs text-[var(--text-muted)]"
-                    >
-                        Сторона
-                    </label>
-
-                    <select
-                        id={`${id}-side`}
-                        value={value.side ?? ''}
-                        onChange={event =>
-                            onChange({
-                                side: event.target.value
-                                    ? event.target.value as PartSide
-                                    : undefined,
-                            })
-                        }
-                        className={inputClassName}
-                    >
-                        <option value="">Не указано</option>
-
-                        {Object.entries(PART_SIDE_LABELS).map(
-                            ([key, label]) => (
-                                <option key={key} value={key}>
-                                    {label}
-                                </option>
-                            )
-                        )}
-                    </select>
-                </div>
-            </div>
-
-            <p className="mt-3 text-xs text-[var(--text-muted)]">
-                Сторона определяется по ходу движения автомобиля.
-            </p>
-        </details>
+            )}
+        </div>
     );
 }

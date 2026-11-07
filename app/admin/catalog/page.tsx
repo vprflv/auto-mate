@@ -9,6 +9,7 @@ import { CatalogSearch } from './components/CatalogSearch';
 import { AlphabetFilter } from './components/AlphabetFilter';
 import { BrandCard } from './components/BrandCard';
 import { CatalogEmptyState } from './components/CatalogEmptyState';
+import {CatalogPartSearch} from "@/features/admin/catalog/components/CatalogPartSearch";
 
 export default function AdminCatalogIndexPage() {
     const [searchQuery, setSearchQuery] = React.useState('');
@@ -146,7 +147,7 @@ export default function AdminCatalogIndexPage() {
             <CatalogHeader inboxCount={inboxCount} />
 
             <CatalogSearch value={searchQuery} onChange={setSearchQuery} />
-
+            <CatalogPartSearch />
             <AlphabetFilter
                 availableLetters={availableLetters}
                 selectedLetter={selectedLetter}

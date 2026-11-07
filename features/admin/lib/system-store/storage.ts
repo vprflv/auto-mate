@@ -4,6 +4,7 @@ import {formatArticle, normalizeArticle} from "@/features/admin/lib/system-store
 import {getOemCrosses, uniqueOemCrosses} from "@/features/admin/lib/system-store/oemCrosses";
 import {PartInstallationMap} from "@/types/partInstallation";
 import {uniqueInstallations} from "@/features/catalog/lib/partInstallations";
+import {CatalogPartPayload} from "@/types";
 
 export const storage = {
     getState(): SystemState {
@@ -77,37 +78,14 @@ export const storage = {
 
     // --- ДОБАВЛЯЕМ ЭКШЕНЫ ПРЯМО СЮДА ---
 
-    approvePartTicket(
-        ticketId: string,
-        payload: {
-            part: {
-                brand: string;
-                article: string;
-                name: string;
-                isOem: boolean;
-                oemCross?: string;
-                oemCrosses?: string[];
-            };
-            node: {
-                category: string;
-                title: string;
-            };
-            compatibleModifications: string[];
-            installationsByModification?: PartInstallationMap;
-        }
-
-    ) {
-        const state = this.getState();
-
-        const ticket = state.inbox.find(
+    approvePartTicket(ticketId: string, payload: CatalogPartPayload) {
+        const ticket = this.getState().inbox.find(
             item => item.id === ticketId
         );
 
         if (!ticket) {
             throw new Error('Заявка не найдена.');
         }
-
-        const { part, node, compatibleModifications } = payload;
 
         const brandSlug = ticket.carBrand
             .trim()
@@ -118,6 +96,22 @@ export const storage = {
             .trim()
             .toLowerCase()
             .replace(/\s+/g, '-');
+
+        this.addCatalogPart(brandSlug, modelSlug, payload, ticketId);
+    },
+
+    addCatalogPart(
+        brandSlug: string,
+        modelSlug: string,
+        payload: CatalogPartPayload,
+        ticketId?: string
+    ) {
+        const state = this.getState();
+        const { part, node, compatibleModifications } = payload;
+
+        if (!node.category.trim() || !node.title.trim()) {
+            throw new Error('Укажите категорию и подкатегорию.');
+        }
 
         const normalizedPartArticle = normalizeArticle(
             part.article
@@ -227,6 +221,10 @@ export const storage = {
         const incomingOemCrosses = part.isOem
             ? []
             : getOemCrosses(part);
+
+        if (!part.isOem && incomingOemCrosses.length === 0) {
+            throw new Error('Укажите хотя бы один OEM-номер для аналога.');
+        }
 
         const targetTitle =
             node.title.trim() || part.name.trim();
@@ -377,9 +375,9 @@ export const storage = {
         this.saveState({
             ...state,
             catalogNodes: newNodes,
-            inbox: state.inbox.filter(
-                item => item.id !== ticketId
-            )
+            inbox: ticketId === undefined
+                ? state.inbox
+                : state.inbox.filter(item => item.id !== ticketId),
         });
     },
 

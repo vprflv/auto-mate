@@ -8,8 +8,11 @@ import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArt
 
 import type { OemSuggestion } from '../components/part-moderation/OemCrossSelect';
 import {toast} from "sonner";
-import {PartInstallationMap} from "@/types/partInstallation";
+
 import {uniqueInstallations} from "@/features/catalog/lib/partInstallations";
+import {formatPartNameWithInstallation, suggestServicePartName} from "@/features/garage/add/lib/suggestServicePartName";
+import {PartCategory, PartInstallation, PartInstallationMap} from "@/types";
+import {getPartCategoryWarning} from "@/features/admin/catalog-inbox/hooks/getPartCategoryWarning";
 
 interface UsePartModerationProps {
     item: InboxItem;
@@ -65,11 +68,19 @@ export function usePartModeration({
     const [article, setArticle] = React.useState(initialArticle);
     const [name, setName] = React.useState(initialName);
 
+    const [nameEditedManually, setNameEditedManually] =
+        React.useState(false);
+
+    const setNameManually = (value: string) => {
+        setNameEditedManually(true);
+        setName(value);
+    };
+
     const [isOem, setIsOem] = React.useState(initialIsOem);
     const [oemCross, setOemCross] = React.useState('');
 
     const [nodeCategory, setNodeCategory] =
-        React.useState('service');
+        React.useState('');
 
     const [nodeTitle, setNodeTitle] = React.useState('');
     const [isCustomNode, setIsCustomNode] = React.useState(false);
@@ -80,10 +91,10 @@ export function usePartModeration({
     const [selectedModIds, setSelectedModIds] =
         React.useState<string[]>([]);
 
-    const [
-        installationsByModification,
-        setInstallationsByModification,
-    ] = React.useState<PartInstallationMap>({});
+    const [installation, setInstallation] =
+        React.useState<PartInstallation>(
+            item.proposedInstallation ?? {}
+        );
 
     // Определяем автомобиль тикета
     React.useEffect(() => {
@@ -113,6 +124,17 @@ export function usePartModeration({
         return () => {
             document.body.style.overflow = previousOverflow;
         };
+    }, [isOpen]);
+
+    const existingCategories = React.useMemo(() => {
+        if (!isOpen) return [];
+
+        const categories = storage.getState().catalogNodes
+            .map(node => node.category.trim())
+            .filter(Boolean);
+
+        return [...new Set(categories)]
+            .sort((a, b) => a.localeCompare(b, 'ru'));
     }, [isOpen]);
 
     // Существующие узлы выбранного автомобиля и категории
@@ -263,8 +285,10 @@ export function usePartModeration({
 
 
     React.useEffect(() => {
-        if (!isOpen || !targetCar) {
-            setInstallationsByModification({});
+        if (!isOpen) return;
+
+        if (!targetCar) {
+            setInstallation(item.proposedInstallation ?? {});
             return;
         }
 
@@ -304,25 +328,91 @@ export function usePartModeration({
             }
         }
 
-        setInstallationsByModification(result);
+        const positions = uniqueInstallations(
+            Object.values(result).flat()
+        );
+
+        setInstallation(
+            item.proposedInstallation ??
+            (positions.length === 1 ? positions[0]! : {})
+        );
     }, [
         isOpen,
         item.id,
         targetCar?.brandSlug,
         targetCar?.modelSlug,
+        item.proposedInstallation,
         brand,
         article,
     ]);
 
-    // Подтверждение модерации
+
+
+    const baseName = item.category
+        ? suggestServicePartName({
+            itemType: 'part',
+            partCategory: item.category as PartCategory,
+            subcategory: item.subcategory || 'other',
+            fluidCategory: 'engineOil',
+        })
+        : '';
+
+    const originalAutomaticName =
+        formatPartNameWithInstallation(
+            baseName,
+            item.proposedInstallation ?? {}
+        );
+
+    const canUpdateName =
+        !nameEditedManually &&
+        Boolean(baseName) &&
+        (
+            !name.trim() ||
+            name === baseName ||
+            name === originalAutomaticName
+        );
+
+    const subcategoryTitle = nodeTitle.trim().toLocaleLowerCase('ru');
+
+    const suggestedName =
+        subcategoryTitle === 'термостаты' ? 'Термостат' :
+            subcategoryTitle === 'помпы' ? 'Помпа' :
+                '';
+
+    const displayName = canUpdateName
+        ? formatPartNameWithInstallation(
+            suggestedName || baseName,
+            installation
+        )
+        : name;
+
+    const categoryWarning = getPartCategoryWarning(
+        displayName,
+        nodeCategory
+    );
+
     const handleApprove = () => {
+        const category = nodeCategory.trim();
+
+        if (!category) {
+            toast.error('Выберите категорию или введите название новой.');
+            return;
+        }
+
         if (
             !brand.trim() ||
             !article.trim() ||
-            !name.trim()
+            !displayName.trim()
         ) {
             toast.error(
                 'Укажите производителя, артикул и название детали.'
+            );
+            return;
+        }
+
+        if (!isOem && !oemCross.trim()) {
+            toast.error(
+                'Укажите связанный OEM-номер в поле «Привязка к оригиналу (OEM Кросс)».'
             );
             return;
         }
@@ -334,9 +424,7 @@ export function usePartModeration({
             return;
         }
 
-        const selectedIds = Array.from(
-            new Set(selectedModIds)
-        );
+        const selectedIds = Array.from(new Set(selectedModIds));
 
         if (compatibilityType === 'specific') {
             if (selectedIds.length === 0) {
@@ -347,14 +435,10 @@ export function usePartModeration({
             }
 
             const availableIds = new Set(
-                targetCar.modifications.map(mod => mod.id)
+                (targetCar.modifications ?? []).map(mod => mod.id)
             );
 
-            const hasInvalidSelection = selectedIds.some(
-                id => !availableIds.has(id)
-            );
-
-            if (hasInvalidSelection) {
+            if (selectedIds.some(id => !availableIds.has(id))) {
                 toast.error(
                     'Список модификаций изменился. Проверьте выбранные варианты.'
                 );
@@ -362,18 +446,25 @@ export function usePartModeration({
             }
         }
 
+        if (!nodeTitle.trim()) {
+            toast.error(
+                'Выберите или создайте подраздел каталога. Например, «Фильтры».'
+            );
+            return;
+        }
+
         const payload = {
             part: {
                 brand: brand.trim(),
                 article: article.trim(),
-                name: name.trim(),
+                name: displayName.trim(),
                 isOem,
                 oemCross: isOem ? '' : oemCross.trim(),
             },
 
             node: {
-                category: nodeCategory,
-                title: nodeTitle.trim() || name.trim(),
+                category,
+                title: nodeTitle.trim(),
             },
 
             compatibleModifications:
@@ -382,16 +473,31 @@ export function usePartModeration({
                     : selectedIds,
 
             installationsByModification: Object.fromEntries(
-                Object.entries(
-                    installationsByModification
-                ).filter(([modificationId]) =>
-                    compatibilityType === 'all' ||
-                    selectedIds.includes(modificationId)
-                )
+                (
+                    compatibilityType === 'all'
+                        ? (targetCar.modifications ?? []).map(
+                            modification => modification.id
+                        )
+                        : selectedIds
+                ).map(modificationId => [
+                    modificationId,
+                    installation.axle || installation.side
+                        ? [{ ...installation }]
+                        : [],
+                ])
             ),
         };
 
         try {
+            if (
+                categoryWarning &&
+                !window.confirm(
+                    `${categoryWarning}\n\nДобавить деталь в выбранную категорию?`
+                )
+            ) {
+                return;
+            }
+
             onApprove(item.id, payload);
         } catch (error: unknown) {
             toast.error(
@@ -419,8 +525,8 @@ export function usePartModeration({
         article,
         setArticle,
 
-        name,
-        setName,
+        name: displayName,
+        setName: setNameManually,
 
         isOem,
         setIsOem,
@@ -430,12 +536,14 @@ export function usePartModeration({
         oemSuggestions,
 
         nodeCategory,
+        categoryWarning,
         setNodeCategory,
 
         nodeTitle,
         setNodeTitle,
 
         existingNodes,
+        existingCategories,
 
         isCustomNode,
         setIsCustomNode,
@@ -445,6 +553,9 @@ export function usePartModeration({
 
         selectedModIds,
         setSelectedModIds,
+
+        installation,
+        setInstallation,
 
         handleApprove,
         handleReject

@@ -174,16 +174,12 @@ export function useSaveToCatalogModal({
     const [subcategory, setSubcategory] = useState('');
     const [newCategoryName, setNewCategoryName] = useState('');
     const [newSubcategoryName, setNewSubcategoryName] = useState('');
-    const installationOptions = expandInstallations(
-        article.installationOptions ?? []
-    );
+    const confirmedInstallations = article.installationOptions ?? [];
 
-    const [installation, setInstallation] =
-        useState<PartInstallation>(() =>
-            installationOptions.length === 1
-                ? { ...installationOptions[0] }
-                : {}
-        );
+
+    const installation = confirmedInstallations.length === 1
+        ? confirmedInstallations[0]
+        : undefined;
 
     const [error, setError] = useState('');
 
@@ -369,7 +365,7 @@ export function useSaveToCatalogModal({
                     category: typedCategory,
                     subcategory: subcategoryId,
                     nodeName,
-                    installation,
+                    ...(installation ? { installation } : {}),
                 }
             );
 
@@ -378,64 +374,6 @@ export function useSaveToCatalogModal({
                 return;
             }
 
-            const hasInstallation = Boolean(
-                installation.axle || installation.side
-            );
-
-            const alreadyConfirmed =
-                installationOptions.some(
-                    option =>
-                        installationKey(option) ===
-                        installationKey(installation)
-                );
-
-            if (
-                car &&
-                hasInstallation &&
-                !alreadyConfirmed
-            ) {
-                try {
-                    systemStore.addUserPart({
-                        carId,
-                        carBrand: car.make,
-                        carModel: car.model,
-                        carYear: car.year,
-                        carVin: car.vin,
-
-                        engine: car.engine,
-                        transmission: car.transmission,
-                        drivetrain: car.driveType,
-
-                        carSpecs: {
-                            bodyClass: car.bodyClass,
-                            displacementL: car.displacementL,
-                            fuel: car.fuel,
-                            trim: car.trim,
-                            transmission: car.transmission,
-                            driveType: car.driveType,
-                        },
-
-                        partName: article.name,
-                        partBrand: article.brand,
-                        partArticle: article.oem,
-                        isOem: article.isOem,
-
-                        category: typedCategory,
-                        subcategory: subcategoryId,
-
-                        axle: installation.axle,
-                        side: installation.side,
-
-                        source: 'user_manual',
-
-                        note: 'Предложено расположение при сохранении из ИИ-каталога.',
-                    });
-                } catch {
-                    toast.error(
-                        'Деталь сохранена, но отправить расположение на проверку не удалось.'
-                    );
-                }
-            }
 
             onSaved({
                 category: typedCategory,

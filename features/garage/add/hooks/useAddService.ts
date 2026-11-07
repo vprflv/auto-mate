@@ -33,6 +33,42 @@ import {
 import {
     suggestServicePartName,
 } from '../lib/suggestServicePartName';
+import {PART_AXLE_LABELS, PART_SIDE_LABELS} from "@/types/partInstallation";
+
+function getAutomaticPartName(part: PartForm): string {
+    const name = suggestServicePartName(part);
+
+    if (!name || part.itemType !== 'part') {
+        return name;
+    }
+
+    if (name === 'Диск тормозной') {
+        const axle = {
+            front: 'передний',
+            rear: 'задний',
+            both: 'передний и задний',
+        };
+
+        const side = {
+            left: 'левый',
+            right: 'правый',
+            both: 'левый и правый',
+        };
+
+        return [
+            name,
+            part.axle ? axle[part.axle] : '',
+            part.side ? side[part.side] : '',
+        ].filter(Boolean).join(' ');
+    }
+
+    const location = [
+        part.axle ? PART_AXLE_LABELS[part.axle].toLowerCase() : '',
+        part.side ? PART_SIDE_LABELS[part.side].toLowerCase() : '',
+    ].filter(Boolean).join(', ');
+
+    return location ? `${name} (${location})` : name;
+}
 
 export function useAddService(carId: string) {
     const router = useRouter();
@@ -88,7 +124,7 @@ export function useAddService(carId: string) {
             ...previous,
             {
                 ...part,
-                name: suggestServicePartName(part),
+                name: getAutomaticPartName(part),
             },
         ]);
     };
@@ -107,6 +143,8 @@ export function useAddService(carId: string) {
             'partCategory',
             'subcategory',
             'fluidCategory',
+            'axle',
+            'side',
         ].includes(field);
 
         const manuallyNamed =
@@ -129,7 +167,7 @@ export function useAddService(carId: string) {
                 }
 
                 const previousSuggestion =
-                    suggestServicePartName(part);
+                    getAutomaticPartName(part);
 
                 const nameIsAutomatic =
                     !part.name.trim() ||
@@ -141,7 +179,7 @@ export function useAddService(carId: string) {
 
                 return {
                     ...updated,
-                    name: suggestServicePartName(updated),
+                    name: getAutomaticPartName(updated),
                 };
             })
         );

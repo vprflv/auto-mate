@@ -4,26 +4,21 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useVehicleCatalog } from '@/features/catalog/hooks/useVehicleCatalog';
 import {
-    detectCategory,
+
     isFluidArticle,
     removeArticleFromPersonalCatalog,
     removeFluidFromPersonalCatalog,
-    saveArticleToPersonalCatalog,
     saveFluidToPersonalCatalog,
 } from '@/features/catalog/lib/saveToPersonalCatalog';
 import { getGarageCars } from '@/features/garage/add/lib/storage';
-import { CarPartItem, PartCategory } from '@/types';
+import { CarPartItem,  } from '@/types';
 import { CatalogArticle } from '@/types/catalog/catalog';
 import { findNodeName } from '@/features/catalog/lib/findNodeName';
-import {
-    PART_SUBCATEGORY_LABELS,
-    PART_SUBCATEGORY_ORDER,
-} from '@/features/garage/lib/config/partSubcategories';
+
 import { CarFluidItem } from '@/types/oil';
-import {error} from "next/dist/build/output/log";
+
 import {toast} from "sonner";
-import {router} from "next/client";
-import {SavedPartDestination} from "@/features/catalog/hooks/useSaveToCatalogModal";
+
 
 function getPersonalParts(carId: string): CarPartItem[] {
     const car = getGarageCars().find((item) => item.id === carId);
@@ -67,8 +62,22 @@ export function useCatalogPage(carId: string) {
 
     useEffect(() => {
         if (!catalog?.nodes.length) return;
-        if (selectedNodeId && catalog.nodes.some(node => node.id === selectedNodeId)) return;
-        setSelectedNodeId(catalog.nodes[0].id);
+
+        const containsSelectedNode = (
+            nodes: typeof catalog.nodes
+        ): boolean =>
+            nodes.some(node =>
+                node.id === selectedNodeId ||
+                containsSelectedNode(node.children ?? [])
+            );
+
+        if (containsSelectedNode(catalog.nodes)) return;
+
+        const firstNode = catalog.nodes[0];
+
+        setSelectedNodeId(
+            firstNode.children?.[0]?.id ?? firstNode.id
+        );
     }, [catalog, selectedNodeId]);
 
     const filteredArticles = useMemo(() => {
@@ -93,10 +102,32 @@ export function useCatalogPage(carId: string) {
 
         if (!selectedNodeId) return [];
 
-        return catalog.articles.filter((art) =>
-            selectedNodeId === 'fluids'
-                ? art.nodeId.startsWith('fluids')
-                : art.nodeId === selectedNodeId
+        const selectedNodeIds = new Set<string>();
+
+        const collectSelectedNodes = (
+            nodes: typeof catalog.nodes,
+            parentSelected = false
+        ): void => {
+            for (const node of nodes) {
+                const selected =
+                    parentSelected ||
+                    node.id === selectedNodeId;
+
+                if (selected) {
+                    selectedNodeIds.add(node.id);
+                }
+
+                collectSelectedNodes(
+                    node.children ?? [],
+                    selected
+                );
+            }
+        };
+
+        collectSelectedNodes(catalog.nodes);
+
+        return catalog.articles.filter(article =>
+            selectedNodeIds.has(article.nodeId)
         );
     }, [catalog, selectedNodeId, search]);
 

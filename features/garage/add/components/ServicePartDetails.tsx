@@ -117,6 +117,7 @@ export default function ServicePartDetails({
                 {part.itemType === 'part' && (
                     <div className="mt-4">
                         <PartInstallationFields
+                            partName={part.name}
                             value={{
                                 axle: part.axle || undefined,
                                 side: part.side || undefined,

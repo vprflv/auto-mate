@@ -153,6 +153,7 @@ export default function EditPartModal({
                 </div>
 
                 <PartInstallationFields
+                    partName={form.name}
                     value={form}
                     onChange={patch => set(patch)}
                 />

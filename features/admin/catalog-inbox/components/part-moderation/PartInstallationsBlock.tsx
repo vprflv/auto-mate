@@ -17,12 +17,14 @@ import {
 
 type Props = {
     modifications: CatalogModification[];
+    partName?: string;
     value: PartInstallationMap;
     proposed?: PartInstallation;
     onChange: (value: PartInstallationMap) => void;
 };
 
 export function PartInstallationsBlock({
+                                           partName = '',
                                            modifications,
                                            value,
                                            proposed,
@@ -76,6 +78,7 @@ export function PartInstallationsBlock({
                         {positions.map((position, index) => (
                             <div key={index} className="space-y-2">
                                 <PartInstallationFields
+                                    partName={partName}
                                     value={position}
                                     onChange={patch =>
                                         changePositions(
