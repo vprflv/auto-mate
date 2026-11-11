@@ -111,7 +111,7 @@ export default function CarSectionNav({
 
         onChange(nextSection);
 
-        const nextButton = buttons.current[nextSection];
+        const nextButton = buttons.current.get(nextSection);
 
         if (focusTab && nextButton) {
             nextButton.focus();
@@ -207,7 +207,11 @@ export default function CarSectionNav({
                         <button
                             key={item.id}
                             ref={(element: HTMLButtonElement | null) => {
-                                buttons.current[item.id] = element;
+                                if (element) {
+                                    buttons.current.set(item.id, element);
+                                } else {
+                                    buttons.current.delete(item.id);
+                                }
                             }}
                             type="button"
                             id={`${contentId}-tab-${item.id}`}

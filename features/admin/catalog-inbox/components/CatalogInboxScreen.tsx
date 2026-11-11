@@ -73,12 +73,7 @@ export function CatalogInboxScreen() {
                                     onReject={handleReject}
                                 />
                             ) : (
-                                <PartInboxCard
-                                    key={item.id}
-                                    item={item}
-                                    onApprove={handleApprove}
-                                    onReject={handleReject}
-                                />
+                                <PartInboxCard key={item.id} item={item} />
                             )
                         )}
                     </div>

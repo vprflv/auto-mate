@@ -123,6 +123,7 @@ export interface StoredPartItem {
     brand: string;
     article: string;
     name: string;
+    installation?: PartInstallation;
     installationsByModification?: PartInstallationMap;
 
     isOem: boolean;

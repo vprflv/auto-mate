@@ -31,10 +31,6 @@ import {
     useHiddenPartSubcategories,
 } from '@/features/garage/parts/hooks/useEnabledPartSubcategories';
 import {suggestPartSubcategory} from "@/features/catalog/lib/suggestPartSubcategory";
-import {expandInstallations, installationKey} from "@/features/catalog/lib/partInstallations";
-import {PartInstallation} from "@/types/partInstallation";
-import {toast} from "sonner";
-import {systemStore} from "@/features/admin/lib/systemStore";
 
 export type SavedPartDestination = {
     category: PartCategory;
@@ -408,8 +404,6 @@ export function useSaveToCatalogModal({
         path,
         error,
         installation,
-        installationOptions,
-        setInstallation,
 
         newCategoryValue: NEW_CATEGORY,
         newSubcategoryValue: NEW_SUBCATEGORY,

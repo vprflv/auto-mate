@@ -10,15 +10,23 @@ import { AlphabetFilter } from './components/AlphabetFilter';
 import { BrandCard } from './components/BrandCard';
 import { CatalogEmptyState } from './components/CatalogEmptyState';
 import {CatalogPartSearch} from "@/features/admin/catalog/components/CatalogPartSearch";
+import {useRouter} from "next/navigation";
+import {AddCatalogModelForm} from "@/features/admin/catalog/components/AddCatalogModelForm";
+import {downloadCatalogSnapshot} from "@/features/admin/catalog/lib/catalogSnapshot";
 
 export default function AdminCatalogIndexPage() {
+    const router = useRouter();
+
     const [searchQuery, setSearchQuery] = React.useState('');
     const [selectedLetter, setSelectedLetter] = React.useState<string>('all');
     const [inboxCount, setInboxCount] = React.useState(0);
     const [catalogs, setCatalogs] = React.useState<BrandCatalog[]>(defaultBaseCatalogs);
 
+    const [isAddModelOpen, setIsAddModelOpen] = React.useState(false);
+
     const loadData = React.useCallback(() => {
         const state = systemStore.getState();
+        setInboxCount(state.inbox.length);
         setInboxCount(state.inbox.length);
 
         const brandMap = new Map<string, BrandCatalog>();
@@ -146,7 +154,36 @@ export default function AdminCatalogIndexPage() {
         <div className="space-y-6">
             <CatalogHeader inboxCount={inboxCount} />
 
+            {isAddModelOpen ? (
+                <AddCatalogModelForm
+                    onCancel={() => setIsAddModelOpen(false)}
+                    onCreated={model => {
+                        setIsAddModelOpen(false);
+                        router.push(
+                            `/admin/catalog/${encodeURIComponent(model.brandSlug)}/${encodeURIComponent(model.modelSlug)}`
+                        );
+                    }}
+                />
+            ) : (
+                <button
+                    type="button"
+                    onClick={() => setIsAddModelOpen(true)}
+                    className="rounded-xl bg-blue-500 px-4 py-2 text-sm font-semibold text-white"
+                >
+                    Добавить модель
+                </button>
+            )}
+
             <CatalogSearch value={searchQuery} onChange={setSearchQuery} />
+
+            <button
+                type="button"
+                onClick={downloadCatalogSnapshot}
+                className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--link)] hover:text-[var(--link)]"
+            >
+                Скачать базу каталога
+            </button>
+
             <CatalogPartSearch />
             <AlphabetFilter
                 availableLetters={availableLetters}

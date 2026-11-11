@@ -248,9 +248,9 @@ export function addUserPart(params: AddUserPartParams) {
         if (!hasInstallation) return true;
 
         const confirmed = expandInstallations(
-            part.installationsByModification?.[
-                modificationId
-                ] ?? []
+            part.installation
+                ? [part.installation]
+                : part.installationsByModification?.[modificationId] ?? []
         );
 
         const proposed = expandInstallations([
@@ -365,10 +365,15 @@ export function addUserPart(params: AddUserPartParams) {
             ''
         ).trim().toLowerCase();
 
+        const specs = item.carSpecs;
+        const legacyDrivetrain = specs && 'drivetrain' in specs
+            ? specs.drivetrain
+            : undefined;
+
         const ticketDrivetrain = (
             item.drivetrain ||
-            item.carSpecs?.drivetrain ||
-            item.carSpecs?.driveType ||
+            (typeof legacyDrivetrain === 'string' ? legacyDrivetrain : '') ||
+            specs?.driveType ||
             ''
         ).trim().toLowerCase();
 

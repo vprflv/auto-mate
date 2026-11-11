@@ -12,7 +12,7 @@ import { CopyNumberButton } from './CopyNumberButton';
 type Props = {
     dialogRef: RefObject<HTMLDialogElement | null>;
     article: CatalogArticle;
-    isAlreadyAdded: (articleNumber: string) => boolean;
+    isAlreadyAdded: (article: CatalogArticle) => boolean;
     onAdd: (article: CatalogArticle) => void;
     onClose: () => void;
     onRemove: (article: CatalogArticle) => void;
@@ -109,7 +109,7 @@ export function CatalogArticleDialog({
                             key={item.id}
                             article={item}
                             originalNumber={originalNumber || 'не указан'}
-                            alreadyAdded={isAlreadyAdded(item.oem)}
+                            alreadyAdded={isAlreadyAdded(item)}
                             onAdd={() => onAdd(item)}
                             onRemove={() => onRemove(item)}
                         />

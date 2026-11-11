@@ -61,8 +61,15 @@ export function PartInboxCard({ item }: { item: InboxItem }) {
                         <div>
                             <p className="text-[10px] font-bold uppercase text-[var(--text-dim)] mb-1">Бренд</p>
                             <p className="text-sm font-semibold text-[var(--text)] flex items-center gap-1.5">
-                                {brand || '—'}
-                                {isOem && <ShieldCheck className="h-3.5 w-3.5 text-amber-500" title="Заявлен как оригинал" />}
+                                {brand || '—'}{isOem && (
+                                <span title="Заявлен как оригинал">
+        <ShieldCheck
+            className="h-3.5 w-3.5 text-amber-500"
+            aria-hidden="true"
+        />
+        <span className="sr-only">Заявлен как оригинал</span>
+    </span>
+                            )}
                             </p>
                         </div>
                         <div>

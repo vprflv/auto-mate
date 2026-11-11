@@ -179,9 +179,7 @@ export default function CatalogPageView({
                                         key={art.id}
                                         carId={carId}
                                         article={art}
-                                        alreadyAdded={isAlreadyAdded(
-                                            art.oem
-                                        )}
+                                        alreadyAdded={isAlreadyAdded(art)}
                                         onAdd={() =>
                                             addToPersonal(
                                                 art

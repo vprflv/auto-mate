@@ -17,7 +17,7 @@ type Props = {
     onAdd: () => void;
     onRemove: () => void;
     onRemoveVariant: (article: CatalogArticle) => void;
-    isAlreadyAdded: (articleNumber: string) => boolean;
+    isAlreadyAdded: (article: CatalogArticle) => boolean;
     onAddVariant: (article: CatalogArticle) => void;
 };
 

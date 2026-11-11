@@ -2,7 +2,7 @@ import type { PartForm } from '../types/serviceForm';
 
 import { getSubcategoriesFor } from '@/features/garage/lib/getSubcategories';
 import { getFluidCategoriesFor } from '@/features/garage/lib/getFluidCategories';
-import {PART_AXLE_LABELS, PART_SIDE_LABELS} from "@/types/partInstallation";
+import {PART_AXLE_LABELS, PART_SIDE_LABELS, PartInstallation} from "@/types/partInstallation";
 
 type Classification = Pick<
     PartForm,

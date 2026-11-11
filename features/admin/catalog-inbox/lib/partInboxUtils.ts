@@ -152,14 +152,15 @@ const IGNORED_SPEC_KEYS = new Set([
 ]);
 
 export function extractCarSpecs(item: InboxItem): ParsedCarSpecs {
-    const s = item.carSpecs || {};
-    const rawSpecs: Record<string, any> = {
-        ...(s.extra || {}),
-        ...(s.extraInfo || {}),
-        ...(s.specs || {}),
-        ...(s.characteristics || {}),
-        ...s,
-    };
+    const specs: Record<string, unknown> = { ...item.carSpecs };
+    const rawSpecs: Record<string, any> = Object.assign(
+        {},
+        specs.extra,
+        specs.extraInfo,
+        specs.specs,
+        specs.characteristics,
+        specs
+    );
 
     const vinDisplay = String(item.carVin || rawSpecs.vin || rawSpecs.vinCode || '').trim();
 

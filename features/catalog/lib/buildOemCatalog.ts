@@ -203,6 +203,9 @@ export function buildOemCatalog(
                     make: model.brandName,
                     model: model.modelName,
                     modification: modification.name,
+                    installations: part.installation
+                        ? [part.installation]
+                        : part.installationsByModification?.[modification.id] ?? [],
                     description: [
                         modification.attributes.engine,
                         modification.attributes.transmission,
@@ -387,6 +390,7 @@ export function buildOemCatalog(
     const analogs = Array.from(groups.values()).filter(
         group => !group.entries[0].part.isOem
     );
+    const visibleOriginalNumbers = new Set<string>();
 
     // Основные карточки: оригиналы, подходящие текущей машине.
     for (const group of groups.values()) {
@@ -400,6 +404,7 @@ export function buildOemCatalog(
         }
 
         const number = normalizeArticle(part.article);
+        visibleOriginalNumbers.add(number);
         const unambiguous =
             originalsByNumber.get(number)?.size === 1;
 
@@ -429,44 +434,31 @@ export function buildOemCatalog(
         });
     }
 
-    // Есть одобренный аналог с OEM-кроссом,
-    // но отдельную запись оригинала ещё не добавили.
-    const missingOriginals = new Map<
+    // OEM-карточки для аналогов без оригинала в текущем каталоге.
+    const oemReferences = new Map<
         string,
         { display: string; groups: PartGroup[] }
     >();
 
     for (const analog of analogs) {
-
         for (const [number, display] of crossNumbers(analog)) {
-            if (originalsByNumber.has(number)) continue;
+            if (visibleOriginalNumbers.has(number)) continue;
 
-            const bucket = missingOriginals.get(number) ?? {
+            const bucket = oemReferences.get(number) ?? {
                 display,
                 groups: [],
             };
 
             bucket.groups.push(analog);
-            missingOriginals.set(number, bucket);
+            oemReferences.set(number, bucket);
         }
     }
 
-    for (const [number, bucket] of missingOriginals) {
-        // Саму карточку показываем только тогда,
-        // когда в цепочке есть деталь для текущей машины.
-        const relevantToCurrentCar = bucket.groups.some(
-            group => matchesCurrentCar(
-                effectiveFitments(group)
-            )
-        );
-
-        if (!relevantToCurrentCar) continue;
-
+    for (const [number, bucket] of oemReferences) {
         const relevantGroup = bucket.groups.find(
-            group => matchesCurrentCar(
-                effectiveFitments(group)
-            )
-        )!;
+            group => matchesCurrentCar(directFitments(group))
+        );
+        if (!relevantGroup) continue;
 
         const entry = preferredEntry(relevantGroup);
         const nodeId = getNodeId(entry);
@@ -483,7 +475,7 @@ export function buildOemCatalog(
             originalNumbers: [bucket.display],
             name: entry.part.name,
             canSave: false,
-            note: 'OEM-номер из одобренных связей. Отдельная запись оригинала пока не добавлена.',
+            note: 'OEM-номер из одобренных связей с аналогами для вашей модификации.',
             fitments: [],
             variants,
             relatedFitments: uniqueFitments(

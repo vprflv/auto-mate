@@ -3,6 +3,7 @@ import { Car, CarPartItem, CarParts, PartCategory } from '@/types';
 import {CatalogArticle} from "@/types/catalog/catalog";
 import {CarFluidItem, CarFluids, FluidCategory} from "@/types/oil";
 import {PartInstallation} from "@/types/partInstallation";
+import {normalizeArticle} from "@/features/admin/lib/system-store/normalizeArticle";
 
 
 const STORAGE_KEY = 'automate-garage';
@@ -160,8 +161,23 @@ export function catalogArticleToCarPart(
     };
 }
 
+export function matchesPersonalPart(
+    item: Pick<CarPartItem, 'brand' | 'oemNumber'>,
+    article: Pick<CatalogArticle, 'brand' | 'oem'>
+): boolean {
+    const number = normalizeArticle(article.oem);
+    const normalizeBrand = (value?: string) =>
+        (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+    return Boolean(number) &&
+        normalizeArticle(item.oemNumber) === number &&
+        normalizeBrand(item.brand) === normalizeBrand(article.brand);
+}
+
 /**
  * Сохраняем запчасть в личный каталог машины
+ *
+
  */
 export function saveArticleToPersonalCatalog(
     carId: string,
@@ -195,9 +211,7 @@ export function saveArticleToPersonalCatalog(
 
         // Проверяем, нет ли уже такого артикула
         const alreadyExists = currentItems.some(
-            (item) =>
-                item.oemNumber &&
-                item.oemNumber.toLowerCase() === article.oem.toLowerCase()
+            item => matchesPersonalPart(item, article)
         );
 
         if (alreadyExists) {
@@ -233,7 +247,7 @@ export function saveArticleToPersonalCatalog(
 
 export function removeArticleFromPersonalCatalog(
     carId: string,
-    oem: string
+    article: Pick<CatalogArticle, 'brand' | 'oem'>
 ): { success: boolean; message: string } {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -251,7 +265,7 @@ export function removeArticleFromPersonalCatalog(
         const car = cars[carIndex];
         const currentItems = car.partsCatalog?.items || [];
         const nextItems = currentItems.filter(
-            (item) => item.oemNumber?.toLowerCase() !== oem.toLowerCase()
+            item => !matchesPersonalPart(item, article)
         );
 
         if (nextItems.length === currentItems.length) {

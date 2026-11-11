@@ -3,7 +3,7 @@ import { STORAGE_KEY, initialDefaultState, initialDefaultMasterModels, initialDe
 import {formatArticle, normalizeArticle} from "@/features/admin/lib/system-store/normalizeArticle";
 import {getOemCrosses, uniqueOemCrosses} from "@/features/admin/lib/system-store/oemCrosses";
 import {PartInstallationMap} from "@/types/partInstallation";
-import {uniqueInstallations} from "@/features/catalog/lib/partInstallations";
+import {installationKey, uniqueInstallations} from "@/features/catalog/lib/partInstallations";
 import {CatalogPartPayload} from "@/types";
 
 export const storage = {
@@ -108,6 +108,7 @@ export const storage = {
     ) {
         const state = this.getState();
         const { part, node, compatibleModifications } = payload;
+        const installationIncrement = ticketId === undefined ? 0 : 1;
 
         if (!node.category.trim() || !node.title.trim()) {
             throw new Error('Укажите категорию и подкатегорию.');
@@ -251,13 +252,13 @@ export const storage = {
             };
         } else {
             targetNode = {
-                id: `node_${Date.now()}`,
+                id: `node_${crypto.randomUUID()}`,
                 brandSlug,
                 modelSlug,
                 title: targetTitle,
                 category: node.category,
                 compatibleModifications: [],
-                items: []
+                items: [],
             };
         }
 
@@ -269,7 +270,11 @@ export const storage = {
                 normalizedPartArticle
         );
 
+
+
         if (existingPartIndex >= 0) {
+
+
             const existingPart =
                 targetNode.items[existingPartIndex];
 
@@ -277,6 +282,33 @@ export const storage = {
                 ...getOemCrosses(existingPart),
                 ...incomingOemCrosses
             ]);
+
+            if (existingPart.isOem !== part.isOem) {
+                const existingStatus = existingPart.isOem ? 'оригинал' : 'аналог';
+                const incomingStatus = part.isOem ? 'оригинал' : 'аналог';
+
+                throw new Error(
+                    `В каталоге эта деталь отмечена как «${existingStatus}», ` +
+                    `а в заявке — как «${incomingStatus}». ` +
+                    'Проверьте отметку «Это оригинальная деталь (OEM)» перед одобрением.'
+                );
+            }
+
+            if (existingPart.installation) {
+                const commonKey = installationKey(existingPart.installation);
+
+                const hasConflictingPosition = Object.values(reviewedInstallations).some(
+                    positions =>
+                        positions.length > 1 ||
+                        installationKey(positions[0]) !== commonKey
+                );
+
+                if (hasConflictingPosition) {
+                    throw new Error(
+                        'У детали уже указано общее расположение. Чтобы изменить ось или сторону, откройте её карточку в каталоге.'
+                    );
+                }
+            }
 
             if (!part.isOem && mergedOemCrosses.length === 0) {
                 throw new Error(
@@ -318,33 +350,36 @@ export const storage = {
 
                 installationsByModification: {
                     ...existingPart.installationsByModification,
-                    ...reviewedInstallations,
+                    ...Object.fromEntries(
+                        Object.entries(reviewedInstallations).map(([modificationId, positions]) => [
+                            modificationId,
+                            uniqueInstallations([
+                                ...(existingPart.installationsByModification?.[modificationId] ?? []),
+                                ...positions,
+                            ]),
+                        ])
+                    ),
                 },
 
                 isVerified: true,
                 installationsCount:
-                    existingPart.installationsCount + 1,
+                    (existingPart.installationsCount ?? 0) + installationIncrement,
                 compatibilityScore: 100
             };
         } else {
             targetNode.items.push({
-                id: `part_${Date.now()}`,
+                id: `part_${crypto.randomUUID()}`,
                 brand: part.brand.trim(),
                 article: formattedPartArticle,
                 name: part.name.trim(),
                 isOem: part.isOem,
-
                 oemCrosses: incomingOemCrosses,
                 oemCross: incomingOemCrosses[0] ?? '',
-
                 compatibleModifications: [...confirmedModIds],
-
-                installationsByModification:
-                reviewedInstallations,
-
+                installationsByModification: reviewedInstallations,
                 isVerified: true,
-                installationsCount: 1,
-                compatibilityScore: 100
+                installationsCount: installationIncrement,
+                compatibilityScore: 100,
             });
         }
 

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useVehicleCatalog } from '@/features/catalog/hooks/useVehicleCatalog';
 import {
 
-    isFluidArticle,
+    isFluidArticle, matchesPersonalPart,
     removeArticleFromPersonalCatalog,
     removeFluidFromPersonalCatalog,
     saveFluidToPersonalCatalog,
@@ -135,13 +135,12 @@ export function useCatalogPage(carId: string) {
         ? findNodeName(catalog.nodes, selectedNodeId)
         : null;
 
-    const isAlreadyAdded = (oem: string) =>
-        personalParts.some(
-            (item) => item.oemNumber?.toLowerCase() === oem.toLowerCase()
-        ) ||
-        personalFluids.some(
-            (item) => item.spec?.toLowerCase() === oem.toLowerCase()
-        );
+    const isAlreadyAdded = (article: CatalogArticle) =>
+        isFluidArticle(article)
+            ? personalFluids.some(
+                item => item.spec?.toLowerCase() === article.oem.toLowerCase()
+            )
+            : personalParts.some(item => matchesPersonalPart(item, article));
 
     const addToPersonal = (article: CatalogArticle) => {
         if (!catalog) return;
@@ -181,7 +180,7 @@ export function useCatalogPage(carId: string) {
 
     const removeFromPersonal = (art: CatalogArticle) => {
         if (isFluidArticle(art)) {
-            const result = removeFluidFromPersonalCatalog(carId, art.oem);
+            const result = removeArticleFromPersonalCatalog(carId, art);
             if (result.success) setPersonalFluids(getPersonalFluids(carId));
             return;
         }

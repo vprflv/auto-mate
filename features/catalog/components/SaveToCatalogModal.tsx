@@ -11,9 +11,7 @@ import {
 import type {
     SavedPartDestination,
 } from '../hooks/useSaveToCatalogModal';
-import {PartInstallationFields} from "@/features/garage/components/PartInstallationFields";
-import {PART_AXLE_LABELS, PART_SIDE_LABELS} from "@/types/partInstallation";
-import {installationKey} from "@/features/catalog/lib/partInstallations";
+import { PartInstallationBadge } from '@/features/garage/components/PartInstallationBadge';
 
 type Props = {
     carId: string;
@@ -186,15 +184,9 @@ export default function SaveToCatalogModal({
 
 
 
-                <PartInstallationFields
-                    value={form.installation}
-                    onChange={patch =>
-                        form.setInstallation(previous => ({
-                            ...previous,
-                            ...patch,
-                        }))
-                    }
-                />
+                {form.installation && (
+                    <PartInstallationBadge value={form.installation} />
+                )}
 
                 <div className="rounded-xl border border-[var(--border)] p-3 text-sm">
                     <p className="text-xs text-[var(--text-muted)]">
