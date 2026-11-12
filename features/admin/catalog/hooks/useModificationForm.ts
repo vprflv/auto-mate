@@ -6,11 +6,15 @@ import { toast } from 'sonner';
 import { createCatalogModification } from '@/features/admin/lib/system-store/actions/modifications';
 
 import type { CatalogModification } from '@/features/admin/lib/system-store/types';
+import {useCarCatalog} from "@/features/garage/add/hooks/useCarCatalog";
 
 interface ModificationFields {
     trim: string;
     engine: string;
     transmission: string;
+    year: string;
+    yearEnd: string;
+    displacementL: string;
     drivetrain: string;
 }
 
@@ -31,8 +35,48 @@ export function useModificationForm({
                                         modelSlug,
                                         onCreated
                                     }: Props) {
+
+    const { models } = useCarCatalog();
+
+    const model = models.find(item =>
+        item.brandSlug === brandSlug && item.modelSlug === modelSlug
+    );
+
+    const modifications = Array.isArray(model?.modifications)
+        ? model.modifications
+        : [];
+
+    function getSuggestions(key: keyof ModificationFields): string[] {
+        const values = new Map<string, string>();
+
+        for (const modification of modifications) {
+            const value = modification.attributes?.[key]?.trim();
+
+            if (value && !values.has(value.toLowerCase())) {
+                values.set(value.toLowerCase(), value);
+            }
+        }
+
+        return [...values.values()].sort((a, b) =>
+            a.localeCompare(b, 'ru', { numeric: true })
+        );
+    }
+
+    const suggestions = {
+        year: getSuggestions('year'),
+        trim: getSuggestions('trim'),
+        engine: getSuggestions('engine'),
+        displacementL: getSuggestions('displacementL'),
+        transmission: getSuggestions('transmission'),
+    };
+
+
+
     const [fields, setFields] =
         React.useState<ModificationFields>({
+            year: '',
+            yearEnd: '',
+            displacementL: '',
             trim: '',
             engine: '',
             transmission: '',
@@ -49,20 +93,22 @@ export function useModificationForm({
 
     // Название обновляется автоматически,
     // пока пользователь не начнёт редактировать его вручную.
+    const startYear = fields.year.trim();
+    const endYear = fields.yearEnd.trim();
+    const volume = fields.displacementL.trim().replace(',', '.');
+    const engine = fields.engine.trim();
+
     const generatedName = [
-        fields.trim.trim(),
-
-        fields.engine.trim()
-            ? `(${fields.engine.trim()})`
-            : '',
-
+        startYear && endYear ? `${startYear}–${endYear}` : startYear,
+        volume ? `${volume} л` : '',
+        engine ? `(${engine})` : '',
         fields.transmission.trim(),
         fields.drivetrain.trim(),
-
-        ...customAttributes.map(item => item.value.trim())
+        fields.trim.trim(),
+        ...customAttributes.map(item => item.value.trim()),
     ]
         .filter(Boolean)
-        .join(' ');
+        .join(' / ');
 
     const name = customName ?? generatedName;
 
@@ -128,6 +174,36 @@ export function useModificationForm({
     const submit = () => {
         setError('');
 
+        const year = fields.year.trim();
+
+        const displacementL = fields.displacementL.trim().replace(',', '.');
+
+        const yearEnd = fields.yearEnd.trim();
+
+        if (yearEnd && !/^[1-9]\d{3}$/.test(yearEnd)) {
+            setError('Укажите год окончания выпуска четырьмя цифрами.');
+            return;
+        }
+
+        if (yearEnd && Number(yearEnd) < Number(year)) {
+            setError('Год окончания выпуска не может быть раньше года начала.');
+            return;
+        }
+
+
+        if (!/^[1-9]\d{3}$/.test(year)) {
+            setError('Укажите год выпуска четырьмя цифрами, например 2012.');
+            return;
+        }
+
+        if (
+            displacementL &&
+            (!/^\d+(?:\.\d+)?$/.test(displacementL) || Number(displacementL) <= 0)
+        ) {
+            setError('Укажите объём двигателя в литрах, например 2.0.');
+            return;
+        }
+
         if (!name.trim()) {
             setError('Укажите название модификации.');
             return;
@@ -138,9 +214,12 @@ export function useModificationForm({
         // Дополнительные поля не должны заменять основные.
         const usedKeys = new Set([
             'trim',
+            'yearend',
             'engine',
             'transmission',
-            'drivetrain'
+            'drivetrain',
+            'year',
+            'displacementl'
         ]);
 
         for (const attribute of customAttributes) {
@@ -183,6 +262,9 @@ export function useModificationForm({
                     engine: fields.engine,
                     transmission: fields.transmission,
                     drivetrain: fields.drivetrain,
+                    year,
+                    ...(yearEnd ? { yearEnd } : {}),
+                    ...(displacementL ? { displacementL } : {}),
 
                     ...Object.fromEntries(additionalEntries)
                 }
@@ -205,6 +287,7 @@ export function useModificationForm({
     return {
         fields,
         setField,
+        suggestions,
 
         name,
         setName,

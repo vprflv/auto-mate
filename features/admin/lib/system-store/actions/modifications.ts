@@ -1,8 +1,5 @@
 import { storage } from '../storage';
-
-import type {
-    CatalogModification
-} from '../types';
+import type { CatalogModification } from '../types';
 
 export interface CreateModificationInput {
     brandSlug: string;
@@ -11,7 +8,10 @@ export interface CreateModificationInput {
     attributes: CatalogModification['attributes'];
 }
 
-/** Убираем пустые значения и лишние пробелы. */
+export interface UpdateModificationInput extends CreateModificationInput {
+    modificationId: string;
+}
+
 function cleanAttributes(
     attributes: CatalogModification['attributes']
 ): CatalogModification['attributes'] {
@@ -19,17 +19,14 @@ function cleanAttributes(
 
     for (const [key, value] of Object.entries(attributes)) {
         const cleanKey = key.trim();
-
-        const cleanValue = value
-            ?.trim()
-            .replace(/\s+/g, ' ');
+        const cleanValue = value?.trim().replace(/\s+/g, ' ');
 
         if (cleanKey && cleanValue) {
             Object.defineProperty(result, cleanKey, {
                 value: cleanValue,
                 enumerable: true,
                 writable: true,
-                configurable: true
+                configurable: true,
             });
         }
     }
@@ -37,7 +34,6 @@ function cleanAttributes(
     return result;
 }
 
-/** Ключ для сравнения характеристик независимо от порядка полей. */
 function attributesKey(
     attributes: CatalogModification['attributes']
 ): string {
@@ -46,15 +42,25 @@ function attributesKey(
     return JSON.stringify(
         Object.keys(cleaned)
             .sort()
-            .map(key => [
-                key,
-                cleaned[key]?.toLowerCase()
-            ])
+            .map(key => [key, cleaned[key]?.toLowerCase()])
     );
 }
 
 export function createCatalogModification(
     input: CreateModificationInput
+): CatalogModification {
+    return saveCatalogModification(input);
+}
+
+export function updateCatalogModification(
+    input: UpdateModificationInput
+): CatalogModification {
+    return saveCatalogModification(input, input.modificationId);
+}
+
+function saveCatalogModification(
+    input: CreateModificationInput,
+    modificationId?: string
 ): CatalogModification {
     const state = storage.getState();
 
@@ -65,30 +71,34 @@ export function createCatalogModification(
     );
 
     if (!model) {
-        throw new Error(
-            'Модель автомобиля не найдена в каталоге.'
-        );
+        throw new Error('Модель автомобиля не найдена в каталоге.');
     }
 
-    const name = input.name
-        .trim()
-        .replace(/\s+/g, ' ');
+    const name = input.name.trim().replace(/\s+/g, ' ');
 
     if (!name) {
-        throw new Error(
-            'Укажите название модификации.'
-        );
+        throw new Error('Укажите название модификации.');
     }
 
     const attributes = cleanAttributes(input.attributes);
-    const existingModifications = model.modifications ?? [];
+    const modifications = model.modifications ?? [];
+    const existing =
+        modificationId === undefined
+            ? undefined
+            : modifications.find(item => item.id === modificationId);
 
-    const duplicate = existingModifications.some(
+    if (modificationId !== undefined && !existing) {
+        throw new Error('Модификация не найдена в каталоге.');
+    }
+
+    const nameKey = name.toLowerCase();
+    const inputAttributesKey = attributesKey(attributes);
+
+    const duplicate = modifications.some(
         item =>
-            item.name.trim().replace(/\s+/g, ' ').toLowerCase() ===
-            name.toLowerCase() &&
-            attributesKey(item.attributes) ===
-            attributesKey(attributes)
+            item.id !== existing?.id &&
+            item.name.trim().replace(/\s+/g, ' ').toLowerCase() === nameKey &&
+            attributesKey(item.attributes) === inputAttributesKey
     );
 
     if (duplicate) {
@@ -97,27 +107,29 @@ export function createCatalogModification(
         );
     }
 
-    const modification: CatalogModification = {
-        id: `mod_${crypto.randomUUID()}`,
-        name,
-        attributes,
-        registeredCount: 0
-    };
+    const modification: CatalogModification = existing
+        ? { ...existing, name, attributes }
+        : {
+            id: `mod_${crypto.randomUUID()}`,
+            name,
+            attributes,
+            registeredCount: 0,
+        };
 
     storage.saveState({
         ...state,
-
         masterModels: state.masterModels.map(item =>
             item === model
                 ? {
                     ...item,
-                    modifications: [
-                        ...existingModifications,
-                        modification
-                    ]
+                    modifications: existing
+                        ? modifications.map(current =>
+                            current.id === existing.id ? modification : current
+                        )
+                        : [...modifications, modification],
                 }
                 : item
-        )
+        ),
     });
 
     return modification;
