@@ -2,6 +2,56 @@ import { storage } from '../storage';
 
 import type { StoredPartItem } from '../types';
 
+export function addPartsToModification({
+    brandSlug,
+    modelSlug,
+    modificationId,
+    parts,
+}: {
+    brandSlug: string;
+    modelSlug: string;
+    modificationId: string;
+    parts: readonly { nodeId: string; partId: string }[];
+}): void {
+    const state = storage.getState();
+    const model = state.masterModels.find(item =>
+        item.brandSlug === brandSlug && item.modelSlug === modelSlug
+    );
+    if (!model?.modifications?.some(item => item.id === modificationId)) {
+        throw new Error('Модификация больше не найдена в каталоге.');
+    }
+
+    const selectedByNode = new Map<string, Set<string>>();
+    for (const { nodeId, partId } of parts) {
+        const selected = selectedByNode.get(nodeId) ?? new Set<string>();
+        selected.add(partId);
+        selectedByNode.set(nodeId, selected);
+    }
+
+    const catalogNodes = state.catalogNodes.map(node => {
+        const selected = selectedByNode.get(node.id);
+        if (!selected || node.brandSlug !== brandSlug || node.modelSlug !== modelSlug) return node;
+
+        const items = node.items.map(part => {
+            if (!selected.delete(part.id)) return part;
+            const ids = part.compatibleModifications ?? [];
+            if (ids.includes('all') || ids.includes(modificationId)) return part;
+            return {
+                ...part,
+                compatibleModifications: [...ids, modificationId],
+            };
+        });
+        if (selected.size === 0) selectedByNode.delete(node.id);
+
+        const ids = new Set(items.flatMap(part => part.compatibleModifications ?? []));
+        return { ...node, items, compatibleModifications: ids.has('all') ? ['all'] : [...ids] };
+    });
+    if (selectedByNode.size > 0) {
+        throw new Error('Некоторые запчасти больше не найдены. Откройте подбор заново.');
+    }
+    storage.saveState({ ...state, catalogNodes });
+}
+
 interface UpdatePartCompatibilityInput {
     nodeId: string;
     partId: string;
@@ -76,7 +126,13 @@ export function updatePartCompatibility({
         ...part,
         compatibleModifications: appliesToAll
             ? ['all']
-            : selectedIds
+            : selectedIds,
+        ...(part.compatibilityScoresByModification ? {
+            compatibilityScoresByModification: Object.fromEntries(
+                Object.entries(part.compatibilityScoresByModification)
+                    .filter(([id]) => !appliesToAll && selectedIds.includes(id))
+            ),
+        } : {}),
     };
 
     const updatedItems = node.items.map(item =>

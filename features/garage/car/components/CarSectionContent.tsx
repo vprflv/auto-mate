@@ -67,7 +67,7 @@ export default function CarSectionContent({
 
                 <div className="relative z-10 grid grid-cols-1 gap-6 bg-transparent sm:grid-cols-2">
                     <CarSpecs car={car} />
-                    <CarExtraInfo car={car} />
+                    <CarExtraInfo key={car.id} car={car} onUpdateCar={onUpdateCar} />
                 </div>
             </div>
         );

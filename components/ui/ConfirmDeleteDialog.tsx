@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactElement } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import { AlertDialog } from 'radix-ui';
 import { Trash2 } from 'lucide-react';
 
@@ -8,6 +8,8 @@ interface Props {
     title: string;
     description: string;
     children: ReactElement;
+    content?: ReactNode;
+    onOpen?: () => void;
 
     // true — удаление выполнено, окно можно закрыть.
     onConfirm: () => boolean;
@@ -17,6 +19,8 @@ export function ConfirmDeleteDialog({
                                         title,
                                         description,
                                         children,
+                                        content,
+                                        onOpen,
                                         onConfirm
                                     }: Props) {
     const [open, setOpen] = useState(false);
@@ -24,7 +28,10 @@ export function ConfirmDeleteDialog({
     return (
         <AlertDialog.Root
             open={open}
-            onOpenChange={setOpen}
+            onOpenChange={value => {
+                if (value) onOpen?.();
+                setOpen(value);
+            }}
         >
             <AlertDialog.Trigger asChild>
                 {children}
@@ -45,6 +52,8 @@ export function ConfirmDeleteDialog({
                     <AlertDialog.Description className="mt-3 whitespace-pre-line break-words text-sm leading-relaxed text-[var(--text-muted)]">
                         {description}
                     </AlertDialog.Description>
+
+                    {content}
 
                     <div className="mt-6 flex gap-3">
                         <AlertDialog.Cancel

@@ -5,6 +5,7 @@ import { useState, type FormEvent } from 'react';
 import { NodeEditorBlock } from '@/features/admin/catalog-inbox/components/part-moderation/NodeEditorBlock';
 import { moveCatalogPart } from '@/features/admin/lib/system-store/actions/moveCatalogPart';
 import { storage } from '@/features/admin/lib/system-store/storage';
+import { getCatalogSectionOptions } from '@/features/admin/lib/system-store/categoryLabels';
 import type {
     StoredCatalogNode,
     StoredPartItem,
@@ -29,19 +30,7 @@ export function MoveCatalogPartForm({
     const [error, setError] = useState('');
     const [catalogNodes] = useState(() => storage.getState().catalogNodes);
 
-    const existingCategories = [...new Set(
-        catalogNodes.map(item => item.category).filter(Boolean)
-    )].sort((a, b) => a.localeCompare(b, 'ru'));
-
-    const existingNodes = [...new Set(
-        catalogNodes
-            .filter(item =>
-                item.brandSlug === node.brandSlug &&
-                item.modelSlug === node.modelSlug &&
-                item.category === category.trim()
-            )
-            .map(item => item.title)
-    )];
+    const { existingCategories, existingNodes } = getCatalogSectionOptions(catalogNodes, category.trim());
 
     function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();

@@ -16,6 +16,7 @@ import type {
 
 import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArticle';
 import { getOemCrosses } from '@/features/admin/lib/system-store/oemCrosses';
+import { getCatalogCategoryLabel, sortCatalogCategoryKeys } from '@/features/admin/lib/system-store/categoryLabels';
 import { resolveCarCatalogIdentity } from './carCatalogIdentity';
 import {uniqueInstallations} from "@/features/catalog/lib/partInstallations";
 
@@ -84,6 +85,10 @@ function crossNumbers(group: PartGroup): Map<string, string> {
     }
 
     return numbers;
+}
+
+export function getOemCatalogCategoryId(category: string): string {
+    return category === 'fluids' ? 'fluids' : `master-category:${category}`;
 }
 
 export function buildOemCatalog(
@@ -161,6 +166,45 @@ export function buildOemCatalog(
 
         keys.add(group.key);
         originalsByNumber.set(number, keys);
+    }
+
+    const linkedNumbers = new Map<string, Set<string>>();
+
+    for (const group of groups.values()) {
+        const part = group.entries[0].part;
+        if (!part.isOem) continue;
+
+        const number = normalizeArticle(part.article);
+        if (originalsByNumber.get(number)?.size !== 1) continue;
+
+        for (const cross of crossNumbers(group).keys()) {
+            if ((originalsByNumber.get(cross)?.size ?? 0) > 1) continue;
+
+            const links = linkedNumbers.get(number) ?? new Set<string>();
+            links.add(cross);
+            linkedNumbers.set(number, links);
+
+            const reverseLinks = linkedNumbers.get(cross) ?? new Set<string>();
+            reverseLinks.add(number);
+            linkedNumbers.set(cross, reverseLinks);
+        }
+    }
+
+    const chainCache = new Map<string, Set<string>>();
+
+    function oemChain(number: string): Set<string> {
+        const cached = chainCache.get(number);
+        if (cached) return cached;
+
+        const chain = new Set([number]);
+        for (const current of chain) {
+            for (const linked of linkedNumbers.get(current) ?? []) {
+                chain.add(linked);
+            }
+        }
+
+        for (const linked of chain) chainCache.set(linked, chain);
+        return chain;
     }
 
     const directCache = new Map<string, CatalogFitment[]>();
@@ -334,14 +378,6 @@ export function buildOemCatalog(
 
 
 
-    const categoryLabels: Record<string, string> = {
-        service: 'Расходники ТО',
-        brakes: 'Тормозная система',
-        suspension: 'Подвеска и рулевое',
-        fluids: 'Масла и жидкости',
-        ignition: 'Зажигание / Электрика',
-    };
-
     const categoryMap = new Map<string, CatalogNode>();
     const nodeMap = new Map<string, CatalogNode>();
 
@@ -358,16 +394,14 @@ export function buildOemCatalog(
 
         if (nodeMap.has(id)) return id;
 
-        const categoryId = isFluid
-            ? 'fluids'
-            : `master-category:${node.category}`;
+        const categoryId = getOemCatalogCategoryId(node.category);
 
         let category = categoryMap.get(categoryId);
 
         if (!category) {
             category = {
                 id: categoryId,
-                name: categoryLabels[node.category] ?? node.category,
+                name: getCatalogCategoryLabel(node.category, state.catalogCategoryLabels),
                 children: [],
             };
 
@@ -404,7 +438,8 @@ export function buildOemCatalog(
         }
 
         const number = normalizeArticle(part.article);
-        visibleOriginalNumbers.add(number);
+        const chain = oemChain(number);
+        for (const linked of chain) visibleOriginalNumbers.add(linked);
         const unambiguous =
             originalsByNumber.get(number)?.size === 1;
 
@@ -415,7 +450,9 @@ export function buildOemCatalog(
         const variants = unambiguous
             ? analogs
                 .filter(analog =>
-                    crossNumbers(analog).has(number)
+                    Array.from(crossNumbers(analog).keys()).some(
+                        cross => chain.has(cross)
+                    )
                 )
                 .map(analog => toArticle(analog, nodeId))
             : [];
@@ -486,7 +523,18 @@ export function buildOemCatalog(
         });
     }
 
-    catalog.nodes = Array.from(categoryMap.values());
+    const categoryByKey = new Map([...categoryMap.values()].map(node => [
+        node.id === 'fluids' ? 'fluids' : node.id.slice('master-category:'.length),
+        node,
+    ]));
+    catalog.nodes = sortCatalogCategoryKeys(
+        [...categoryByKey.keys()],
+        state.catalogCategoryOrder,
+        state.catalogCategoryLabels
+    ).flatMap(key => {
+        const node = categoryByKey.get(key);
+        return node ? [node] : [];
+    });
 
     return catalog;
 }

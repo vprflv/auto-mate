@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
-import Link from 'next/link';
+import { useEffect, useState, type FormEvent } from 'react';
 
+import { STORAGE_KEY } from '@/features/admin/lib/system-store/defaults';
 import { storage } from '@/features/admin/lib/system-store/storage';
 import { getOemCrosses } from '@/features/admin/lib/system-store/oemCrosses';
 import { searchCatalogParts } from '../lib/searchCatalogParts';
+import { PartDetailsModal } from './part-details/PartDetailsModal';
 
 type SearchRow = {
     key: string;
-    href: string;
+    nodeId: string;
+    partId: string;
     name: string;
     brand: string;
     article: string;
@@ -22,16 +24,35 @@ type SearchRow = {
 
 export function CatalogPartSearch() {
     const [query, setQuery] = useState('');
-    const [results, setResults] = useState<SearchRow[] | null>(null);
+    const [submittedQuery, setSubmittedQuery] = useState('');
+    const [snapshot, setSnapshot] = useState<ReturnType<typeof storage.getState> | null>(null);
+    const [selection, setSelection] = useState<{ nodeId: string; partId: string } | null>(null);
+
+    useEffect(() => {
+        const refresh = () => setSnapshot(storage.getState());
+        const onStorage = (event: StorageEvent) => {
+            if (event.key === STORAGE_KEY || event.key === null) refresh();
+        };
+
+        window.addEventListener('system-store-updated', refresh);
+        window.addEventListener('storage', onStorage);
+        return () => {
+            window.removeEventListener('system-store-updated', refresh);
+            window.removeEventListener('storage', onStorage);
+        };
+    }, []);
 
     function handleSearch(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (!query.trim()) return;
 
-        const { catalogNodes, masterModels } = storage.getState();
+        setSnapshot(storage.getState());
+        setSubmittedQuery(query.trim());
+    }
 
-        const rows = searchCatalogParts(catalogNodes, query).map(({ node, part }) => {
-            const model = masterModels.find(item =>
+    const results: SearchRow[] | null = submittedQuery && snapshot
+        ? searchCatalogParts(snapshot.catalogNodes, submittedQuery).map(({ node, part }) => {
+            const model = snapshot.masterModels.find(item =>
                 item.brandSlug === node.brandSlug &&
                 item.modelSlug === node.modelSlug
             );
@@ -54,7 +75,8 @@ export function CatalogPartSearch() {
 
             return {
                 key: `${node.id}:${part.id}`,
-                href: `/admin/catalog/${encodeURIComponent(node.brandSlug)}/${encodeURIComponent(node.modelSlug)}/${encodeURIComponent(node.id)}`,
+                nodeId: node.id,
+                partId: part.id,
                 name: part.name,
                 brand: part.brand,
                 article: part.article,
@@ -68,10 +90,13 @@ export function CatalogPartSearch() {
                     ? 'Все модификации'
                     : modificationNames.join(', ') || 'Применимость не уточнена',
             };
-        });
+        })
+        : null;
 
-        setResults(rows);
-    }
+    const selectedNode = selection
+        ? snapshot?.catalogNodes.find(node => node.id === selection.nodeId)
+        : undefined;
+    const selectedPart = selectedNode?.items.find(part => part.id === selection?.partId);
 
     return (
         <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4">
@@ -83,7 +108,7 @@ export function CatalogPartSearch() {
                         value={query}
                         onChange={event => {
                             setQuery(event.target.value);
-                            setResults(null);
+                            setSubmittedQuery('');
                         }}
                         placeholder="Введите полный номер"
                         className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm font-normal"
@@ -109,9 +134,13 @@ export function CatalogPartSearch() {
                 <ul className="space-y-2">
                     {results.map(row => (
                         <li key={row.key}>
-                            <Link
-                                href={row.href}
-                                className="block space-y-1 rounded-xl border border-[var(--border)] p-3 hover:border-[var(--link)]"
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSnapshot(storage.getState());
+                                    setSelection({ nodeId: row.nodeId, partId: row.partId });
+                                }}
+                                className="block w-full space-y-1 rounded-xl border border-[var(--border)] p-3 text-left hover:border-[var(--link)]"
                             >
                                 <p className="font-semibold">{row.name}</p>
                                 <p className="text-sm">
@@ -128,10 +157,19 @@ export function CatalogPartSearch() {
                                 <p className="text-sm text-[var(--text-muted)]">
                                     {row.applicability}
                                 </p>
-                            </Link>
+                            </button>
                         </li>
                     ))}
                 </ul>
+            )}
+            {selectedNode && selectedPart && (
+                <PartDetailsModal
+                    key={`${selectedNode.id}:${selectedPart.id}`}
+                    isOpen
+                    onClose={() => setSelection(null)}
+                    node={selectedNode}
+                    part={selectedPart}
+                />
             )}
         </section>
     );

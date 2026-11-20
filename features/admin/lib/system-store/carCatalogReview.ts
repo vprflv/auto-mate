@@ -1,13 +1,32 @@
 import type {
     CarSpecs,
+    CatalogModification,
     InboxItem,
     SystemState,
 } from './types';
 import { storage } from './storage';
 import { getGarageCars } from '@/features/garage/add/lib/storage';
-import { carReviewVersion, resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIdentity';
+import { carReviewVersion, normalizeCode, resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIdentity';
 import { normalizeSlug } from './utils';
 import {CarVariant, isSameCarVariant} from "@/features/admin/lib/carVariant";
+import type { Car } from '@/types';
+
+export function getCarReviewSpecs(car: Car): CarSpecs {
+    return {
+        vin: car.vin === 'UNKNOWN' ? undefined : car.vin,
+        bodyCode: car.bodyCode,
+        bodyClass: car.bodyClass,
+        displacementL: car.displacementL,
+        cylinders: car.cylinders,
+        fuel: car.fuel,
+        transmission: car.transmission,
+        driveType: car.driveType,
+        trim: car.trim,
+        doors: car.doors,
+        plantCountry: car.plantCountry,
+        color: car.color,
+    };
+}
 
 
 export interface CarCatalogReviewInput {
@@ -33,6 +52,69 @@ function getTicketVariant(item: InboxItem): CarVariant {
         bodyClass: specs?.bodyClass,
         trim: specs?.trim,
     };
+}
+
+export function matchesCarReviewBody(
+    ticket: InboxItem,
+    year: number,
+    bodyCode?: string
+): boolean {
+    return ticket.carYear === year &&
+        normalizeCode(ticket.carSpecs?.bodyCode) === normalizeCode(bodyCode);
+}
+
+export function checkCarReviewModification(
+    ticket: InboxItem,
+    modification: CatalogModification
+) {
+    const conflicts: string[] = [];
+    const warnings: string[] = [];
+    const attributes = modification.attributes;
+    const ticketCode = ticket.carSpecs?.bodyCode;
+    const catalogCode = attributes?.bodyCode;
+    const requestedCode = normalizeCode(ticketCode);
+    const storedCode = normalizeCode(catalogCode);
+
+    if (requestedCode && storedCode && requestedCode !== storedCode) {
+        conflicts.push(`Код кузова в заявке — ${ticketCode}, у модификации — ${catalogCode}.`);
+    } else if (!requestedCode || !storedCode) {
+        warnings.push('Код кузова не указан в заявке или каталоге.');
+    }
+
+    const parseYear = (value?: string) =>
+        value && /^[1-9]\d{3}$/.test(value.trim()) ? Number(value) : undefined;
+    const year = ticket.carYear;
+    const start = parseYear(attributes?.year);
+    const end = parseYear(attributes?.yearEnd);
+
+    if (year && start && year < start) {
+        conflicts.push(`Год машины ${year} раньше начала выпуска модификации (${start}).`);
+    }
+    if (year && end && year > end) {
+        conflicts.push(`Год машины ${year} позже окончания выпуска модификации (${end}).`);
+    }
+    if (!year || !start || (!end && year > start)) {
+        warnings.push('Не хватает данных, чтобы полностью сверить годы выпуска.');
+    }
+
+    return { conflicts, warnings };
+}
+
+function removeCarFromOtherReviews(state: SystemState, carId: string, keepId?: string): boolean {
+    let changed = false;
+    state.inbox = state.inbox.filter(ticket => {
+        if (ticket.id === keepId || ticket.type !== 'car_model' ||
+            !Object.prototype.hasOwnProperty.call(ticket.garageCarVersions ?? {}, carId)) {
+            return true;
+        }
+
+        const remainingVersions = { ...ticket.garageCarVersions };
+        delete remainingVersions[carId];
+        changed = true;
+        ticket.garageCarVersions = remainingVersions;
+        return Object.keys(remainingVersions).length > 0;
+    });
+    return changed;
 }
 
 export function queueCarCatalogReview(
@@ -76,46 +158,8 @@ export function queueCarCatalogReview(
         ? getGarageCars().find(car => car.id === input.garageCarId)
         : undefined;
 
-    if (
-        garageCar &&
-        resolveCarCatalogIdentity(garageCar, state.masterModels)
-    ) {
-        let changed = false;
-
-        // Если раньше машина ожидала проверки,
-        // а теперь выбрана готовая модификация,
-        // убираем её из старой заявки.
-        state.inbox = state.inbox.filter(ticket => {
-            if (
-                ticket.type !== 'car_model' ||
-                !ticket.garageCarVersions ||
-                !Object.prototype.hasOwnProperty.call(
-                    ticket.garageCarVersions,
-                    garageCar.id
-                )
-            ) {
-                return true;
-            }
-
-            const remainingVersions = {
-                ...ticket.garageCarVersions,
-            };
-
-            delete remainingVersions[garageCar.id];
-            changed = true;
-
-            // В общей заявке могут ожидать другие машины.
-            if (Object.keys(remainingVersions).length > 0) {
-                ticket.garageCarVersions = remainingVersions;
-                return true;
-            }
-
-            return false;
-        });
-
-        // true означает, что изменения очереди нужно сохранить.
-        // Новую заявку здесь не создаём.
-        return changed;
+    if (garageCar && resolveCarCatalogIdentity(garageCar, state.masterModels)) {
+        return removeCarFromOtherReviews(state, garageCar.id);
     }
 
     const garageCarVersions = garageCar
@@ -127,11 +171,16 @@ export function queueCarCatalogReview(
             item.type === 'car_model' &&
             normalizeSlug(item.carBrand) === brandSlug &&
             normalizeSlug(item.carModel) === modelSlug &&
+            matchesCarReviewBody(item, input.year, specs.bodyCode) &&
             isSameCarVariant(
                 variant,
                 getTicketVariant(item)
             )
     );
+
+    const removedOldReview = garageCar
+        ? removeCarFromOtherReviews(state, garageCar.id, alreadyInInbox?.id)
+        : false;
 
     if (alreadyInInbox) {
         const before = JSON.stringify(alreadyInInbox.garageCarVersions ?? {});
@@ -139,7 +188,7 @@ export function queueCarCatalogReview(
             ...alreadyInInbox.garageCarVersions,
             ...garageCarVersions,
         };
-        return before !== JSON.stringify(alreadyInInbox.garageCarVersions);
+        return removedOldReview || before !== JSON.stringify(alreadyInInbox.garageCarVersions);
     }
 
     const user = input.userId

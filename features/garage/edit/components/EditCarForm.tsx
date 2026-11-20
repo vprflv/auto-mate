@@ -77,6 +77,22 @@ export default function EditCarForm() {
                     disabled={saving}
                     className="min-w-0 space-y-6"
                 >
+                    <label className="block space-y-2 rounded-3xl border border-[var(--border)] bg-[var(--bg-elevated)] p-6">
+                        <span className="block text-sm font-medium text-[var(--text)]">
+                            Текущий пробег, км
+                        </span>
+                        <input
+                            id="current-mileage"
+                            name="currentMileage"
+                            type="text"
+                            inputMode="numeric"
+                            value={form.currentMileage}
+                            onChange={event => updateField('currentMileage', event.target.value)}
+                            placeholder="Например, 125000"
+                            className="w-full scroll-mt-24 rounded-xl border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-[var(--text)] placeholder:text-[var(--text-dim)] focus:border-[var(--link)] focus:outline-none"
+                        />
+                    </label>
+
                     <CarVinField
                         value={form.vin}
                         onChange={value =>

@@ -1,10 +1,15 @@
 'use client';
 
+import { useState } from 'react';
+import type { CatalogArticle } from '@/types/catalog/catalog';
+import { useCatalogArticleDialog } from '../hooks/useCatalogArticleDialog';
+import { CatalogArticleDialog } from './article-card/CatalogArticleDialog';
 import CatalogTree from '@/features/catalog/components/CatalogTree';
 import CatalogHeader from './CatalogHeader';
 import CatalogArticlesHeader from './CatalogArticlesHeader';
 import CatalogEmpty from './CatalogEmpty';
 import CatalogArticleCard from './CatalogArticleCard';
+import { CatalogPartRow } from './article-card/CatalogPartRow';
 import { useCatalogPage } from '@/features/catalog/hooks/useCatalogPage';
 import SaveToCatalogModal from "@/features/catalog/components/SaveToCatalogModal";
 import Link from "next/link";
@@ -34,6 +39,25 @@ export default function CatalogPageView({
         closeSaveModal,
         finishSavingPart,
     } = useCatalogPage(carId);
+    const [analogArticle, setAnalogArticle] = useState<CatalogArticle | null>(null);
+    const analogDialog = useCatalogArticleDialog();
+
+    function showAnalogs(article: CatalogArticle) {
+        setAnalogArticle(article);
+        analogDialog.open();
+    }
+
+    const oemCards = filteredArticles.filter(article =>
+        article.isOem || article.canSave === false
+    );
+    const otherParts = new Map(
+        filteredArticles
+            .flatMap(article => [
+                ...(!article.isOem && article.canSave !== false ? [article] : []),
+                ...(article.variants ?? []),
+            ])
+            .map(article => [article.id, article] as const)
+    );
 
     if (!car) {
         return (
@@ -106,7 +130,7 @@ export default function CatalogPageView({
                     key={partToSave.article.id}
                     carId={carId}
                     article={partToSave.article}
-                    nodeName={partToSave.nodeName}
+                    catalogPath={partToSave.catalogPath}
                     onClose={closeSaveModal}
                     onSaved={finishSavingPart}
                 />
@@ -169,31 +193,50 @@ export default function CatalogPageView({
                             }
                         />
                     ) : (
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                            {filteredArticles.map(
+                        <div className="space-y-6">
+                            {oemCards.map(
                                 (art) => (
                                     <CatalogArticleCard
                                         isAlreadyAdded={isAlreadyAdded}
-                                        onAddVariant={addToPersonal}
-                                        onRemoveVariant={removeFromPersonal}
                                         key={art.id}
                                         carId={carId}
                                         article={art}
-                                        alreadyAdded={isAlreadyAdded(art)}
-                                        onAdd={() =>
-                                            addToPersonal(
-                                                art
-                                            )
-                                        }
-                                        onRemove={() =>
-                                            removeFromPersonal(
-                                                art
-                                            )
-                                        }
+                                        onShowAnalogs={() => showAnalogs(art)}
+                                        onAdd={addToPersonal}
+                                        onRemove={removeFromPersonal}
                                     />
                                 )
                             )}
+                            {otherParts.size > 0 && (
+                                <section className="space-y-3">
+                                    <h3 className="text-sm font-semibold text-[var(--text)]">
+                                        Аналоги и другие детали
+                                    </h3>
+                                    <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                                        {[...otherParts.values()].map(part => (
+                                            <CatalogPartRow
+                                                key={part.id}
+                                                article={part}
+                                                onShowAnalogs={() => showAnalogs(part)}
+                                                carId={carId}
+                                                originalNumber={part.originalNumbers?.join(' / ') ?? ''}
+                                                alreadyAdded={isAlreadyAdded(part)}
+                                                onAdd={() => addToPersonal(part)}
+                                                onRemove={() => removeFromPersonal(part)}
+                                            />
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
                         </div>
+                    )}
+                    {analogDialog.isOpen && analogArticle && (
+                        <CatalogArticleDialog
+                            dialogRef={analogDialog.dialogRef}
+                            article={analogArticle}
+                            catalogArticles={catalog.articles}
+                            onClose={analogDialog.close}
+                        />
                     )}
                 </main>
             </div>

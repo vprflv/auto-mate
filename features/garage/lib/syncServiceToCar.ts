@@ -47,12 +47,8 @@ function upsertFluid(
         name,
         brand:
             part.brand?.trim() || undefined,
-        spec:
-            part.oemNumber?.trim() || undefined,
-        volume:
-            part.quantity > 0
-                ? String(part.quantity)
-                : undefined,
+        spec: part.spec?.trim() || undefined,
+        volume: part.volume?.trim() || undefined,
     };
 
     const normalizedName =
@@ -84,6 +80,8 @@ function upsertFluid(
         items[index] = {
             ...items[index],
             ...newItem,
+            volume: newItem.volume ?? items[index].volume,
+            spec: newItem.spec ?? items[index].spec,
             categoryLabel:
                 newItem.categoryLabel ||
                 items[index].categoryLabel,

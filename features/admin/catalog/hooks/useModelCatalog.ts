@@ -69,6 +69,8 @@ export function useModelCatalog(
         };
 
         loadData();
+        window.addEventListener('garage-updated', loadData);
+        window.addEventListener('storage', loadData);
 
         window.addEventListener(
             'system-store-updated',
@@ -76,6 +78,8 @@ export function useModelCatalog(
         );
 
         return () => {
+            window.removeEventListener('garage-updated', loadData);
+            window.removeEventListener('storage', loadData);
             window.removeEventListener(
                 'system-store-updated',
                 loadData
@@ -177,6 +181,7 @@ export function useModelCatalog(
     ) => {
         const nextQuery = buildCatalogQuery({
             ...filters,
+            modificationIds: [],
             [key]: value
         });
 
@@ -193,6 +198,20 @@ export function useModelCatalog(
     const resetFilters = () => {
         startTransition(() => {
             router.replace(modelPath, { scroll: false });
+        });
+    };
+
+    const selectModification = (modificationId: string, checked: boolean) => {
+        const selected = new Set(filters.modificationIds);
+        if (checked) selected.add(modificationId);
+        else selected.delete(modificationId);
+
+        const nextQuery = buildCatalogQuery({
+            ...readCatalogFilters({}),
+            modificationIds: [...selected],
+        });
+        startTransition(() => {
+            router.replace(nextQuery ? `${modelPath}?${nextQuery}` : modelPath, { scroll: false });
         });
     };
 
@@ -214,6 +233,7 @@ export function useModelCatalog(
         visiblePartsCount,
 
         changeFilter,
+        selectModification,
         resetFilters
     };
 }

@@ -100,6 +100,8 @@ export default function AddServiceForm({
                     />
 
                     <ServicePartsSection
+                        carId={carId}
+                        serviceDate={date}
                         parts={parts}
                         onAdd={addPart}
                         onChange={updatePart}

@@ -11,7 +11,11 @@ export interface AppUser {
 
 export interface CarSpecs {
     vin?: string;
+    bodyCode?: string;
     bodyClass?: string;
+    cylinders?: string;
+    doors?: string;
+    plantCountry?: string;
     displacementL?: string;
     fuel?: string;
     transmission?: string;
@@ -143,6 +147,7 @@ export interface StoredPartItem {
     isVerified?: boolean;
     installationsCount: number;
     compatibilityScore: number;
+    compatibilityScoresByModification?: Record<string, number>;
     priceRange?: string;
     note?: string;
 }
@@ -175,4 +180,7 @@ export interface SystemState {
     inbox: InboxItem[];
     catalogNodes: StoredCatalogNode[];
     masterModels: StoredMasterModel[];
+    catalogCategoryLabels?: Record<string, string>;
+    catalogCategoryOrder?: string[];
+    hiddenCatalogCategories?: string[];
 }

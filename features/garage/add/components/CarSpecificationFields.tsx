@@ -5,6 +5,8 @@ import * as React from 'react';
 import type { ManualCarForm } from '@/types';
 import { useCarSpecificationOptions } from '../hooks/useCarSpecificationOptions';
 import { CatalogChoiceField } from './CatalogChoiceField';
+import { CatalogAutocompleteField } from './CatalogAutocompleteField';
+import { normalizeRobotTransmission } from '../lib/config/robotTransmission';
 
 interface Props {
     form: ManualCarForm;
@@ -70,9 +72,12 @@ export function CarSpecificationFields({
             <div className="grid gap-4 sm:grid-cols-2">
                 {choiceFields.map(field => {
                     const value = form[field.key];
+                    const optionValue = field.key === 'transmission'
+                        ? normalizeRobotTransmission(value)
+                        : value;
                     const values = options[field.key];
 
-                    const isKnownValue = values.includes(value);
+                    const isKnownValue = values.includes(optionValue);
 
                     const isCustom =
                         Boolean(customFields[field.key]) ||
@@ -87,7 +92,7 @@ export function CarSpecificationFields({
                                 label: option,
                             }))}
                             selectedValue={
-                                isKnownValue ? value : ''
+                                isKnownValue ? optionValue : ''
                             }
                             customValue={value}
                             isCustom={isCustom}
@@ -129,21 +134,15 @@ export function CarSpecificationFields({
                     />
                 </label>
 
-                <label className="block space-y-2">
-                    <span className="text-xs font-medium text-[var(--text-muted)]">
-                        Комплектация
-                    </span>
-
-                    <input
-                        type="text"
-                        value={form.trim}
-                        onChange={event => {
-                            onChange('trim', event.target.value);
-                        }}
-                        placeholder="Например, Comfort"
-                        className={inputClassName}
-                    />
-                </label>
+                <CatalogAutocompleteField
+                    label="Комплектация"
+                    value={form.trim ?? ''}
+                    options={options.trim.map(value => ({ value, label: value }))}
+                    onChange={value => onChange('trim', value)}
+                    onSelect={value => onChange('trim', value)}
+                    placeholder="Например, Comfort"
+                    showOnEmpty
+                />
             </div>
         </section>
     );

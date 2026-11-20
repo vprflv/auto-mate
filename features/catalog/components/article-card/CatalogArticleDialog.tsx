@@ -1,41 +1,42 @@
 'use client';
 
-import { useId } from 'react';
-import type { RefObject } from 'react';
-
+import { useId, type RefObject } from 'react';
 import type { CatalogArticle } from '@/types/catalog/catalog';
-
-import { CatalogFitmentList } from './CatalogFitmentList';
-import { CatalogPartRow } from './CatalogPartRow';
+import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArticle';
 import { CopyNumberButton } from './CopyNumberButton';
 
 type Props = {
     dialogRef: RefObject<HTMLDialogElement | null>;
     article: CatalogArticle;
-    isAlreadyAdded: (article: CatalogArticle) => boolean;
-    onAdd: (article: CatalogArticle) => void;
+    catalogArticles: readonly CatalogArticle[];
     onClose: () => void;
-    onRemove: (article: CatalogArticle) => void;
 };
 
-export function CatalogArticleDialog({
-                                         dialogRef,
-                                         article,
-                                         isAlreadyAdded,
-                                         onAdd,
-                                         onRemove,
-                                         onClose,
-                                     }: Props) {
+export function CatalogArticleDialog({ dialogRef, article, catalogArticles, onClose }: Props) {
     const titleId = useId();
+    const groups = catalogArticles.filter(group =>
+        group.id === article.id || group.variants?.some(variant => variant.id === article.id)
+    );
 
-    const originalNumbers = article.originalNumbers ?? [];
-    const originalNumber = originalNumbers.join(' / ');
+    const oemNumbers = new Map<string, string>();
+    const addOem = (number: string) => {
+        const key = normalizeArticle(number);
+        if (key && !oemNumbers.has(key)) oemNumbers.set(key, number);
+    };
 
-    const variants = article.variants ?? [];
+    for (const number of article.originalNumbers ?? []) addOem(number);
+    for (const group of groups) {
+        if (group.isOem || group.canSave === false) addOem(group.oem);
+        for (const number of group.originalNumbers ?? []) addOem(number);
+    }
 
-    const detailItems = article.canSave !== false
-        ? [article, ...variants]
-        : variants;
+    const variants = new Map<string, CatalogArticle>();
+    for (const variant of [...(article.variants ?? []), ...groups.flatMap(group => group.variants ?? [])]) {
+        const number = normalizeArticle(variant.oem);
+        if (variant.id === article.id || !number) continue;
+        const key = JSON.stringify([variant.brand?.trim().toLowerCase() ?? '', number]);
+        if (!variants.has(key)) variants.set(key, variant);
+    }
 
     return (
         <dialog
@@ -46,107 +47,58 @@ export function CatalogArticleDialog({
                 onClose();
             }}
             onClick={event => {
-                if (event.target === event.currentTarget) {
-                    onClose();
-                }
+                if (event.target === event.currentTarget) onClose();
             }}
             className="fixed inset-0 m-auto max-h-[85vh] w-[calc(100%_-_2rem)] max-w-2xl overflow-y-auto rounded-3xl border border-[var(--border)] bg-[var(--bg)] p-0 text-[var(--text)] backdrop:bg-black/60"
         >
-            <div className="space-y-6 p-5 sm:p-6">
+            <div className="space-y-5 p-5 sm:p-6">
                 <header className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                        <p className="text-xs text-[var(--text-muted)]">
-                            Оригинальный номер
+                        <h2 id={titleId} className="break-words text-lg font-semibold">Аналоги детали</h2>
+                        <p className="mt-1 break-words text-sm text-[var(--text-muted)]">
+                            {[article.name, article.brand, article.oem].filter(Boolean).join(' · ')}
                         </p>
-
-                        <div className="mt-1 space-y-1">
-                            {originalNumbers.map(number => (
-                                <div
-                                    key={number}
-                                    className="flex items-center gap-2"
-                                >
-                                    <span className="break-all font-mono text-2xl font-semibold">
-                                        {number}
-                                    </span>
-
-                                    <CopyNumberButton value={number} />
-                                </div>
-                            ))}
-
-                            {!originalNumbers.length && (
-                                <p className="text-sm text-[var(--text-muted)]">
-                                    OEM-номер не указан
-                                </p>
-                            )}
-                        </div>
-
-                        <h2
-                            id={titleId}
-                            className="mt-3 text-base font-medium"
-                        >
-                            {article.name}
-                        </h2>
                     </div>
-
                     <button
                         type="button"
                         autoFocus
                         onClick={onClose}
-                        aria-label="Закрыть карточку"
                         className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
                     >
                         Закрыть
                     </button>
                 </header>
 
-                <section className="space-y-3">
-                    <h3 className="text-lg font-semibold">
-                        Оригинал и аналоги
-                    </h3>
-
-                    {detailItems.map(item => (
-                        <CatalogPartRow
-                            key={item.id}
-                            article={item}
-                            originalNumber={originalNumber || 'не указан'}
-                            alreadyAdded={isAlreadyAdded(item)}
-                            onAdd={() => onAdd(item)}
-                            onRemove={() => onRemove(item)}
-                        />
-                    ))}
-
-                    {!variants.length && (
-                        <p className="text-sm text-[var(--text-muted)]">
-                            Одобренные аналоги пока не добавлены.
-                        </p>
-                    )}
-                </section>
-
-                {article.note && (
-                    <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                        {article.note}
-                    </p>
+                {oemNumbers.size > 0 && (
+                    <section className="space-y-2">
+                        <h3 className="text-sm font-semibold">Оригинальные номера</h3>
+                        <ul className="divide-y divide-[var(--border)]">
+                            {[...oemNumbers.values()].map(number => (
+                                <li key={number} className="flex items-center gap-2 py-1">
+                                    <span className="break-all font-mono text-sm">{number}</span>
+                                    <CopyNumberButton value={number} />
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
                 )}
 
-                <footer className="space-y-3 border-t border-[var(--border)] pt-4 text-xs text-[var(--text-muted)]">
-
-                    <details>
-                        <summary className="cursor-pointer hover:text-[var(--text)]">
-                            Все автомобили и модификации в цепочке
-                        </summary>
-
-                        <div className="mt-3 space-y-3">
-                            <CatalogFitmentList
-                                items={article.relatedFitments ?? []}
-                            />
-
-                            <p>
-                                Применимость каждой детали указана
-                                отдельно в её строке.
-                            </p>
-                        </div>
-                    </details>
-                </footer>
+                <section className="space-y-2">
+                    <h3 className="text-sm font-semibold">Аналоги</h3>
+                    {variants.size === 0 ? (
+                        <p className="text-sm text-[var(--text-muted)]">Аналоги пока не добавлены.</p>
+                    ) : (
+                        <ul className="divide-y divide-[var(--border)]">
+                            {[...variants.entries()].map(([key, variant]) => (
+                                <li key={key} className="flex flex-wrap items-center gap-x-2 py-1 text-sm">
+                                    {variant.brand && <span className="font-medium">{variant.brand}</span>}
+                                    <span className="break-all font-mono">{variant.oem}</span>
+                                    <CopyNumberButton value={variant.oem} />
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </section>
             </div>
         </dialog>
     );

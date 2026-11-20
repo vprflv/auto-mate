@@ -1,8 +1,17 @@
 
+'use client';
+
+import { useEffect, useState } from 'react';
+import type { ServiceRecord } from '@/types';
+import { STORAGE_KEYS } from '@/features/garage/add/lib/config/storage';
+import { getRecommendedFillCapacity } from '@/features/garage/add/lib/getRecommendedFillCapacity';
 import ServicePartCard from './ServicePartCard';
 import { PartForm } from '@/features/garage/add/types/serviceForm';
 
 type Props = {
+    carId: string;
+    serviceDate: string;
+    excludedRecordId?: string;
     parts: PartForm[];
     onAdd: () => void;
     onChange: (
@@ -14,11 +23,28 @@ type Props = {
 };
 
 export default function ServicePartsSection({
+                                                carId,
+    serviceDate,
+    excludedRecordId,
     parts,
     onAdd,
     onChange,
     onRemove,
 }: Props) {
+    const [history, setHistory] = useState<{ carId: string; records: ServiceRecord[] } | null>(null);
+
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem(STORAGE_KEYS.service);
+            const records: ServiceRecord[] = stored ? JSON.parse(stored) : [];
+            setHistory({ carId, records: records.filter(record => record.carId === carId) });
+        } catch {
+            setHistory(null);
+        }
+    }, [carId]);
+
+    const records = history?.carId === carId ? history.records : [];
+
     return (
         <div className="rounded-3xl border border-[var(--border)]/30 bg-[var(--card)] p-5 transition-colors duration-200 sm:p-6">
             <div className="mb-5 flex items-center justify-between gap-4">
@@ -51,9 +77,11 @@ export default function ServicePartsSection({
             <div className="space-y-4">
                 {parts.map((part, index) => (
                     <ServicePartCard
+                        carId={carId}
                         key={part.id}
                         part={part}
                         index={index}
+                        recommendedFillCapacity={getRecommendedFillCapacity(part, records, serviceDate, excludedRecordId)}
                         onChange={onChange}
                         onRemove={onRemove}
                     />

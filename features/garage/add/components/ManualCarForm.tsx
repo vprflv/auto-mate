@@ -1,9 +1,11 @@
 'use client';
 
-import type { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { AlertDialog } from 'radix-ui';
 import type { ManualCarForm as ManualCarFormValues } from '@/types';
 
 import { useCatalogCarSelection } from '../hooks/useCatalogCarSelection';
+import { isManualFormValid } from '../lib/manualForm';
 
 import { CarVinField } from './CarVinField';
 import { CarCatalogFields } from './CarCatalogFields';
@@ -20,9 +22,23 @@ interface Props {
         value: string
     ) => void;
 
-    onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+    onSubmit: () => void;
     onCancel: () => void;
 }
+
+const optionalFields = [
+    ['vin', 'VIN'],
+    ['bodyCode', 'Код кузова'],
+    ['engine', 'Двигатель'],
+    ['bodyClass', 'Тип кузова'],
+    ['fuel', 'Тип топлива'],
+    ['transmission', 'КПП'],
+    ['driveType', 'Привод'],
+    ['displacementL', 'Объём двигателя'],
+    ['trim', 'Комплектация'],
+    ['color', 'Цвет'],
+    ['nickname', 'Прозвище'],
+] as const;
 
 export default function ManualCarForm({
                                           form,
@@ -36,20 +52,49 @@ export default function ManualCarForm({
         form,
         onChange
     });
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const missingFields = optionalFields
+        .filter(([key]) => !form[key]?.trim())
+        .map(([, label]) => label);
 
     const handleSubmit = (
         event: FormEvent<HTMLFormElement>
     ) => {
-        if (!selection.loaded) {
-            event.preventDefault();
+        event.preventDefault();
+        if (!selection.loaded) return;
+
+        if (isManualFormValid(form) && missingFields.length > 0) {
+            setConfirmOpen(true);
             return;
         }
 
-        onSubmit(event);
+        onSubmit();
     };
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
+            <AlertDialog.Root open={confirmOpen} onOpenChange={setConfirmOpen}>
+                <AlertDialog.Portal>
+                    <AlertDialog.Overlay className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm" />
+                    <AlertDialog.Content className="fixed left-1/2 top-1/2 z-[301] max-h-[90vh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 space-y-4 overflow-y-auto rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-2xl">
+                        <AlertDialog.Title className="text-lg font-bold text-[var(--text)]">
+                            Сохранить автомобиль без этих данных?
+                        </AlertDialog.Title>
+                        <AlertDialog.Description className="text-sm text-[var(--text-muted)]">
+                            Не заполнены: {missingFields.join(', ')}.
+                        </AlertDialog.Description>
+                        <div className="flex flex-wrap justify-end gap-2">
+                            <AlertDialog.Cancel type="button" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium">
+                                Вернуться к форме
+                            </AlertDialog.Cancel>
+                            <AlertDialog.Action type="button" onClick={onSubmit} className="rounded-xl bg-[var(--btn-primary)] px-4 py-2 text-sm font-medium text-[var(--btn-primary-text)]">
+                                Всё равно сохранить
+                            </AlertDialog.Action>
+                        </div>
+                    </AlertDialog.Content>
+                </AlertDialog.Portal>
+            </AlertDialog.Root>
+
             <CarVinField
                 value={form.vin}
                 onChange={value => onChange('vin', value)}

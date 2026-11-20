@@ -1,27 +1,65 @@
 'use client';
 
 import * as React from 'react';
-import { GitBranch, Plus } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { GitBranch, Pencil, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
+import { deleteCatalogModification, getModificationPartLinks } from '@/features/admin/lib/system-store/actions/modifications';
 
-import type { StoredMasterModel } from '@/features/admin/lib/system-store/types';
+import type { CatalogModification, StoredMasterModel } from '@/features/admin/lib/system-store/types';
 
 import { AddModificationModal } from './AddModificationModal';
+import { sortModificationsByTrim } from '@/features/catalog/lib/sortModificationsByTrim';
 
 interface Props {
     model: StoredMasterModel;
+    selectedModificationIds: string[];
+    isPending: boolean;
+    onSelectModification: (id: string, checked: boolean) => void;
+    onReset: () => void;
 }
 
 const attributeLabels: Record<string, string> = {
+    year: 'Год начала выпуска',
+    yearEnd: 'Год окончания выпуска',
+    bodyCode: 'Номер кузова',
+    bodyClass: 'Тип кузова',
+    fuel: 'Тип топлива',
+    displacementL: 'Объём двигателя, л',
     trim: 'Комплектация',
     engine: 'Двигатель',
     transmission: 'КПП',
     drivetrain: 'Привод'
 };
 
-export function ModelModifications({ model }: Props) {
-    const [isAddOpen, setIsAddOpen] = React.useState(false);
+export function ModelModifications({ model, selectedModificationIds, isPending, onSelectModification, onReset }: Props) {
+    const router = useRouter();
+    const modelPath = `/admin/catalog/${encodeURIComponent(model.brandSlug)}/${encodeURIComponent(model.modelSlug)}`;
+    const partsPath = (id: string) => `${modelPath}?pickPartsFor=${encodeURIComponent(id)}`;
+    const [dialog, setDialog] = React.useState<{ modification?: CatalogModification } | null>(null);
+    const [links, setLinks] = React.useState<ReturnType<typeof getModificationPartLinks>>([]);
+    const [destinations, setDestinations] = React.useState(new Map<string, string | null>());
 
-    const modifications = model.modifications ?? [];
+    const modifications = sortModificationsByTrim(model.modifications ?? []);
+
+    function handleDelete(modificationId: string): boolean {
+        try {
+            deleteCatalogModification({
+                brandSlug: model.brandSlug,
+                modelSlug: model.modelSlug,
+                modificationId,
+                destinations,
+            });
+            toast.success('Модификация удалена');
+            return true;
+        } catch (error: unknown) {
+            setLinks(getModificationPartLinks(model, modificationId));
+            toast.error(error instanceof Error ? error.message : 'Не удалось удалить модификацию.');
+            return false;
+        }
+    }
 
     return (
         <section className="space-y-4 rounded-3xl border border-[var(--border)]/40 bg-[var(--card)] p-5 sm:p-6">
@@ -33,6 +71,12 @@ export function ModelModifications({ model }: Props) {
                         Модификации модели
                     </h2>
 
+                    {selectedModificationIds.length > 0 && (
+                        <button type="button" disabled={isPending} onClick={onReset} className="rounded-lg px-2 py-1 text-xs font-semibold text-[var(--link)] hover:bg-[var(--bg-elevated)]">
+                            Сбросить
+                        </button>
+                    )}
+
                     <span className="rounded-lg bg-[var(--bg-elevated)] px-2 py-0.5 text-xs font-bold text-[var(--text-muted)]">
                         {modifications.length}
                     </span>
@@ -40,7 +84,7 @@ export function ModelModifications({ model }: Props) {
 
                 <button
                     type="button"
-                    onClick={() => setIsAddOpen(true)}
+                    onClick={() => setDialog({})}
                     className="inline-flex items-center gap-1.5 rounded-xl bg-blue-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-600"
                 >
                     <Plus className="h-4 w-4" />
@@ -63,6 +107,7 @@ export function ModelModifications({ model }: Props) {
             ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
                     {modifications.map(modification => {
+                        const selected = selectedModificationIds.includes(modification.id);
                         const attributes = Object.entries(
                             modification.attributes ?? {}
                         ).filter(
@@ -79,11 +124,85 @@ export function ModelModifications({ model }: Props) {
                         return (
                             <div
                                 key={modification.id}
-                                className="space-y-3 rounded-2xl border border-[var(--border)]/40 bg-[var(--bg-elevated)]/30 p-4"
+                                className={`space-y-3 rounded-2xl border p-4 transition-colors ${selected
+                                    ? 'border-[var(--link)] bg-[var(--link)]/10'
+                                    : 'border-[var(--border)]/40 bg-[var(--bg-elevated)]/30'}`}
                             >
-                                <h3 className="break-words text-sm font-bold text-[var(--text)]">
-                                    {modification.name}
-                                </h3>
+                                <div className="flex items-start justify-between gap-2">
+                                    <h3 className="min-w-0 break-words text-sm font-bold text-[var(--text)]">
+                                        {modification.name}
+                                    </h3>
+                                    <div className="flex flex-wrap justify-end gap-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setDialog({ modification })}
+                                        className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[var(--link)] hover:bg-[var(--bg-elevated)]"
+                                        aria-label={`Редактировать модификацию ${modification.name}`}
+                                    >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                        Редактировать
+                                    </button>
+                                    <ConfirmDeleteDialog
+                                        title={`Удалить модификацию «${modification.name}»?`}
+                                        description="Выберите, куда перенести запчасти, или снимите привязку к удаляемой модификации. Изменения сохранятся при удалении."
+                                        onOpen={() => {
+                                            setLinks(getModificationPartLinks(model, modification.id));
+                                            setDestinations(new Map());
+                                        }}
+                                        content={links.length > 0 && (
+                                            <ul className="mt-4 max-h-64 space-y-3 overflow-y-auto">
+                                                {links.map(({ node, part, key }) => (
+                                                    <li key={key}>
+                                                        <label className="block space-y-1 text-sm">
+                                                            <span className="block font-semibold">{part.name} · {part.brand} {part.article}</span>
+                                                            <span className="block text-xs text-[var(--text-muted)]">{node.title}</span>
+                                                            <select
+                                                                className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2"
+                                                                value={destinations.has(key) ? destinations.get(key) ?? 'detach' : ''}
+                                                                onChange={event => {
+                                                                    const value = event.target.value;
+                                                                    setDestinations(current => new Map(current).set(key, value === 'detach' ? null : value));
+                                                                }}
+                                                            >
+                                                                <option value="" disabled>Выберите действие</option>
+                                                                <option value="detach">Снять только эту привязку</option>
+                                                                {modifications.filter(item => item.id !== modification.id).map(item => (
+                                                                    <option key={item.id} value={item.id}>Перенести в {item.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        </label>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                        onConfirm={() => handleDelete(modification.id)}
+                                    >
+                                        <button
+                                            type="button"
+                                            aria-label={`Удалить модификацию ${modification.name}`}
+                                            title="Удалить модификацию"
+                                            className="rounded-lg p-1.5 text-red-500 hover:bg-red-500/10"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </ConfirmDeleteDialog>
+                                    </div>
+                                </div>
+
+                                <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-[var(--text)]">
+                                    <input
+                                        type="checkbox"
+                                        checked={selected}
+                                        disabled={isPending}
+                                        onChange={event => onSelectModification(modification.id, event.target.checked)}
+                                        className="h-4 w-4 accent-[var(--link)]"
+                                    />
+                                    Применить для каталога
+                                </label>
+
+                                <Link href={partsPath(modification.id)} className="block w-fit text-xs font-semibold text-[var(--link)] hover:underline">
+                                    Подобрать запчасти
+                                </Link>
 
                                 {attributes.length > 0 ? (
                                     <dl className="space-y-1.5">
@@ -124,11 +243,13 @@ export function ModelModifications({ model }: Props) {
                 </div>
             )}
 
-            {isAddOpen && (
+            {dialog && (
                 <AddModificationModal
-                    key={`${model.brandSlug}:${model.modelSlug}`}
+                    key={`${model.brandSlug}:${model.modelSlug}:${dialog.modification?.id ?? 'new'}`}
                     model={model}
-                    onClose={() => setIsAddOpen(false)}
+                    modification={dialog.modification}
+                    onClose={() => setDialog(null)}
+                    onCreated={modification => router.push(partsPath(modification.id))}
                 />
             )}
         </section>

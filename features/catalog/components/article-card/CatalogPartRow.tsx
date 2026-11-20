@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { CatalogArticle } from '@/types/catalog/catalog';
 
 import { CatalogFitmentList } from './CatalogFitmentList';
@@ -7,6 +8,8 @@ import {installationKey} from "@/features/catalog/lib/partInstallations";
 
 type Props = {
     article: CatalogArticle;
+    onShowAnalogs: () => void;
+    carId?: string;
     originalNumber: string;
     alreadyAdded: boolean;
     onAdd: () => void;
@@ -15,6 +18,8 @@ type Props = {
 
 export function CatalogPartRow({
                                    article,
+                                   onShowAnalogs,
+                                   carId,
                                    originalNumber,
                                    alreadyAdded,
                                    onAdd,
@@ -22,8 +27,9 @@ export function CatalogPartRow({
                                }: Props) {
     return (
         <div className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-3">
                 <div className="min-w-0">
+                    <h5 className="break-words text-sm font-semibold">{article.name}</h5>
                     <p className="text-xs text-[var(--text-muted)]">
                         {article.isOem
                             ? 'Оригинал'
@@ -52,6 +58,22 @@ export function CatalogPartRow({
                     ))}
                 </div>
 
+                <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" aria-haspopup="dialog" onClick={onShowAnalogs}
+                        className="rounded-xl bg-[var(--bg)] px-3 py-2 text-xs font-semibold text-[var(--link)] hover:underline">
+                        Посмотреть аналоги
+                    </button>
+                    {carId && (
+                        <Link
+                            href={{
+                                pathname: `/garage/${carId}/buy`,
+                                query: { name: article.name, oem: article.oem, brand: article.brand ?? '' },
+                            }}
+                            className="rounded-xl bg-[var(--bg)] px-3 py-2 text-xs hover:bg-[var(--border)]"
+                        >
+                            Где купить
+                        </Link>
+                    )}
                 <button
                     type="button"
                     onClick={alreadyAdded ? onRemove : onAdd}
@@ -65,6 +87,7 @@ export function CatalogPartRow({
                         ? 'Убрать из личного каталога'
                         : 'Добавить в личный каталог'}
                 </button>
+                </div>
             </div>
 
             <details className="border-t border-[var(--border)] pt-2 text-xs text-[var(--text-muted)]">

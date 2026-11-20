@@ -2,11 +2,13 @@
 
 import type { ManualCarForm } from '@/types';
 import { useCarCatalog } from './useCarCatalog';
+import { normalizeRobotTransmission, ROBOT_TRANSMISSION } from '../lib/config/robotTransmission';
 
 type SpecificationField =
     | 'bodyClass'
     | 'fuel'
     | 'transmission'
+    | 'trim'
     | 'driveType';
 
 const defaultOptions: Record<SpecificationField, string[]> = {
@@ -31,7 +33,8 @@ const defaultOptions: Record<SpecificationField, string[]> = {
         'Гибрид',
         'Электро',
     ],
-    transmission: ['MT', 'AT', 'CVT', 'DCT'],
+    transmission: ['MT', 'AT', 'CVT', ROBOT_TRANSMISSION],
+    trim: [],
     driveType: ['FWD', 'RWD', 'AWD', '4WD'],
 };
 
@@ -39,6 +42,7 @@ const attributeKeys: Record<SpecificationField, string> = {
     bodyClass: 'bodyClass',
     fuel: 'fuel',
     transmission: 'transmission',
+    trim: 'trim',
     driveType: 'drivetrain',
 };
 
@@ -90,7 +94,7 @@ export function useCarSpecificationOptions(form: ManualCarForm) {
     });
 
     const modifications = selectedModels.flatMap(
-        model => model.modifications
+        model => Array.isArray(model.modifications) ? model.modifications : []
     );
 
     function getOptions(field: SpecificationField): string[] {
@@ -98,10 +102,10 @@ export function useCarSpecificationOptions(form: ManualCarForm) {
         const attributeKey = attributeKeys[field];
 
         for (const modification of modifications) {
-            const value = modification.attributes[attributeKey];
+            const value = modification.attributes?.[attributeKey];
 
             if (typeof value === 'string' && value.trim()) {
-                catalogValues.push(value);
+                catalogValues.push(field === 'transmission' ? normalizeRobotTransmission(value) : value);
             }
         }
 
@@ -112,6 +116,7 @@ export function useCarSpecificationOptions(form: ManualCarForm) {
         bodyClass: getOptions('bodyClass'),
         fuel: getOptions('fuel'),
         transmission: getOptions('transmission'),
+        trim: getOptions('trim'),
         driveType: getOptions('driveType'),
     };
 }

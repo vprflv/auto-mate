@@ -13,7 +13,7 @@ import {
 import { getGarageCars } from '@/features/garage/add/lib/storage';
 import { CarPartItem,  } from '@/types';
 import { CatalogArticle } from '@/types/catalog/catalog';
-import { findNodeName } from '@/features/catalog/lib/findNodeName';
+import { findNodeName, findNodePath } from '@/features/catalog/lib/findNodeName';
 
 import { CarFluidItem } from '@/types/oil';
 
@@ -40,7 +40,7 @@ export function useCatalogPage(carId: string) {
 
     const [partToSave, setPartToSave] = useState<{
         article: CatalogArticle;
-        nodeName?: string;
+        catalogPath: string[];
     } | null>(null);
 
 
@@ -163,9 +163,7 @@ export function useCatalogPage(carId: string) {
 
         setPartToSave({
             article,
-            nodeName:
-                findNodeName(catalog.nodes, article.nodeId) ??
-                undefined,
+            catalogPath: findNodePath(catalog.nodes, article.nodeId),
         });
     };
 

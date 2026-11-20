@@ -63,6 +63,9 @@ const nav = [
             return () => document.removeEventListener('mousedown', onClickOutside);
         }, []);
 
+        if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+            return null;
+        }
 
         return (
         /*

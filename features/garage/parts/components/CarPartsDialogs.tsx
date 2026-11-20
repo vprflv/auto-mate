@@ -97,7 +97,7 @@ export default function CarPartsDialogs({
         : [];
 
     const handleSelectExistingCategory = (name: string) => {
-        const existing = getCategoriesFor().find(
+        const existing = getCategoriesFor(carId).find(
             (item) =>
                 normalize(item.label) === normalize(name)
         );
@@ -162,6 +162,7 @@ export default function CarPartsDialogs({
     return (
         <>
             <EditPartModal
+                carId={carId}
                 open={!!editItem}
                 item={editItem}
                 onClose={() => setEditItem(null)}

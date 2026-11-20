@@ -26,7 +26,7 @@ export function getOemCrosses(
     ]);
 }
 
-/** Находим детали, у которых есть общий OEM-номер. */
+/** Расширяем поиск по связям, заданным на подтверждённых оригиналах. */
 export function getRelatedParts(
     part: StoredPartItem,
     candidates: StoredPartItem[]
@@ -41,6 +41,20 @@ export function getRelatedParts(
             .map(normalizeArticle)
             .filter(Boolean)
     );
+
+    const originalLinks = candidates
+        .filter(candidate => candidate.isOem && candidate.isVerified === true)
+        .map(candidate => getNumbers(candidate).map(normalizeArticle).filter(Boolean));
+
+    let previousSize: number;
+    do {
+        previousSize = targets.size;
+        for (const numbers of originalLinks) {
+            if (numbers.some(number => targets.has(number))) {
+                for (const number of numbers) targets.add(number);
+            }
+        }
+    } while (targets.size > previousSize);
 
     return candidates.filter(candidate =>
         candidate.id !== part.id &&

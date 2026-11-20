@@ -1,5 +1,10 @@
 import Link from 'next/link';
-import { Wrench, Settings2 } from 'lucide-react';
+import { Wrench, Settings2, Pencil } from 'lucide-react';
+import { toast } from 'sonner';
+import { getCatalogCategoryLabel, sortCatalogCategoryKeys } from '@/features/admin/lib/system-store/categoryLabels';
+import { renameCatalogSection } from '@/features/admin/lib/system-store/actions/renameCatalogSection';
+import { DeleteCatalogCategoryDialog } from './DeleteCatalogCategoryDialog';
+import { storage } from '@/features/admin/lib/system-store/storage';
 
 import type { StoredCatalogNode } from '@/features/admin/lib/system-store/types';
 
@@ -14,14 +19,6 @@ interface Props {
     currentQuery: string;
 }
 
-const categoryLabels: Record<string, string> = {
-    service: 'Расходники ТО',
-    brakes: 'Тормозная система',
-    suspension: 'Подвеска и рулевое',
-    ignition: 'Зажигание и электрика',
-    fluids: 'Масла и жидкости'
-};
-
 export function ModelCatalogNodes({
                                       nodesByCategory,
                                       visiblePartsCount,
@@ -30,7 +27,22 @@ export function ModelCatalogNodes({
                                       modelPath,
                                       currentQuery
                                   }: Props) {
-    const categories = Object.entries(nodesByCategory);
+    const { catalogCategoryLabels: labels, catalogCategoryOrder } = storage.getState();
+    const categories = sortCatalogCategoryKeys(Object.keys(nodesByCategory), catalogCategoryOrder, labels)
+        .map(category => [category, nodesByCategory[category]] as const);
+
+    function rename(section: Parameters<typeof renameCatalogSection>[0], currentName: string) {
+        const value = window.prompt(
+            'category' in section ? 'Новое название категории для всех моделей' : 'Новое название подкатегории',
+            currentName
+        );
+        if (value === null) return;
+        try {
+            renameCatalogSection(section, value);
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : 'Не удалось переименовать раздел.');
+        }
+    }
 
     const nodesCount = categories.reduce(
         (total, [, nodes]) => total + nodes.length,
@@ -81,9 +93,24 @@ export function ModelCatalogNodes({
                             key={category}
                             className="space-y-3 rounded-2xl border border-[var(--border)]/40 bg-[var(--bg-elevated)]/30 p-5"
                         >
-                            <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                                {categoryLabels[category] || category}
-                            </h3>
+                            <div className="flex items-center gap-2">
+                                <h3 className="min-w-0 break-words text-sm font-bold text-[var(--text-muted)]">
+                                    {getCatalogCategoryLabel(category, labels)}
+                                </h3>
+                                <button
+                                    type="button"
+                                    title="Переименовать категорию"
+                                    aria-label={`Переименовать категорию ${getCatalogCategoryLabel(category, labels)}`}
+                                    onClick={() => rename({ category }, getCatalogCategoryLabel(category, labels))}
+                                    className="shrink-0 rounded-lg p-2 text-[var(--link)] hover:bg-[var(--bg-elevated)]"
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                </button>
+                                <DeleteCatalogCategoryDialog
+                                    category={category}
+                                    categoryLabel={getCatalogCategoryLabel(category, labels)}
+                                />
+                            </div>
 
                             <div className="space-y-2">
                                 {nodes.map(node => {
@@ -114,12 +141,23 @@ export function ModelCatalogNodes({
                                                 </p>
                                             </div>
 
+                                            <div className="flex shrink-0 items-center gap-1">
+                                            <button
+                                                type="button"
+                                                title="Переименовать подкатегорию"
+                                                aria-label={`Переименовать подкатегорию ${node.title}`}
+                                                onClick={() => rename({ nodeId: node.id }, node.title)}
+                                                className="rounded-lg p-2 text-[var(--link)] hover:bg-[var(--bg-elevated)]"
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </button>
                                             <Link
                                                 href={href}
                                                 className="shrink-0 rounded-lg bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-semibold text-[var(--text)] transition hover:bg-[var(--link)] hover:text-[var(--btn-primary-text)]"
                                             >
                                                 Открыть
                                             </Link>
+                                            </div>
                                         </div>
                                     );
                                 })}

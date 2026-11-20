@@ -9,16 +9,22 @@ export type CatalogSnapshot = {
     exportedAt: string;
     masterModels: StoredMasterModel[];
     catalogNodes: StoredCatalogNode[];
+    catalogCategoryLabels?: Record<string, string>;
+    catalogCategoryOrder?: string[];
+    hiddenCatalogCategories?: string[];
 };
 
 export function createCatalogSnapshot(): CatalogSnapshot {
-    const { masterModels, catalogNodes } = storage.getState();
+    const { masterModels, catalogNodes, catalogCategoryLabels, catalogCategoryOrder, hiddenCatalogCategories } = storage.getState();
 
     return {
         schemaVersion: 1,
         exportedAt: new Date().toISOString(),
         masterModels,
         catalogNodes,
+        ...(catalogCategoryLabels ? { catalogCategoryLabels } : {}),
+        ...(catalogCategoryOrder ? { catalogCategoryOrder } : {}),
+        ...(hiddenCatalogCategories ? { hiddenCatalogCategories } : {}),
     };
 }
 

@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { formatFluidVolume } from '@/features/garage/add/lib/formatFluidVolume';
+import { confirmLowerMileage } from '@/features/garage/lib/confirmLowerMileage';
+import { getGarageCars } from '@/features/garage/add/lib/storage';
 
 import type {
     Car,
@@ -31,43 +34,16 @@ import {
 } from '@/features/admin/lib/systemStore';
 
 import {
+    formatPartNameWithInstallation,
+    hasAutomaticServicePartName,
     suggestServicePartName,
 } from '../lib/suggestServicePartName';
-import {PART_AXLE_LABELS, PART_SIDE_LABELS} from "@/types/partInstallation";
 
 function getAutomaticPartName(part: PartForm): string {
     const name = suggestServicePartName(part);
-
-    if (!name || part.itemType !== 'part') {
-        return name;
-    }
-
-    if (name === 'Диск тормозной') {
-        const axle = {
-            front: 'передний',
-            rear: 'задний',
-            both: 'передний и задний',
-        };
-
-        const side = {
-            left: 'левый',
-            right: 'правый',
-            both: 'левый и правый',
-        };
-
-        return [
-            name,
-            part.axle ? axle[part.axle] : '',
-            part.side ? side[part.side] : '',
-        ].filter(Boolean).join(' ');
-    }
-
-    const location = [
-        part.axle ? PART_AXLE_LABELS[part.axle].toLowerCase() : '',
-        part.side ? PART_SIDE_LABELS[part.side].toLowerCase() : '',
-    ].filter(Boolean).join(', ');
-
-    return location ? `${name} (${location})` : name;
+    return part.itemType === 'part'
+        ? formatPartNameWithInstallation(name, { axle: part.axle || undefined, side: part.side || undefined })
+        : name;
 }
 
 export function useAddService(carId: string) {
@@ -135,7 +111,8 @@ export function useAddService(carId: string) {
         value: string
     ) => {
         if (field === 'name') {
-            manuallyNamedPartIds.current.add(id);
+            if (value.trim()) manuallyNamedPartIds.current.add(id);
+            else manuallyNamedPartIds.current.delete(id);
         }
 
         const classificationChanged = [
@@ -159,6 +136,16 @@ export function useAddService(carId: string) {
                     [field]: value,
                 };
 
+                if ((field === 'axle' || field === 'side') && updated.itemType === 'part') {
+                    return {
+                        ...updated,
+                        name: formatPartNameWithInstallation(part.name || suggestServicePartName(updated), {
+                            axle: updated.axle || undefined,
+                            side: updated.side || undefined,
+                        }),
+                    };
+                }
+
                 if (
                     !classificationChanged ||
                     manuallyNamed
@@ -166,14 +153,7 @@ export function useAddService(carId: string) {
                     return updated;
                 }
 
-                const previousSuggestion =
-                    getAutomaticPartName(part);
-
-                const nameIsAutomatic =
-                    !part.name.trim() ||
-                    part.name === previousSuggestion;
-
-                if (!nameIsAutomatic) {
+                if (!hasAutomaticServicePartName(part)) {
                     return updated;
                 }
 
@@ -212,11 +192,14 @@ export function useAddService(carId: string) {
             }
         }
 
-        setSaving(true);
-
         const parsedMileage = mileage
             ? parseInt(mileage, 10)
             : undefined;
+
+        const savedCar = getGarageCars().find(item => item.id === carId);
+        if (!confirmLowerMileage(parsedMileage, savedCar?.currentMileage)) return;
+
+        setSaving(true);
 
         const serviceParts: ServicePart[] = parts.map(
             part => ({
@@ -229,6 +212,9 @@ export function useAddService(carId: string) {
                 quantity:
                     parseInt(part.quantity, 10) || 1,
 
+                volume: part.itemType === 'fluid' ? formatFluidVolume(part.volume) || undefined : undefined,
+                fillCapacity: part.itemType === 'fluid' ? formatFluidVolume(part.fillCapacity) || undefined : undefined,
+                spec: part.itemType === 'fluid' ? part.spec?.trim() || undefined : undefined,
                 itemType: part.itemType,
 
                 fluidCategory:

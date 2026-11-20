@@ -63,14 +63,7 @@ export function usePartDetails({
 
         const state = storage.getState();
 
-        // Детали текущей модели из всех разделов.
-        const allModelParts = state.catalogNodes
-            .filter(
-                item =>
-                    item.brandSlug === node.brandSlug &&
-                    item.modelSlug === node.modelSlug
-            )
-            .flatMap(item => item.items);
+        const allCatalogParts = state.catalogNodes.flatMap(item => item.items);
 
         const oemNumbers = getOemCrosses(part);
 
@@ -80,7 +73,7 @@ export function usePartDetails({
 
         const relatedParts = getRelatedParts(
             part,
-            allModelParts
+            allCatalogParts
         );
 
         // Применимость берём только у самой детали.

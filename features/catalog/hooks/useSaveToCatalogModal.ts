@@ -7,6 +7,7 @@ import type { CatalogArticle } from '@/types/catalog/catalog';
 
 import {
     detectCategory,
+    matchesPersonalPart,
     saveArticleToPersonalCatalog,
 } from '../lib/saveToPersonalCatalog';
 
@@ -41,11 +42,12 @@ export type SavedPartDestination = {
 type Props = {
     carId: string;
     article: CatalogArticle;
-    nodeName?: string;
+    catalogPath: string[];
     onSaved: (destination: SavedPartDestination) => void;
 };
 
 const NEW_CATEGORY = '__new_category__';
+const CATALOG_CATEGORY = '__catalog_category__';
 const NEW_SUBCATEGORY = '__new_subcategory__';
 
 const normalize = (value: string) =>
@@ -70,7 +72,7 @@ function readIds(key: string): string[] {
 export function useSaveToCatalogModal({
                                           carId,
                                           article,
-                                          nodeName,
+                                          catalogPath,
                                           onSaved,
                                       }: Props) {
     const car = getGarageCars().find(item => item.id === carId);
@@ -81,13 +83,53 @@ export function useSaveToCatalogModal({
     );
 
     // Используем те же правила видимости, что и личный каталог.
-    const categories = getCategoriesFor().filter(category =>
+    const categories = getCategoriesFor(carId).filter(category =>
         category.isCustom ||
+        (category.isDefault && !enabledCategoryIds.includes(`hidden:${category.id}`)) ||
         enabledCategoryIds.includes(category.id) ||
         items.some(item => item.category === category.id)
     );
 
+    const nodeName = catalogPath[catalogPath.length - 1];
+    const catalogCategory = catalogPath[0]?.trim();
+    const catalogSubcategory = catalogPath.length > 1 ? nodeName?.trim() : undefined;
+
+    function getCatalogDestination() {
+        if (!catalogCategory) return null;
+
+        const existingCategory = categories.find(item =>
+            normalize(item.label) === normalize(catalogCategory)
+        );
+        let subcategory: string = catalogSubcategory ? NEW_SUBCATEGORY : 'other';
+
+        if (existingCategory && catalogSubcategory) {
+            const key = `automate-enabled-part-subcategories:${encodeURIComponent(carId)}:${encodeURIComponent(existingCategory.id)}`;
+            const enabledIds = readIds(key);
+            const hiddenIds = readIds(`${key}:hidden`);
+            const existingSubcategory = getSubcategoriesFor(existingCategory.id as PartCategory).find(item =>
+                normalize(item.label) === normalize(catalogSubcategory) &&
+                (item.id === 'other' ||
+                    items.some(part => part.category === existingCategory.id && part.subcategory === item.id) ||
+                    (!hiddenIds.includes(item.id) && (item.isCustom || enabledIds.includes(item.id))))
+            );
+            if (existingSubcategory) subcategory = existingSubcategory.id;
+        }
+
+        return {
+            category: existingCategory?.id ?? CATALOG_CATEGORY,
+            subcategory,
+        };
+    }
+
     const [initialDestination] = useState(() => {
+        const destination = getCatalogDestination();
+        if (destination) {
+            return {
+                category: destination.category === CATALOG_CATEGORY ? '' : destination.category,
+                subcategory: destination.subcategory === NEW_SUBCATEGORY ? '' : destination.subcategory,
+            };
+        }
+
         // Ищем среди доступных подкатегорий всех категорий,
         // а не только внутри предварительно угаданной.
         const candidates = categories.flatMap(category => {
@@ -166,10 +208,8 @@ export function useSaveToCatalogModal({
 
 
 
-    // Подкатегорию пользователь выбирает явно.
-    const [subcategory, setSubcategory] = useState('');
+    const [subcategory, setSubcategory] = useState(initialDestination.subcategory);
     const [newCategoryName, setNewCategoryName] = useState('');
-    const [newSubcategoryName, setNewSubcategoryName] = useState('');
     const confirmedInstallations = article.installationOptions ?? [];
 
 
@@ -179,9 +219,11 @@ export function useSaveToCatalogModal({
 
     const [error, setError] = useState('');
 
-    const subcategoryChosenManually = useRef(false);
+    const subcategoryChosenManually = useRef(Boolean(catalogCategory || initialDestination.subcategory));
 
-    const creatingCategory = category === NEW_CATEGORY;
+    const creatingCategoryManually = category === NEW_CATEGORY;
+    const usingCatalogCategory = category === CATALOG_CATEGORY;
+    const creatingCategory = creatingCategoryManually || usingCatalogCategory;
     const creatingSubcategory = subcategory === NEW_SUBCATEGORY;
 
     const existingCategoryId =
@@ -241,11 +283,11 @@ export function useSaveToCatalogModal({
 
 
     const categoryLabel = creatingCategory
-        ? newCategoryName.trim()
+        ? (usingCatalogCategory ? catalogCategory ?? '' : newCategoryName.trim())
         : categories.find(item => item.id === category)?.label ?? '';
 
     const subcategoryLabel = creatingSubcategory
-        ? newSubcategoryName.trim()
+        ? catalogSubcategory ?? ''
         : subcategories.find(item => item.id === subcategory)?.label ?? '';
 
     const path = [
@@ -263,13 +305,22 @@ export function useSaveToCatalogModal({
             value === NEW_CATEGORY ? 'other' : ''
         );
 
-        setNewSubcategoryName('');
         setError('');
     };
 
     const changeSubcategory = (value: string) => {
         subcategoryChosenManually.current = true;
         setSubcategory(value);
+        setError('');
+    };
+
+    const applyCatalogPath = () => {
+        const destination = getCatalogDestination();
+        if (!destination) return;
+
+        subcategoryChosenManually.current = true;
+        setCategoryValue(destination.category);
+        setSubcategory(destination.subcategory);
         setError('');
     };
 
@@ -281,29 +332,35 @@ export function useSaveToCatalogModal({
             return;
         }
 
-        if (creatingCategory && !newCategoryName.trim()) {
+        if (creatingCategory && !categoryLabel) {
             setError('Введите название категории.');
             return;
         }
 
-        if (creatingSubcategory && !newSubcategoryName.trim()) {
+        if (creatingSubcategory && !subcategoryLabel) {
             setError('Введите название подкатегории.');
             return;
         }
 
         try {
+            const currentCar = getGarageCars().find(item => item.id === carId);
+            if (!currentCar) throw new Error('Машина не найдена.');
+            if (currentCar.partsCatalog?.items.some(item => matchesPersonalPart(item, article))) {
+                throw new Error('Эта запчасть уже есть в вашем каталоге.');
+            }
+
             let categoryId = category;
 
             if (creatingCategory) {
-                const name = newCategoryName.trim();
+                const name = categoryLabel;
 
-                const existing = getCategoriesFor().find(
+                const existing = getCategoriesFor(carId).find(
                     item => normalize(item.label) === normalize(name)
                 );
 
                 categoryId = existing?.id ?? addUserCategory(name).key;
             } else if (
-                !getCategoriesFor().some(item => item.id === categoryId)
+                !getCategoriesFor(carId).some(item => item.id === categoryId)
             ) {
                 throw new Error(
                     'Категория больше недоступна. Выберите другую.'
@@ -314,7 +371,7 @@ export function useSaveToCatalogModal({
             let subcategoryId = subcategory;
 
             if (creatingSubcategory) {
-                const name = newSubcategoryName.trim();
+                const name = subcategoryLabel;
 
                 const existing = getSubcategoriesFor(
                     typedCategory
@@ -342,7 +399,7 @@ export function useSaveToCatalogModal({
                 categoryKey,
                 JSON.stringify([
                     ...new Set([
-                        ...readIds(categoryKey),
+                        ...readIds(categoryKey).filter(id => id !== `hidden:${categoryId}`),
                         categoryId,
                     ]),
                 ])
@@ -376,7 +433,7 @@ export function useSaveToCatalogModal({
                 subcategory: subcategoryId,
                 path: [
                     'Запчасти',
-                    getCategoryLabel(categoryId),
+                    getCategoryLabel(categoryId, carId),
                     getSubcategoryLabel(
                         typedCategory,
                         subcategoryId
@@ -398,20 +455,24 @@ export function useSaveToCatalogModal({
         category,
         subcategory,
         creatingCategory,
+        creatingCategoryManually,
+        usingCatalogCategory,
         creatingSubcategory,
         newCategoryName,
-        newSubcategoryName,
         path,
         error,
         installation,
 
         newCategoryValue: NEW_CATEGORY,
+        catalogCategoryValue: CATALOG_CATEGORY,
+        catalogCategory,
+        catalogSubcategory,
         newSubcategoryValue: NEW_SUBCATEGORY,
 
         changeCategory,
+        applyCatalogPath,
         setSubcategory: changeSubcategory,
         setNewCategoryName,
-        setNewSubcategoryName,
         save,
     };
 }

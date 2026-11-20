@@ -2,7 +2,7 @@ import type { PartForm } from '../types/serviceForm';
 
 import { getSubcategoriesFor } from '@/features/garage/lib/getSubcategories';
 import { getFluidCategoriesFor } from '@/features/garage/lib/getFluidCategories';
-import {PART_AXLE_LABELS, PART_SIDE_LABELS, PartInstallation} from "@/types/partInstallation";
+import type { PartInstallation } from '@/types/partInstallation';
 
 type Classification = Pick<
     PartForm,
@@ -46,13 +46,22 @@ const SUBCATEGORY_NAMES: Record<string, string> = {
     optics: 'Оптика',
 };
 
+const FLUID_NAMES = new Map([
+    ['gearboxOil', 'Трансмиссионное масло'],
+    ['transferCaseOil', 'Масло раздаточной коробки'],
+    ['differentialOil', 'Масло редуктора'],
+    ['powerSteeringFluid', 'Жидкость ГУР'],
+]);
+
+function getFluidLabel(categoryId: string): string | undefined {
+    return getFluidCategoriesFor().find(category => category.id === categoryId)?.label;
+}
+
 export function suggestServicePartName(
     part: Classification
 ): string {
     if (part.itemType === 'fluid') {
-        return getFluidCategoriesFor().find(
-            category => category.id === part.fluidCategory
-        )?.label ?? '';
+        return FLUID_NAMES.get(part.fluidCategory) ?? getFluidLabel(part.fluidCategory) ?? '';
     }
 
     if (!part.subcategory || part.subcategory === 'other') {
@@ -73,38 +82,32 @@ export function suggestServicePartName(
         subcategory.label;
 }
 
+export function hasAutomaticServicePartName(part: PartForm): boolean {
+    const name = stripPartInstallationFromName(part.name);
+
+    return !name ||
+        name === suggestServicePartName(part) ||
+        (part.itemType === 'fluid' && name === getFluidLabel(part.fluidCategory));
+}
+
+const axleName = { front: 'перед', rear: 'зад', both: 'перед и зад' };
+const sideName = { left: 'LH', right: 'RH', both: 'LH + RH' };
+
+export function stripPartInstallationFromName(name: string): string {
+    return name
+        .trim()
+        .replace(/\s+\((?:(?:перед и зад|передняя и задняя оси|передняя ось|задняя ось|перед|зад)(?:,\s*)?)?(?:LH \+ RH|LH|RH|левая и правая стороны|левая сторона|правая сторона)?\)$/iu, '')
+        .replace(/^(Диск тормозной)(?: (?:передний и задний|передний|задний))?(?: (?:левый и правый|левый|правый))?$/u, '$1');
+}
+
 export function formatPartNameWithInstallation(
     name: string,
     { axle, side }: PartInstallation
 ): string {
-    if (!name.trim() || (!axle && !side)) {
-        return name;
-    }
+    const base = stripPartInstallationFromName(name);
+    const location = [axle ? axleName[axle] : '', side ? sideName[side] : '']
+        .filter(Boolean)
+        .join(', ');
 
-    if (name === 'Диск тормозной') {
-        const axleLabels = {
-            front: 'передний',
-            rear: 'задний',
-            both: 'передний и задний',
-        };
-
-        const sideLabels = {
-            left: 'левый',
-            right: 'правый',
-            both: 'левый и правый',
-        };
-
-        return [
-            name,
-            axle ? axleLabels[axle] : '',
-            side ? sideLabels[side] : '',
-        ].filter(Boolean).join(' ');
-    }
-
-    const location = [
-        axle ? PART_AXLE_LABELS[axle].toLowerCase() : '',
-        side ? PART_SIDE_LABELS[side].toLowerCase() : '',
-    ].filter(Boolean).join(', ');
-
-    return `${name} (${location})`;
+    return base && location ? `${base} (${location})` : base;
 }

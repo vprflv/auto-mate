@@ -3,18 +3,22 @@
 import * as React from 'react';
 import { X, GitBranchPlus } from 'lucide-react';
 
-import type { StoredMasterModel } from '@/features/admin/lib/system-store/types';
+import type { CatalogModification, StoredMasterModel } from '@/features/admin/lib/system-store/types';
 
 import { useModificationForm } from '../hooks/useModificationForm';
 import { ModificationFormFields } from './ModificationFormFields';
 
 interface Props {
     model: StoredMasterModel;
+    modification?: CatalogModification;
     onClose: () => void;
+    onCreated?: (modification: CatalogModification) => void;
 }
 
 export function AddModificationModal({
                                          model,
+                                         modification,
+                                         onCreated,
                                          onClose
                                      }: Props) {
     const titleId = React.useId();
@@ -23,7 +27,11 @@ export function AddModificationModal({
     const form = useModificationForm({
         brandSlug: model.brandSlug,
         modelSlug: model.modelSlug,
-        onCreated: () => onClose()
+        initialModification: modification,
+        onSaved: saved => {
+            onClose();
+            if (!modification) onCreated?.(saved);
+        }
     });
 
     React.useEffect(() => {
@@ -89,7 +97,7 @@ export function AddModificationModal({
                                 id={titleId}
                                 className="text-lg font-bold text-[var(--text)]"
                             >
-                                Добавить модификацию
+                                {modification ? 'Редактировать модификацию' : 'Добавить модификацию'}
                             </h2>
 
                             <p
@@ -105,7 +113,7 @@ export function AddModificationModal({
                     <button
                         type="button"
                         onClick={onClose}
-                        aria-label="Закрыть окно добавления модификации"
+                        aria-label="Закрыть окно модификации"
                         className="shrink-0 rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]"
                     >
                         <X className="h-5 w-5" />
@@ -139,7 +147,7 @@ export function AddModificationModal({
                             type="submit"
                             className="rounded-xl bg-blue-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-600"
                         >
-                            Добавить
+                            {modification ? 'Сохранить' : 'Добавить'}
                         </button>
                     </div>
                 </div>

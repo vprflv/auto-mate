@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { CategoryOrderDialog } from '@/components/ui/CategoryOrderDialog';
 
 import type { CarParts } from '@/types';
 
@@ -59,7 +60,7 @@ export default function CarPartsCard({
 
     return (
         <section className="overflow-hidden rounded-3xl border border-[var(--border)]/20 bg-[var(--card)] transition-colors duration-200">
-            <div className="flex items-center gap-3 border-b border-[var(--border)] px-5 py-4">
+            <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border)] px-5 py-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-accent)]">
                     <span className="text-lg">🔧</span>
                 </div>
@@ -73,6 +74,15 @@ export default function CarPartsCard({
                         Каталог деталей автомобиля
                     </p>
                 </div>
+                {card.categories.length > 1 && (
+                    <div className="ml-auto">
+                        <CategoryOrderDialog
+                            key={carId}
+                            getCategories={() => card.categories}
+                            onSave={card.saveCategoryOrder}
+                        />
+                    </div>
+                )}
             </div>
 
             <CarPartsNavigation

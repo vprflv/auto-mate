@@ -5,16 +5,18 @@ import { InboxItem } from '@/features/admin/lib/systemStore';
 import { storage } from '@/features/admin/lib/system-store/storage';
 import { StoredMasterModel } from '@/features/admin/lib/system-store/types';
 import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArticle';
+import { findCatalogOemSource } from '@/features/admin/catalog/lib/findCatalogOemSource';
 
 import type { OemSuggestion } from '../components/part-moderation/OemCrossSelect';
 import {toast} from "sonner";
 
 import {uniqueInstallations} from "@/features/catalog/lib/partInstallations";
-import {formatPartNameWithInstallation, suggestServicePartName} from "@/features/garage/add/lib/suggestServicePartName";
+import { formatPartNameWithInstallation, stripPartInstallationFromName, suggestServicePartName } from '@/features/garage/add/lib/suggestServicePartName';
 
 import {getPartCategoryWarning} from "@/features/admin/catalog-inbox/hooks/getPartCategoryWarning";
 import {PartInstallation} from "@/types/partInstallation";
 import {PartCategory} from "@/types";
+import { getCatalogSectionOptions } from '@/features/admin/lib/system-store/categoryLabels';
 import {getOemCrosses} from "@/features/admin/lib/system-store/oemCrosses";
 
 interface UsePartModerationProps {
@@ -77,11 +79,11 @@ export function usePartModeration({
     const [article, setArticle] = React.useState(initialArticle);
     const [name, setName] = React.useState(initialName);
 
-    const [nameEditedManually, setNameEditedManually] =
+    const [nameOverridden, setNameOverridden] =
         React.useState(false);
 
-    const setNameManually = (value: string) => {
-        setNameEditedManually(true);
+    const setNameOverride = (value: string) => {
+        setNameOverridden(true);
         setName(value);
     };
 
@@ -135,44 +137,10 @@ export function usePartModeration({
         };
     }, [isOpen]);
 
-    const existingCategories = React.useMemo(() => {
-        if (!isOpen) return [];
-
-        const categories = storage.getState().catalogNodes
-            .map(node => node.category.trim())
-            .filter(Boolean);
-
-        return [...new Set(categories)]
-            .sort((a, b) => a.localeCompare(b, 'ru'));
-    }, [isOpen]);
-
-    // Существующие узлы выбранного автомобиля и категории
-    const existingNodes = React.useMemo(() => {
-        const state = storage.getState();
-
-        const brandSlug = (item.carBrand || '')
-            .toLowerCase()
-            .replace(/\s+/g, '-');
-
-        const modelSlug = (item.carModel || '')
-            .toLowerCase()
-            .replace(/\s+/g, '-');
-
-        const nodes = state.catalogNodes.filter(node =>
-            node.brandSlug === brandSlug &&
-            node.modelSlug === modelSlug &&
-            node.category === nodeCategory
-        );
-
-        return Array.from(
-            new Set(nodes.map(node => node.title))
-        );
-    }, [
-        item.carBrand,
-        item.carModel,
-        nodeCategory,
-        isOpen
-    ]);
+    const { existingCategories, existingNodes } = React.useMemo(
+        () => getCatalogSectionOptions(isOpen ? storage.getState().catalogNodes : [], nodeCategory),
+        [isOpen, nodeCategory]
+    );
 
     // Глобальный поиск OEM по всему мастер-каталогу
     const oemSuggestions = React.useMemo<OemSuggestion[]>(() => {
@@ -203,34 +171,26 @@ export function usePartModeration({
             node.title.trim().toLowerCase() ===
             nodeTitle.trim().toLowerCase();
 
-        // 1. Собираем оригинальные номера из кроссов аналогов
+        // 1. Собираем OEM-номера, которые уже используются как кроссы.
         for (const node of allNodes) {
+            const sameNode = isSameNode(node);
             for (const part of node.items) {
-                if (part.isOem || !part.oemCross?.trim()) {
-                    continue;
-                }
+                for (const article of getOemCrosses(part)) {
+                    const key = normalizeArticle(article);
+                    if (!key) continue;
 
-                const article = part.oemCross.trim();
-                const key = normalizeArticle(article);
-
-                if (!key) continue;
-
-                const sameNode = isSameNode(node);
-                const existing = suggestions.get(key);
-
-                if (
-                    !existing ||
-                    (!existing.sameNode && sameNode)
-                ) {
-                    suggestions.set(key, {
-                        id: `cross:${key}`,
-                        article,
-                        brand: '',
-                        name: '',
-                        nodeTitle: node.title,
-                        sameNode,
-                        source: 'cross'
-                    });
+                    const existing = suggestions.get(key);
+                    if (!existing || (!existing.sameNode && sameNode)) {
+                        suggestions.set(key, {
+                            id: `cross:${key}`,
+                            article,
+                            brand: '',
+                            name: '',
+                            nodeTitle: node.title,
+                            sameNode,
+                            source: 'cross',
+                        });
+                    }
                 }
             }
         }
@@ -353,19 +313,12 @@ export function usePartModeration({
         })
         : '';
 
-    const originalAutomaticName =
-        formatPartNameWithInstallation(
-            baseName,
-            item.proposedInstallation ?? {}
-        );
-
     const canUpdateName =
-        !nameEditedManually &&
+        !nameOverridden &&
         Boolean(baseName) &&
         (
             !name.trim() ||
-            name === baseName ||
-            name === originalAutomaticName
+            stripPartInstallationFromName(name) === baseName
         );
 
     const subcategoryTitle = nodeTitle.trim().toLocaleLowerCase('ru');
@@ -375,12 +328,10 @@ export function usePartModeration({
             subcategoryTitle === 'помпы' ? 'Помпа' :
                 '';
 
-    const displayName = canUpdateName
-        ? formatPartNameWithInstallation(
-            suggestedName || baseName,
-            installation
-        )
-        : name;
+    const displayName = formatPartNameWithInstallation(
+        canUpdateName ? suggestedName || baseName : name,
+        installation
+    );
 
     const categoryWarning = getPartCategoryWarning(
         displayName,
@@ -404,6 +355,21 @@ export function usePartModeration({
                 .map(part => ({ node, part, model }));
         });
     }, [isOpen, article]);
+
+    const changeOemCross = (value: string) => {
+        setOemCross(value);
+
+        const key = normalizeArticle(value);
+        if (!key || key === normalizeArticle(oemCross)) return;
+
+        const source = findCatalogOemSource(storage.getState().catalogNodes, value, true, targetCar);
+        if (!source) return;
+
+        setNameOverride(source.part.name);
+        setNodeCategory(source.node.category);
+        setNodeTitle(source.node.title);
+        setIsCustomNode(false);
+    };
 
     const handleApprove = () => {
         const category = nodeCategory.trim();
@@ -604,13 +570,13 @@ export function usePartModeration({
         setArticle,
 
         name: displayName,
-        setName: setNameManually,
+        setName: setNameOverride,
 
         isOem,
         setIsOem,
 
         oemCross,
-        setOemCross,
+        setOemCross: changeOemCross,
         oemSuggestions,
 
         nodeCategory,

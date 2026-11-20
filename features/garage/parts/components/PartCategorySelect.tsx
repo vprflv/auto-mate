@@ -2,13 +2,11 @@
 
 import { Check, ChevronDown } from 'lucide-react';
 import { CarPartItem, PartCategory } from '@/types';
-import {
-    PART_CATEGORY_LABELS,
-    PART_CATEGORY_ORDER,
-} from '@/features/garage/lib/config/partCategories';
+import { getCategoriesFor, getCategoryLabel } from '@/features/garage/lib/getCategories';
 import { getSubcategoriesFor } from '@/features/garage/lib/getSubcategories';
 
 type Props = {
+    carId: string;
     category: CarPartItem['category'];
     open: boolean;
     onToggle: () => void;
@@ -17,6 +15,7 @@ type Props = {
 };
 
 export default function PartCategorySelect({
+                                               carId,
                                                category,
                                                open,
                                                onToggle,
@@ -39,8 +38,7 @@ export default function PartCategorySelect({
                 }`}
             >
                 <span className="truncate">
-                    {PART_CATEGORY_LABELS[category] ||
-                        PART_CATEGORY_LABELS.maintenance}
+                    {getCategoryLabel(category, carId)}
                 </span>
 
                 <ChevronDown
@@ -53,7 +51,8 @@ export default function PartCategorySelect({
 
             {open && (
                 <div className="absolute top-full left-0 right-0 z-50 max-h-72 overflow-y-auto bg-[var(--bg-elevated)] border border-[var(--dropdown-border)] border-t-0 rounded-b-2xl shadow-xl p-1.5 space-y-0.5 scrollbar-none animate-in fade-in slide-in-from-top-0.5 duration-100">
-                    {PART_CATEGORY_ORDER.map((nextCategory) => {
+                    {getCategoriesFor(carId).map(({ id, label }) => {
+                        const nextCategory = id as PartCategory;
                         const isSelected =
                             nextCategory === category;
 
@@ -82,9 +81,7 @@ export default function PartCategorySelect({
                                 }`}
                             >
                                 <span className="truncate">
-                                    {PART_CATEGORY_LABELS[
-                                        nextCategory
-                                        ]}
+                                    {label}
                                 </span>
 
                                 {isSelected && (

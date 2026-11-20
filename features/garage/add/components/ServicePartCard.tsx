@@ -17,8 +17,10 @@ import ServicePartDetails from './ServicePartDetails';
 import {addUserFluidCategory} from "@/features/garage/lib/userFluidCategories";
 
 type Props = {
+    carId: string;
     part: PartForm;
     index: number;
+    recommendedFillCapacity?: string;
     onChange: (
         id: string,
         field: keyof PartForm,
@@ -28,8 +30,10 @@ type Props = {
 };
 
 export default function ServicePartCard({
+    carId,
     part,
     index,
+    recommendedFillCapacity,
     onChange,
     onRemove,
 }: Props) {
@@ -119,6 +123,7 @@ export default function ServicePartCard({
             </div>
 
             <ServicePartClassification
+                carId={carId}
                 part={part}
                 onChange={onChange}
                 onCreateCategory={() =>
@@ -131,6 +136,7 @@ export default function ServicePartCard({
 
             <ServicePartDetails
                 part={part}
+                recommendedFillCapacity={recommendedFillCapacity}
                 onChange={onChange}
             />
 

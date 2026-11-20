@@ -1,10 +1,24 @@
 import {StoredCatalogNode, StoredPartItem, SystemState} from './types';
 import { STORAGE_KEY, initialDefaultState, initialDefaultMasterModels, initialDefaultNodes } from './defaults';
 import {formatArticle, normalizeArticle} from "@/features/admin/lib/system-store/normalizeArticle";
+import { formatPartBrand } from './formatPartBrand';
 import {getOemCrosses, uniqueOemCrosses} from "@/features/admin/lib/system-store/oemCrosses";
 import {PartInstallationMap} from "@/types/partInstallation";
 import {installationKey, uniqueInstallations} from "@/features/catalog/lib/partInstallations";
 import {CatalogPartPayload} from "@/types";
+import { getGarageCars } from '@/features/garage/add/lib/storage';
+import { refreshCatalogRegistrationCounts } from '@/features/catalog/lib/carCatalogIdentity';
+
+function refreshRegistrationCounts(state: SystemState): SystemState {
+    let cars;
+    try {
+        cars = getGarageCars();
+    } catch {
+        return state;
+    }
+    if (Array.isArray(cars)) refreshCatalogRegistrationCounts(state.masterModels, cars);
+    return state;
+}
 
 export const storage = {
     getState(): SystemState {
@@ -22,7 +36,7 @@ export const storage = {
             if (!parsed.catalogNodes || parsed.catalogNodes.length === 0) {
                 parsed.catalogNodes = initialDefaultNodes;
             }
-            return parsed;
+            return refreshRegistrationCounts(parsed);
         } catch {
             return initialDefaultState;
         }
@@ -30,7 +44,7 @@ export const storage = {
 
     saveState(state: SystemState) {
         if (typeof window === 'undefined') return;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshRegistrationCounts(state)));
         window.dispatchEvent(new Event('system-store-updated'));
     },
 
@@ -68,6 +82,34 @@ export const storage = {
             );
         }
 
+        if (part.isOem && part.isVerified === true) {
+            const previousNumbers = new Set(
+                [part.article, ...getOemCrosses(part)]
+                    .map(normalizeArticle)
+                    .filter(Boolean)
+            );
+            const addedNumbers = numbers.filter(
+                value => !previousNumbers.has(normalizeArticle(value))
+            );
+
+            if (addedNumbers.length > 0) {
+                for (const catalogNode of state.catalogNodes) {
+                    for (const analog of catalogNode.items) {
+                        if (analog.isOem) continue;
+
+                        const crosses = getOemCrosses(analog);
+                        if (!crosses.some(value => previousNumbers.has(normalizeArticle(value)))) {
+                            continue;
+                        }
+
+                        const merged = uniqueOemCrosses([...crosses, ...addedNumbers]);
+                        analog.oemCrosses = merged;
+                        analog.oemCross = merged[0] ?? '';
+                    }
+                }
+            }
+        }
+
         part.oemCrosses = numbers;
         part.oemCross = numbers[0] ?? '';
 
@@ -77,6 +119,18 @@ export const storage = {
     },
 
     // --- ДОБАВЛЯЕМ ЭКШЕНЫ ПРЯМО СЮДА ---
+
+    updatePartConfidence(nodeId: string, partId: string, score: number): void {
+        if (!Number.isInteger(score) || score < 0 || score > 100) {
+            throw new Error('Индекс доверия должен быть целым числом от 0 до 100.');
+        }
+        const state = this.getState();
+        const part = state.catalogNodes.find(node => node.id === nodeId)
+            ?.items.find(item => item.id === partId);
+        if (!part) throw new Error('Запчасть больше не найдена в каталоге.');
+        part.compatibilityScore = score;
+        this.saveState(state);
+    },
 
     approvePartTicket(ticketId: string, payload: CatalogPartPayload) {
         const ticket = this.getState().inbox.find(
@@ -108,6 +162,10 @@ export const storage = {
     ) {
         const state = this.getState();
         const { part, node, compatibleModifications } = payload;
+        const score = part.compatibilityScore;
+        if (score !== undefined && (!Number.isInteger(score) || score < 0 || score > 100)) {
+            throw new Error('Индекс доверия должен быть целым числом от 0 до 100.');
+        }
         const installationIncrement = ticketId === undefined ? 0 : 1;
 
         if (!node.category.trim() || !node.title.trim()) {
@@ -364,12 +422,12 @@ export const storage = {
                 isVerified: true,
                 installationsCount:
                     (existingPart.installationsCount ?? 0) + installationIncrement,
-                compatibilityScore: 100
+                compatibilityScore: score ?? existingPart.compatibilityScore ?? 100
             };
         } else {
             targetNode.items.push({
                 id: `part_${crypto.randomUUID()}`,
-                brand: part.brand.trim(),
+                brand: formatPartBrand(part.brand),
                 article: formattedPartArticle,
                 name: part.name.trim(),
                 isOem: part.isOem,
@@ -379,7 +437,7 @@ export const storage = {
                 installationsByModification: reviewedInstallations,
                 isVerified: true,
                 installationsCount: installationIncrement,
-                compatibilityScore: 100,
+                compatibilityScore: score ?? 100,
             });
         }
 

@@ -4,6 +4,7 @@ import {PartInstallation, PartInstallationMap} from "@/types/partInstallation";
 
 
 export type CarCatalogSelection = {
+    bodyCode?: string;
     // Выбранные записи эталонного каталога.
     catalogBrandSlug?: string;
     catalogModelSlug?: string;
@@ -21,6 +22,7 @@ export type CatalogPartPayload = {
         isOem: boolean;
         oemCross?: string;
         oemCrosses?: string[];
+        compatibilityScore?: number;
     };
     node: {
         category: string;
@@ -34,6 +36,7 @@ export type CatalogPartPayload = {
 
 
 export type Car = CarCatalogSelection & {
+    initialPartCategories?: { id: string; label: string }[];
     id: string;
     vin: string;
     make: string;
@@ -62,6 +65,7 @@ export type Car = CarCatalogSelection & {
 
 
 export type DecodedCar = {
+    bodyCode?: string;
     vin: string;
     make: string;
     model: string;
@@ -116,6 +120,9 @@ export type ServicePart = PartInstallation & {
     brand?: string;
     oemNumber?: string;
     quantity: number;
+    volume?: string;
+    fillCapacity?: string;
+    spec?: string;
     partCategory?: PartCategory;
     subcategory?: string;
     itemType: 'fluid' | 'part';

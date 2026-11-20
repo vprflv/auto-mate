@@ -5,6 +5,7 @@ import type { ChangeEvent, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 import type { Car } from '@/types';
+import { confirmLowerMileage } from '@/features/garage/lib/confirmLowerMileage';
 import {
     getGarageCars,
     saveGarageCars,
@@ -19,8 +20,13 @@ import type {
     EditCarField,
     EditCarFormValues,
 } from '../types';
-import {submitCarCatalogReview} from "@/features/admin/lib/system-store/carCatalogReview";
-import {carReviewVersion} from "@/features/catalog/lib/carCatalogIdentity";
+import { getCarReviewSpecs, submitCarCatalogReview } from '@/features/admin/lib/system-store/carCatalogReview';
+import { storage } from '@/features/admin/lib/system-store/storage';
+import {
+    carReviewVersion,
+    linkMatchingCatalogModification,
+    resolveCarCatalogIdentity,
+} from '@/features/catalog/lib/carCatalogIdentity';
 
 function createEmptyEditForm(): EditCarFormValues {
     return {
@@ -111,7 +117,7 @@ export function useEditCar() {
 
         setForm(previous => ({
             ...previous,
-            ...(['make', 'model', 'year', 'engine', 'transmission', 'driveType',
+            ...(['make', 'model', 'year', 'bodyCode', 'engine', 'transmission', 'driveType',
                 'trim', 'displacementL', 'fuel', 'bodyClass'].includes(field) &&
                 previous[field] !== value
                 ? { catalogModificationId: '', modificationName: '' }
@@ -182,9 +188,11 @@ export function useEditCar() {
                 return;
             }
 
+            if (!confirmLowerMileage(mileage, existingCar.currentMileage)) return;
+
             const manualValues = mapManualFormToCar(form);
 
-            const updatedCar: Car = {
+            const candidate: Car = {
                 ...existingCar,
                 ...manualValues,
                 id: existingCar.id,
@@ -202,6 +210,22 @@ export function useEditCar() {
                 notes: form.notes.trim() || undefined,
                 updatedAt: new Date().toISOString(),
             };
+
+            const { masterModels } = storage.getState();
+            const keepsApprovedLink = Boolean(existingCar.catalogModificationId) &&
+                existingCar.catalogModificationId === candidate.catalogModificationId &&
+                existingCar.catalogBrandSlug === candidate.catalogBrandSlug &&
+                existingCar.catalogModelSlug === candidate.catalogModelSlug &&
+                carReviewVersion(existingCar) === carReviewVersion(candidate) &&
+                Boolean(resolveCarCatalogIdentity(candidate, masterModels));
+            const updatedCar = keepsApprovedLink
+                ? candidate
+                : linkMatchingCatalogModification(candidate, masterModels);
+
+            if (updatedCar.catalogModificationId && !resolveCarCatalogIdentity(updatedCar, masterModels)) {
+                setError('Характеристики не соответствуют выбранной модификации. Выберите её повторно или укажите свой вариант.');
+                return;
+            }
 
             saveGarageCars(
                 cars.map(candidate =>
@@ -231,16 +255,7 @@ export function useEditCar() {
                         model: updatedCar.model,
                         year: updatedCar.year,
                         engine: updatedCar.engine ?? '',
-                        carSpecs: {
-                            vin: updatedCar.vin,
-                            bodyClass: updatedCar.bodyClass,
-                            displacementL: updatedCar.displacementL,
-                            fuel: updatedCar.fuel,
-                            transmission: updatedCar.transmission,
-                            driveType: updatedCar.driveType,
-                            color: updatedCar.color,
-                            trim: updatedCar.trim,
-                        },
+                        carSpecs: getCarReviewSpecs(updatedCar),
                     });
                 }
             } catch {

@@ -123,16 +123,6 @@ export function addCar(params: AddCarParams): AppCar {
         user.carsCount = (user.carsCount || 0) + 1;
     }
 
-    if (identity) {
-        // Используем существующие записи.
-        // Новую модель или модификацию здесь не создаём.
-        identity.model.registeredCount =
-            (identity.model.registeredCount || 0) + 1;
-
-        identity.modification.registeredCount =
-            (identity.modification.registeredCount || 0) + 1;
-    }
-
     // Для готовой модификации существующий обработчик
     // пропустит создание заявки и уберёт старую связь
     // с ожидающей заявкой, если она была.

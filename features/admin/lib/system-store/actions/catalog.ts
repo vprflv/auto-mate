@@ -1,7 +1,9 @@
 import { storage } from '../storage';
+import { assertRequiredModificationAttributes } from './modifications';
 import { getGarageCars, saveGarageCars } from '@/features/garage/add/lib/storage';
 import { carReviewVersion, modificationValues } from '@/features/catalog/lib/carCatalogIdentity';
 import { normalizeSlug, normalizeOem } from '../utils';
+import { checkCarReviewModification, getCarReviewSpecs, matchesCarReviewBody, queueCarCatalogReview } from '../carCatalogReview';
 
 export function resolveInboxItem(id: string) {
     const state = storage.getState();
@@ -15,6 +17,7 @@ export function approveCarModel(
         brandName: string;
         modelName: string;
         years: string;
+        existingModificationId?: string;
         modification?: {
             id: string;
             name: string;
@@ -44,6 +47,19 @@ export function approveCarModel(
         (m) => m.brandSlug === bSlug && m.modelSlug === mSlug
     );
 
+    const existingModification = masterModel?.modifications?.find(
+        modification => modification.id === (payload?.existingModificationId ?? payload?.modification?.id)
+    );
+    if (payload?.existingModificationId && !existingModification) {
+        throw new Error('Выбранная модификация больше не найдена. Выберите другую.');
+    }
+    if (existingModification) {
+        const { conflicts } = checkCarReviewModification(item, existingModification);
+        if (conflicts.length > 0) throw new Error(conflicts.join(' '));
+    } else if (payload?.modification) {
+        assertRequiredModificationAttributes(payload.modification.attributes);
+    }
+
     // --- УРОВЕНЬ 1: КУЗОВ ---
     if (!masterModel) {
         masterModel = {
@@ -53,46 +69,49 @@ export function approveCarModel(
             modelName: finalModel,
             years: finalYears,
             verified: true,
-            registeredCount: 1, // Первый пошел!
+            registeredCount: 0,
             modifications: [],
         };
         state.masterModels.push(masterModel);
-    } else {
-        // Увеличиваем общий счетчик кузова
-        masterModel.registeredCount = (masterModel.registeredCount || 0) + 1;
     }
 
     masterModel.verified = true;
 
     // --- УРОВЕНЬ 2: МОДИФИКАЦИЯ ---
-    if (payload?.modification) {
+    const requestedModification = existingModification ?? payload?.modification;
+    if (requestedModification) {
         if (!masterModel.modifications) masterModel.modifications = [];
 
         const existingMod = masterModel.modifications.find(
-            (mod) => mod.id === payload.modification!.id
+            (mod) => mod.id === requestedModification.id
         );
 
-        if (existingMod) {
-            // Увеличиваем счетчик конкретной модификации
-            existingMod.registeredCount = (existingMod.registeredCount || 0) + 1;
-        } else {
+        if (!existingMod) {
             // Админ создал новую модификацию (например, SiR) прямо при одобрении
             masterModel.modifications.push({
-                ...payload.modification,
-                registeredCount: 1, // Первая такая комплектация
+                ...requestedModification,
+                registeredCount: 0,
             });
         }
     }
 
     const approvedModification = masterModel.modifications.find(
-        modification => modification.id === payload?.modification?.id
+        modification => modification.id === requestedModification?.id
     );
+
+    state.inbox = state.inbox.filter(i => i.id !== id);
 
     if (approvedModification) {
         const versions = item.garageCarVersions ?? {};
         const cars = getGarageCars();
+        const separateReviews: typeof cars = [];
         saveGarageCars(cars.map(car => {
-            if (versions[car.id] !== carReviewVersion(car)) return car;
+            const version = versions[car.id];
+            if (version !== carReviewVersion(car) && version !== carReviewVersion(car, true)) return car;
+            if (!matchesCarReviewBody(item, car.year, car.bodyCode)) {
+                separateReviews.push(car);
+                return car;
+            }
             return {
                 ...car,
                 ...modificationValues(approvedModification),
@@ -105,9 +124,19 @@ export function approveCarModel(
                 updatedAt: new Date().toISOString(),
             };
         }));
+        for (const car of separateReviews) {
+            queueCarCatalogReview(state, {
+                garageCarId: car.id,
+                userId: state.cars.find(item => item.id === car.id)?.userId,
+                brand: car.make,
+                model: car.model,
+                year: car.year,
+                engine: car.engine ?? '',
+                carSpecs: getCarReviewSpecs(car),
+            });
+        }
     }
 
-    state.inbox = state.inbox.filter((i) => i.id !== id);
     storage.saveState(state);
 }
 

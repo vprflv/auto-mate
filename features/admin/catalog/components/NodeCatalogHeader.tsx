@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { ChevronLeft, Wrench, Filter } from 'lucide-react';
+import { getCatalogCategoryLabel } from '@/features/admin/lib/system-store/categoryLabels';
+import { storage } from '@/features/admin/lib/system-store/storage';
 
 import type { StoredCatalogNode } from '@/features/admin/lib/system-store/types';
 
@@ -47,7 +49,7 @@ export function NodeCatalogHeader({
                     </div>
 
                     <p className="text-sm uppercase tracking-wider text-[var(--text-muted)]">
-                        Категория: {node.category}
+                        Категория: {getCatalogCategoryLabel(node.category, storage.getState().catalogCategoryLabels)}
                     </p>
                 </div>
 

@@ -5,9 +5,10 @@ import { toast } from 'sonner';
 
 type Props = {
     value: string;
+    size?: 'regular' | 'large';
 };
 
-export function CopyNumberButton({ value }: Props) {
+export function CopyNumberButton({ value, size = 'regular' }: Props) {
     const copy = async () => {
         try {
             await navigator.clipboard.writeText(value);
@@ -26,9 +27,9 @@ export function CopyNumberButton({ value }: Props) {
             }}
             aria-label={`Скопировать ${value}`}
             title="Скопировать номер"
-            className="shrink-0 rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--border)] hover:text-[var(--link)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--link)]"
+            className={`shrink-0 rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--border)] hover:text-[var(--link)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--link)] ${size === 'large' ? 'p-2' : 'p-1.5'}`}
         >
-            <Copy className="h-4 w-4" aria-hidden="true" />
+            <Copy className={size === 'large' ? 'h-5 w-5' : 'h-4 w-4'} aria-hidden="true" />
         </button>
     );
 }

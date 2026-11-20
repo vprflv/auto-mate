@@ -1,5 +1,6 @@
 import {normalizeInstallation, uniqueInstallations} from '@/features/catalog/lib/partInstallations';
 import type { PartInstallation } from '@/types/partInstallation';
+import { formatPartNameWithInstallation } from '@/features/garage/add/lib/suggestServicePartName';
 import { storage } from '../storage';
 
 interface UpdatePartInstallationInput {
@@ -81,6 +82,7 @@ export function updateCommonPartInstallation({
     }
 
     part.installation = normalizeInstallation(position);
+    part.name = formatPartNameWithInstallation(part.name, part.installation ?? {});
     delete part.installationsByModification;
 
     storage.saveState(state);

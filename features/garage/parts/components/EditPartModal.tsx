@@ -9,6 +9,7 @@ import PartSubcategorySelect from '@/features/garage/parts/components/PartSubcat
 import {PartInstallationFields} from "@/features/garage/components/PartInstallationFields";
 
 type Props = {
+    carId: string;
     item: CarPartItem | null;
     open: boolean;
     onClose: () => void;
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export default function EditPartModal({
+                                          carId,
                                           item,
                                           open,
                                           onClose,
@@ -127,6 +129,7 @@ export default function EditPartModal({
                     ref={dropdownRef}
                 >
                     <PartCategorySelect
+                        carId={carId}
                         category={form.category}
                         open={openDropdown === 'category'}
                         onToggle={() =>

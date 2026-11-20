@@ -1,13 +1,7 @@
 import * as React from 'react';
 import { Settings2 } from 'lucide-react';
-
-const DEFAULT_CATEGORIES = [
-    { value: 'service', label: 'Расходники ТО' },
-    { value: 'brakes', label: 'Тормозная система' },
-    { value: 'suspension', label: 'Подвеска и рулевое' },
-    { value: 'fluids', label: 'Масла и жидкости' },
-    { value: 'ignition', label: 'Зажигание / Электрика' },
-];
+import { getCatalogCategoryKeys, getCatalogCategoryLabel, sortCatalogCategoryKeys } from '@/features/admin/lib/system-store/categoryLabels';
+import { storage } from '@/features/admin/lib/system-store/storage';
 
 const NEW_CATEGORY = '__NEW_CATEGORY__';
 const NEW_NODE = '__CUSTOM__';
@@ -40,17 +34,14 @@ export function NodeEditorBlock({
     const categoryId = React.useId();
     const nodeId = React.useId();
 
-    const customCategories = existingCategories.filter(
-        category => !DEFAULT_CATEGORIES.some(option => option.value === category)
-    );
+    const [{ catalogCategoryLabels: labels, catalogCategoryOrder, hiddenCatalogCategories }] = React.useState(() => storage.getState());
+    const categories = sortCatalogCategoryKeys(getCatalogCategoryKeys(existingCategories, hiddenCatalogCategories), catalogCategoryOrder, labels);
 
     const isListedCategory =
-        DEFAULT_CATEGORIES.some(option => option.value === nodeCategory) ||
-        customCategories.includes(nodeCategory);
+        categories.includes(nodeCategory);
 
     const showCategoryInput =
-        isCreatingCategory ||
-        (Boolean(nodeCategory) && !isListedCategory);
+        !isListedCategory && (isCreatingCategory || Boolean(nodeCategory));
     const showNodeInput = isCustomNode || existingNodes.length === 0;
 
     return (
@@ -84,11 +75,8 @@ export function NodeEditorBlock({
                             Выберите категорию
                         </option>
 
-                        {DEFAULT_CATEGORIES.map(({ value, label }) => (
-                            <option key={value} value={value}>{label}</option>
-                        ))}
-                        {customCategories.map(category => (
-                            <option key={category} value={category}>{category}</option>
+                        {categories.map(category => (
+                            <option key={category} value={category}>{getCatalogCategoryLabel(category, labels)}</option>
                         ))}
                         <option value={NEW_CATEGORY}>＋ Создать категорию</option>
                     </select>

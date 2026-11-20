@@ -26,6 +26,21 @@ const mainFields = [
         placeholder: 'Например, Comfort',
     },
     {
+        key: 'bodyCode',
+        label: 'Номер кузова (необязательно)',
+        placeholder: 'Например, CL9',
+    },
+    {
+        key: 'bodyClass',
+        label: 'Тип кузова',
+        placeholder: 'Например, Седан',
+    },
+    {
+        key: 'fuel',
+        label: 'Тип топлива',
+        placeholder: 'Например, Бензин',
+    },
+    {
         key: 'engine',
         label: 'Двигатель',
         placeholder: 'Например, H22A',
@@ -68,10 +83,10 @@ export function ModificationFormFields({ form }: Props) {
                     const inputId = `${idPrefix}-${field.key}`;
                     const optionsId = `${inputId}-options`;
                     const isYearField = field.key === 'year' || field.key === 'yearEnd';
+                    const required = (field.key === 'year' && form.requiresStartYear) ||
+                        ((field.key === 'fuel' || field.key === 'bodyClass') && form.requiresFuelAndBodyClass);
                     const options =
-                        field.key === 'drivetrain' ||
-                        field.key === 'transmission' ||
-                        field.key === 'yearEnd'
+                        field.key === 'drivetrain'
                             ? []
                             : form.suggestions[field.key];
 
@@ -81,19 +96,23 @@ export function ModificationFormFields({ form }: Props) {
                                 htmlFor={inputId}
                                 className="block text-xs font-bold text-[var(--text-muted)]"
                             >
-                                {field.label}
+                                {field.label}{required ? ' *' : ''}
                             </label>
 
                             {field.key === 'drivetrain' ? (
                                 <select
                                     id={inputId}
-                                    value={form.fields.drivetrain}
+                                    value={form.fields.drivetrain ?? ''}
                                     onChange={event =>
                                         form.setField('drivetrain', event.target.value)
                                     }
                                     className={inputClassName}
                                 >
                                     <option value="">Выберите привод</option>
+                                    {form.fields.drivetrain &&
+                                        !driveOptions.some(option => option.value === form.fields.drivetrain) && (
+                                            <option value={form.fields.drivetrain}>{form.fields.drivetrain}</option>
+                                        )}
                                     {driveOptions.map(option => (
                                         <option key={option.value} value={option.value}>
                                             {option.label}
@@ -105,12 +124,12 @@ export function ModificationFormFields({ form }: Props) {
                                     <input
                                         id={inputId}
                                         type="text"
-                                        value={form.fields[field.key]}
+                                        value={form.fields[field.key] ?? ''}
                                         onChange={event =>
                                             form.setField(field.key, event.target.value)
                                         }
                                         placeholder={field.placeholder}
-                                        required={field.key === 'year'}
+                                        required={required}
                                         maxLength={isYearField ? 4 : undefined}
                                         inputMode={
                                             isYearField

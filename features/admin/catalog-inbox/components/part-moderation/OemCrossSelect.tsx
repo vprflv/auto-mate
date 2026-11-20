@@ -18,6 +18,7 @@ export interface OemSuggestion {
 interface Props {
     value: string;
     onChange: (value: string) => void;
+    onSelect?: (suggestion: OemSuggestion) => void;
     suggestions: OemSuggestion[];
     label?: string;
     compact?: boolean;
@@ -26,6 +27,7 @@ interface Props {
 export function OemCrossSelect({
                                    value,
                                    onChange,
+                                   onSelect,
                                    suggestions,
                                    label = 'Привязка к оригиналу (OEM Кросс)',
                                    compact = false
@@ -79,8 +81,9 @@ export function OemCrossSelect({
             .slice(0, 5);
     }, [suggestions, query]);
 
-    const selectArticle = (article: string) => {
-        onChange(article);
+    const selectArticle = (item: OemSuggestion) => {
+        onChange(item.article);
+        onSelect?.(item);
         setIsOpen(false);
     };
 
@@ -153,9 +156,8 @@ export function OemCrossSelect({
                             <button
                                 key={item.id}
                                 type="button"
-                                onClick={() =>
-                                    selectArticle(item.article)
-                                }
+                                onMouseDown={event => event.preventDefault()}
+                                onClick={() => selectArticle(item)}
                                 className="flex w-full items-start justify-between gap-2 rounded-lg px-3 py-2 text-left transition hover:bg-[var(--bg-elevated)] focus:bg-[var(--bg-elevated)] focus:outline-none"
                             >
                                 <div className="min-w-0">

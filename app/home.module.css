@@ -1,0 +1,162 @@
+/* The palette is active only while the home page is mounted in light mode.
+   The :has() anchor also gives the shared header the same page palette. */
+:global(html[data-theme='light']):has(.root) {
+    --bg: #eef0eb;
+    --bg-elevated: #dfe3dc;
+    --card: #ffffff;
+    --input: #e9ede4;
+    --border: #d8ddd2;
+    --text: #141713;
+    --text-muted: #545b50;
+    --text-dim: #67705f;
+    --accent: #78c900;
+    --accent-hover: #65ad00;
+    --accent-text: #11180a;
+    --link: #427900;
+    --btn-primary: #95e000;
+    --btn-primary-hover: #82ca00;
+    --btn-primary-text: #162000;
+    --background: #eef0eb;
+    --foreground: #141713;
+}
+
+.trackBackdrop, .eyebrow, .heroArtwork, .garageLink { display: none; }
+
+:global(html[data-theme='light']) .root {
+    isolation: isolate;
+    background-color: #eef0eb;
+
+}
+
+/* One transparent composition extends beyond the content without a rectangular backdrop. */
+:global(html[data-theme='light']) .trackBackdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+}
+
+:global(html[data-theme='light']) .trackBackdrop::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    /* Keep the artwork independent of the expanding FAQ. */
+    height: clamp(85rem, 135vw, 110rem);
+    margin-inline: auto;
+    background: url('/images/decor/home-grunge-overlay-v2.png') center top / 100% 100% no-repeat;
+}
+
+:global(html[data-theme='light']) .trackBackdrop::after {
+    width: min(calc(100% + 8rem), 80rem);
+    left: 50%;
+    right: auto;
+    margin-inline: 0;
+    transform: translateX(-50%);
+}
+
+:global(html[data-theme='light']) .main { padding-top: 48px; }
+:global(html[data-theme='light']) .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); align-items: center; gap: 12px; margin-bottom: 36px; min-height: 340px; }
+:global(html[data-theme='light']) .hero > div:first-child { position: relative; z-index: 1; }
+:global(html[data-theme='light']) .eyebrow { display: block; font-size: 10px; font-weight: 800; letter-spacing: .19em; color: #616b56; }
+:global(html[data-theme='light']) .aboutButton { margin-top: 18px; background: #ffffffed; color: #303b25; }
+:global(html[data-theme='light']) .aboutButton:hover { background: #e5f8c9; border-color: #78c900; }
+:global(html[data-theme='light']) .hero > div > p:has(.aboutButton) { margin-bottom: 22px; }
+:global(html[data-theme='light']) .subtitle { max-width: 390px; margin-top: 28px; font-size: 16px; line-height: 1.7; }
+
+:global(html[data-theme='light']) .garage,
+:global(html[data-theme='light']) .empty > div { padding: 26px; background: #eff1edf5; border: 1px solid #dce0d6; border-radius: 24px; box-shadow: 0 5px 0 #111b0804, 0 16px 50px #14200008; }
+:global(html[data-theme='light']) .empty > div { padding: 60px 24px; }
+:global(html[data-theme='light']) .sectionHeading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+:global(html[data-theme='light']) .sectionHeading h2 { padding-left: 14px; border-left: 4px solid #95e000; font-size: 20px; }
+:global(html[data-theme='light']) .garageLink { display: inline-flex; gap: 8px; flex-shrink: 0; color: #427900; font-size: 12px; font-weight: 700; }
+:global(html[data-theme='light']) .carGrid > a { background: #f1f3ee; border: 1px solid #dce0d6; box-shadow: 0 3px 12px #14200005; }
+:global(html[data-theme='light']) .carGrid > a:hover { border-color: #73b800; box-shadow: 0 6px 18px #14200010; }
+:global(html[data-theme='light']) .carGrid > a > div:last-child { background: #f1f3ee; }
+:global(html[data-theme='light']) .carGrid h3 { color: #141713; font-weight: 750; }
+:global(html[data-theme='light']) .carGrid h3 + p { color: #67705f; }
+:global(html[data-theme='light']) .carGrid .addCard { border-style: dashed; background: #f6faef; }
+:global(html[data-theme='light']) .addCard svg { color: #528e00; }
+:global(html[data-theme='light']) .faq { margin-top: 0; scroll-margin-top: 90px; }
+:global(html[data-theme='light']) .faq section { padding-top: 56px; padding-bottom: 40px; }
+:global(html[data-theme='light']) .faq [aria-hidden] { display: none; }
+:global(html[data-theme='light']) .faq h2 { font-size: clamp(1.6rem, 4vw, 2rem); letter-spacing: -.04em; }
+:global(html[data-theme='light']) .faq button:focus-visible,
+:global(html[data-theme='light']) .root a:focus-visible,
+:global(html[data-theme='light']) .aboutButton:focus-visible { outline: 3px solid #528e00; outline-offset: 4px; }
+:global(html[data-theme='light']) .footer { border-top: 1px solid #dce0d6; padding-inline: 24px; }
+
+@media (max-width: 640px) {
+    :global(html[data-theme='light']) .main { padding: 30px 18px; }
+    :global(html[data-theme='light']) .hero { grid-template-columns: minmax(0, 1fr); gap: 0; min-height: 0; margin-bottom: 24px; }
+    :global(html[data-theme='light']) .garage { padding: 18px 12px; }
+    :global(html[data-theme='light']) .sectionHeading h2 { font-size: 17px; padding-left: 9px; }
+    :global(html[data-theme='light']) .carGrid { gap: 10px; }
+}
+
+:global(html[data-theme='light']) .heroArtwork {
+    display: block;
+    min-width: 0;
+    pointer-events: none;
+}
+
+:global(html[data-theme='light']) .heroArtwork img {
+    display: block;
+    width: 115%;
+    max-width: none;
+    height: auto;
+    margin-left: -5%;
+}
+
+@media (max-width: 640px) {
+    :global(html[data-theme='light']) .heroArtwork { margin-top: 8px; }
+    :global(html[data-theme='light']) .heroArtwork img { width: 100%; margin-left: 0; }
+}
+/* Opaque enough to keep the grunge behind the reading surfaces. */
+:global(html[data-theme='light']) .faq :global(.backdrop-blur-md) {
+    background: #eff1edf5;
+    border-color: #c6ccc0;
+    box-shadow: 0 8px 28px #141b0d12;
+}
+
+:global(html[data-theme='light']) .footer {
+    background: #eef0ebe8;
+    border-color: #b9c0b2;
+}
+/* Scale the side artwork with the space around the centered content. */
+:global(html[data-theme='light']) .ambient {
+    --edge-art-width: min(clamp(320px, calc(100vw - 48rem), 1120px), 100vh);
+    position: fixed;
+    inset: 0;
+    /* Let the upper tips fade into the page just below the sticky header. */
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 4.5rem,
+        rgb(0 0 0 / 25%) 5.5rem,
+        rgb(0 0 0 / 80%) 7.5rem,
+        #000 9rem
+    );
+    pointer-events: none;
+}
+
+:global(html[data-theme='light']) .leftEdge {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: min(50vh, max(72px, calc((100vw - 61rem) / 2)));
+    background: url('/images/decor/home-racing-left-reference-v1.png') left center / auto 100% no-repeat;
+}
+
+:global(html[data-theme='light']) .ambient::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    width: min(calc(var(--edge-art-width) * .52), 48vh);
+    background: url('/images/decor/home-racing-right-v2.png') right center / auto 100% no-repeat;
+}
+
+@media (max-width: 640px) {
+    :global(html[data-theme='light']) .ambient { --edge-art-width: clamp(220px, 56vw, 280px); }
+    :global(html[data-theme='light']) .leftEdge { width: 42px; }
+}

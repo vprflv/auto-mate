@@ -10,6 +10,9 @@ export type PartForm = {
     brand: string;
     name: string;
     quantity: string;
+    volume?: string;
+    fillCapacity?: string;
+    spec?: string;
     itemType: ServicePart['itemType'];
     fluidCategory: FluidCategory;
     partCategory: PartCategory;

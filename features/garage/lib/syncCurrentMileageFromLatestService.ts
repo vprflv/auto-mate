@@ -12,6 +12,18 @@ import {
     STORAGE_KEYS,
 } from '@/features/garage/add/lib/config/storage';
 
+export function getLatestServiceRecord(
+    records: ServiceRecord[],
+    carId: string,
+): ServiceRecord | undefined {
+    return records.filter(record => record.carId === carId).reduce<ServiceRecord | undefined>(
+        (latest, record) => !latest || new Date(record.date).getTime() > new Date(latest.date).getTime()
+            ? record
+            : latest,
+        undefined,
+    );
+}
+
 export function syncCurrentMileageFromLatestService(
     carId: string,
     editedRecordId: string
@@ -38,24 +50,7 @@ export function syncCurrentMileageFromLatestService(
     const allRecords: ServiceRecord[] =
         JSON.parse(serviceData);
 
-    const carRecords =
-        allRecords.filter(
-            (record) =>
-                record.carId === carId
-        );
-
-    if (!carRecords.length) {
-        return cars[carIndex];
-    }
-
-    const latestRecord =
-        carRecords.reduce(
-            (latest, record) =>
-                new Date(record.date).getTime() >
-                new Date(latest.date).getTime()
-                    ? record
-                    : latest
-        );
+    const latestRecord = getLatestServiceRecord(allRecords, carId);
 
     /*
      * Обновляем текущий пробег только тогда,
@@ -63,7 +58,7 @@ export function syncCurrentMileageFromLatestService(
      * является последним по дате.
      */
     if (
-        latestRecord.id !== editedRecordId
+        latestRecord?.id !== editedRecordId
     ) {
         return cars[carIndex];
     }

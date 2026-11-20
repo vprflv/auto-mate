@@ -1,7 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { formatFluidVolume } from '@/features/garage/add/lib/formatFluidVolume';
+import { confirmLowerMileage } from '@/features/garage/lib/confirmLowerMileage';
+import { getGarageCars } from '@/features/garage/add/lib/storage';
+import { hasAutomaticServicePartName, suggestServicePartName } from '@/features/garage/add/lib/suggestServicePartName';
+import { getLatestServiceRecord } from '@/features/garage/lib/syncCurrentMileageFromLatestService';
 
 import { ServiceRecord, ServicePart, Car } from '@/types';
 import ServiceMainFields from '@/features/garage/add/components/ServiceMainFields';
@@ -32,6 +37,9 @@ function partsToForm(parts: ServicePart[]): PartForm[] {
         brand: p.brand || '',
         oemNumber: p.oemNumber || '',
         quantity: String(p.quantity ?? 1),
+        volume: p.volume ?? '',
+        fillCapacity: p.fillCapacity ?? '',
+        spec: p.spec ?? '',
         itemType: p.itemType,
         fluidCategory: p.fluidCategory || 'engineOil',
         partCategory: p.partCategory || 'filters',
@@ -48,6 +56,9 @@ function formToParts(parts: PartForm[]): ServicePart[] {
             brand: p.brand.trim() || undefined,
             oemNumber: p.oemNumber.trim() || undefined,
             quantity: parseInt(p.quantity, 10) || 1,
+            volume: p.itemType === 'fluid' ? formatFluidVolume(p.volume) || undefined : undefined,
+            fillCapacity: p.itemType === 'fluid' ? formatFluidVolume(p.fillCapacity) || undefined : undefined,
+            spec: p.itemType === 'fluid' ? p.spec?.trim() || undefined : undefined,
             itemType: p.itemType,
             fluidCategory:
                 p.itemType === 'fluid'
@@ -82,6 +93,7 @@ export default function EditServiceModal({
     const [description, setDescription] = useState('');
     const [cost, setCost] = useState('');
     const [parts, setParts] = useState<PartForm[]>([]);
+    const manuallyNamedPartIds = useRef(new Set<string>());
     const [photos, setPhotos] = useState<string[]>([]);
 
     useEffect(() => {
@@ -102,6 +114,7 @@ export default function EditServiceModal({
                 ? String(record.cost)
                 : ''
         );
+        manuallyNamedPartIds.current.clear();
         setParts(partsToForm(record.parts || []));
     }, [open, record]);
 
@@ -136,16 +149,29 @@ export default function EditServiceModal({
         field: keyof PartForm,
         value: string
     ) => {
-        setParts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? { ...p, [field]: value }
-                    : p
-            )
-        );
+        if (field === 'name') {
+            if (value.trim()) manuallyNamedPartIds.current.add(id);
+            else manuallyNamedPartIds.current.delete(id);
+        }
+
+        const manuallyNamed = manuallyNamedPartIds.current.has(id);
+        setParts(previous => previous.map(part => {
+            if (part.id !== id) return part;
+
+            const updated: PartForm = { ...part, [field]: value };
+            const fluidSelectionChanged = (field === 'itemType' || field === 'fluidCategory') &&
+                (part.itemType === 'fluid' || updated.itemType === 'fluid');
+
+            if (!fluidSelectionChanged || manuallyNamed || !hasAutomaticServicePartName(part)) {
+                return updated;
+            }
+
+            return { ...updated, name: suggestServicePartName(updated) };
+        }));
     };
 
     const removePart = (id: string) => {
+        manuallyNamedPartIds.current.delete(id);
         setParts((prev) =>
             prev.filter((p) => p.id !== id)
         );
@@ -170,6 +196,22 @@ export default function EditServiceModal({
             cost: cost ? parseFloat(cost) : undefined,
             parts: validParts,
         };
+
+        if (parsedMileage !== undefined) {
+            const serviceData = localStorage.getItem(STORAGE_KEYS.service);
+            const records: ServiceRecord[] = serviceData ? JSON.parse(serviceData) : [];
+            const previous = records.find(item => item.id === record.id) ?? record;
+            const latest = getLatestServiceRecord(
+                records.map(item => item.id === updated.id ? updated : item),
+                updated.carId,
+            );
+            const carMileage = latest?.id === updated.id
+                ? getGarageCars().find(item => item.id === updated.carId)?.currentMileage
+                : undefined;
+            const previousMileage = Math.max(previous.mileage ?? 0, carMileage ?? 0);
+
+            if (!confirmLowerMileage(parsedMileage, previousMileage)) return;
+        }
 
         // Отправка телеметрии в админку с извлечением паспорта авто
         try {
@@ -343,6 +385,9 @@ export default function EditServiceModal({
                         />
 
                         <ServicePartsSection
+                            carId={record.carId}
+                            serviceDate={date}
+                            excludedRecordId={record.id}
                             parts={parts}
                             onAdd={addPart}
                             onChange={updatePart}

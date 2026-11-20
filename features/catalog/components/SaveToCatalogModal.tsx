@@ -16,7 +16,7 @@ import { PartInstallationBadge } from '@/features/garage/components/PartInstalla
 type Props = {
     carId: string;
     article: CatalogArticle;
-    nodeName?: string;
+    catalogPath: string[];
     onClose: () => void;
     onSaved: (destination: SavedPartDestination) => void;
 };
@@ -29,7 +29,7 @@ const inputClassName =
 export default function SaveToCatalogModal({
                                                carId,
                                                article,
-                                               nodeName,
+                                               catalogPath,
                                                onClose,
                                                onSaved,
                                            }: Props) {
@@ -39,7 +39,7 @@ export default function SaveToCatalogModal({
     const form = useSaveToCatalogModal({
         carId,
         article,
-        nodeName,
+        catalogPath,
         onSaved,
     });
 
@@ -111,6 +111,9 @@ export default function SaveToCatalogModal({
                                 {item.label}
                             </option>
                         ))}
+                        {form.usingCatalogCategory && (
+                            <option value={form.catalogCategoryValue}>{form.catalogCategory}</option>
+                        )}
 
                         <option value={form.newCategoryValue}>
                             + Создать / подключить категорию
@@ -118,7 +121,7 @@ export default function SaveToCatalogModal({
                     </select>
                 </label>
 
-                {form.creatingCategory && (
+                {form.creatingCategoryManually && (
                     <label className="block space-y-2">
                         <span className="text-sm">
                             Название категории
@@ -156,33 +159,21 @@ export default function SaveToCatalogModal({
                             </option>
                         ))}
 
-                        <option value={form.newSubcategoryValue}>
-                            + Создать / подключить подкатегорию
-                        </option>
+                        {form.creatingSubcategory && (
+                            <option value={form.newSubcategoryValue}>{form.catalogSubcategory}</option>
+                        )}
                     </select>
                 </label>
 
-                {form.creatingSubcategory && (
-                    <label className="block space-y-2">
-                        <span className="text-sm">
-                            Название подкатегории
-                        </span>
 
-                        <input
-                            required
-                            value={form.newSubcategoryName}
-                            onChange={event =>
-                                form.setNewSubcategoryName(
-                                    event.target.value
-                                )
-                            }
-                            placeholder="Например, Масляный фильтр"
-                            className={inputClassName}
-                        />
-                    </label>
+
+
+                {catalogPath.length > 0 && (
+                    <button type="button" onClick={form.applyCatalogPath}
+                        className="text-sm font-medium text-[var(--link)] hover:underline">
+                        Как в ИИ‑каталоге
+                    </button>
                 )}
-
-
 
                 {form.installation && (
                     <PartInstallationBadge value={form.installation} />
@@ -194,6 +185,11 @@ export default function SaveToCatalogModal({
                     </p>
 
                     <p className="mt-1">{form.path}</p>
+                    {(form.creatingCategory || form.creatingSubcategory) && (
+                        <p className="mt-1 text-xs text-[var(--text-muted)]">
+                            Недостающие разделы появятся при сохранении.
+                        </p>
+                    )}
                 </div>
 
                 {form.error && (

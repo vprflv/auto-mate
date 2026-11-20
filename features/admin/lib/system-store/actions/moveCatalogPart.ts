@@ -1,3 +1,4 @@
+import { getCatalogCategoryKeys, getCatalogCategoryLabel } from '../categoryLabels';
 import { normalizeArticle } from '../normalizeArticle';
 import { storage } from '../storage';
 import type { StoredCatalogNode, StoredPartItem } from '../types';
@@ -26,12 +27,10 @@ function withItems(
     };
 }
 
-export function moveCatalogPart({
-                                    nodeId,
-                                    partId,
-                                    category,
-                                    title,
-                                }: MoveCatalogPartInput): void {
+function movePartBetweenNodes(
+    nodes: StoredCatalogNode[],
+    { nodeId, partId, category, title }: MoveCatalogPartInput
+): StoredCatalogNode[] {
     const targetCategory = category.trim();
     const targetTitle = title.trim();
 
@@ -39,8 +38,7 @@ export function moveCatalogPart({
         throw new Error('Выберите категорию и подкатегорию.');
     }
 
-    const state = storage.getState();
-    const source = state.catalogNodes.find(node => node.id === nodeId);
+    const source = nodes.find(node => node.id === nodeId);
 
     if (!source) {
         throw new Error('Исходный раздел больше не найден.');
@@ -54,11 +52,7 @@ export function moveCatalogPart({
         throw new Error('Запчасть больше не найдена в исходном разделе.');
     }
 
-    if (!source || !part) {
-        throw new Error('Запчасть больше не найдена в исходном разделе.');
-    }
-
-    const target = state.catalogNodes.find(node =>
+    const target = nodes.find(node =>
         node.brandSlug === source.brandSlug &&
         node.modelSlug === source.modelSlug &&
         node.category === targetCategory &&
@@ -80,7 +74,7 @@ export function moveCatalogPart({
             normalizeArticle(item.article) === articleKey
         )
     )) {
-        throw new Error('В выбранной подкатегории уже есть эта запчасть.');
+        throw new Error(`В выбранной подкатегории уже есть деталь «${part.brand} ${part.article}».`);
     }
 
     const updatedSource = withItems(
@@ -99,7 +93,7 @@ export function moveCatalogPart({
     };
     const updatedTarget = withItems(destination, [...destination.items, part]);
 
-    const catalogNodes = state.catalogNodes.map(node => {
+    const catalogNodes = nodes.map(node => {
         if (node.id === source.id) return updatedSource;
         if (node.id === updatedTarget.id) return updatedTarget;
         return node;
@@ -107,5 +101,65 @@ export function moveCatalogPart({
 
     if (!target) catalogNodes.push(updatedTarget);
 
+    return catalogNodes;
+}
+
+export function moveCatalogPart(input: MoveCatalogPartInput): void {
+    const state = storage.getState();
+    const catalogNodes = movePartBetweenNodes(state.catalogNodes, input);
     storage.saveState({ ...state, catalogNodes });
+}
+
+export function moveCatalogCategoryParts(
+    sourceCategory: string,
+    parts: readonly Pick<MoveCatalogPartInput, 'nodeId' | 'partId'>[],
+    destination: Pick<MoveCatalogPartInput, 'category' | 'title'>
+): void {
+    const state = storage.getState();
+    const inputCategory = destination.category.trim();
+    const keys = getCatalogCategoryKeys(
+        state.catalogNodes.map(node => node.category).filter(Boolean),
+        state.hiddenCatalogCategories
+    );
+    const category = keys.includes(inputCategory) ? inputCategory : keys.find(key =>
+        getCatalogCategoryLabel(key, state.catalogCategoryLabels).toLocaleLowerCase('ru') ===
+        inputCategory.toLocaleLowerCase('ru')
+    ) ?? inputCategory;
+
+    if (!parts.length) throw new Error('Выберите запчасти для переноса.');
+    if (sourceCategory === category) throw new Error('Выберите другую категорию.');
+
+    const sourceIds = new Set(state.catalogNodes
+        .filter(node => node.category === sourceCategory)
+        .map(node => node.id));
+    let catalogNodes = state.catalogNodes;
+    for (const part of parts) {
+        if (!sourceIds.has(part.nodeId)) {
+            throw new Error('Исходный раздел изменился. Откройте окно переноса заново.');
+        }
+        catalogNodes = movePartBetweenNodes(catalogNodes, { ...part, ...destination, category });
+    }
+    storage.saveState({ ...state, catalogNodes });
+}
+
+export function deleteEmptyCatalogCategory(category: string): void {
+    const state = storage.getState();
+    const keys = getCatalogCategoryKeys(
+        state.catalogNodes.map(node => node.category).filter(Boolean),
+        state.hiddenCatalogCategories
+    );
+    if (!keys.includes(category)) throw new Error('Категория больше не найдена.');
+    if (state.catalogNodes.some(node => node.category === category && node.items.length > 0)) {
+        throw new Error('Перед удалением перенесите все запчасти.');
+    }
+
+    const catalogCategoryLabels = { ...state.catalogCategoryLabels };
+    delete catalogCategoryLabels[category];
+    storage.saveState({
+        ...state,
+        catalogNodes: state.catalogNodes.filter(node => node.category !== category),
+        catalogCategoryLabels,
+        catalogCategoryOrder: state.catalogCategoryOrder?.filter(key => key !== category),
+        hiddenCatalogCategories: [...new Set([...(state.hiddenCatalogCategories ?? []), category])],
+    });
 }

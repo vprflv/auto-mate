@@ -1,7 +1,8 @@
 'use client';
 
 import type { ManualCarForm } from '@/types';
-import { modificationValues } from '@/features/catalog/lib/carCatalogIdentity';
+import { findMatchingCatalogModifications, matchesVehicleDetails, modificationValues } from '@/features/catalog/lib/carCatalogIdentity';
+import { sortModificationsByTrim } from '@/features/catalog/lib/sortModificationsByTrim';
 
 import { useCarCatalog } from './useCarCatalog';
 
@@ -71,11 +72,44 @@ export function useCatalogCarSelection({
                 normalizeName(item.modelName) === normalizeName(form.model)
         );
 
-    const modifications = model?.verified ? model.modifications : [];
+    const modifications = model?.verified && Array.isArray(model.modifications)
+        ? model.modifications
+        : [];
+    const matchingModifications = sortModificationsByTrim(modifications.filter(item =>
+        matchesVehicleDetails(item, form.year, form.bodyCode ?? '')
+    ));
+    const exactMatches = form.catalogModificationId ? [] : findMatchingCatalogModifications(
+        { ...form, year: Number(form.year) },
+        catalog.models,
+        { includeUnspecifiedBody: true }
+    );
+    const needsModificationChoice = exactMatches.length > 1;
+    const displayedModifications = needsModificationChoice
+        ? sortModificationsByTrim(exactMatches.map(({ modification }) => modification))
+        : matchingModifications;
+    const bodyCodes = [...new Set(modifications
+        .map(item => item.attributes?.bodyCode?.trim().toUpperCase())
+        .filter((code): code is string => Boolean(code)))];
+
+    function changeVehicleDetail(field: 'year' | 'bodyCode', value: string) {
+        onChange(field, value);
+        const selected = modifications.find(item => item.id === form.catalogModificationId);
+        if (selected && !matchesVehicleDetails(
+            selected,
+            field === 'year' ? value : form.year,
+            field === 'bodyCode' ? value : form.bodyCode ?? ''
+        )) {
+            onChange('catalogModificationId', '');
+            onChange('modificationName', '');
+        }
+    }
 
     const selectModification = (id: string) => {
-        const selected = modifications.find(item => item.id === id);
-        if (!selected || !model || !brand) {
+        const selected = displayedModifications.find(item => item.id === id);
+        const selectedModel = needsModificationChoice
+            ? exactMatches.find(({ modification }) => modification === selected)?.model
+            : model;
+        if (!selected || !selectedModel) {
             onChange('catalogModificationId', '');
             onChange('modificationName', '');
             return;
@@ -85,8 +119,11 @@ export function useCatalogCarSelection({
         for (const field of Object.keys(values) as (keyof typeof values)[]) {
             onChange(field, values[field]);
         }
-        onChange('catalogBrandSlug', brand.value);
-        onChange('catalogModelSlug', model.modelSlug);
+        if (!form.bodyCode?.trim() && selected.attributes?.bodyCode) {
+            onChange('bodyCode', selected.attributes.bodyCode);
+        }
+        onChange('catalogBrandSlug', selectedModel.brandSlug);
+        onChange('catalogModelSlug', selectedModel.modelSlug);
         onChange('modificationName', selected.name);
         // Последним: изменение характеристик сбрасывает прежнюю связь.
         onChange('catalogModificationId', selected.id);
@@ -132,6 +169,7 @@ export function useCatalogCarSelection({
 
         patch({
             ...(changed ? emptySpecifications : {}),
+            ...(changed ? { bodyCode: '' } : {}),
 
             ...(isBrand && changed
                 ? { model: '', catalogModelSlug: '' }
@@ -178,18 +216,35 @@ export function useCatalogCarSelection({
 
     return {
         loaded: catalog.loaded,
+        year: {
+            value: form.year,
+            onChange: (value: string) => {
+                if (/^\d{0,4}$/.test(value)) changeVehicleDetail('year', value);
+            },
+        },
+        bodyCode: {
+            value: form.bodyCode ?? '',
+            options: bodyCodes.map(value => ({ value, label: value })),
+            onChange: (value: string) => changeVehicleDetail('bodyCode', value),
+            onSelect: (value: string) => changeVehicleDetail('bodyCode', value),
+        },
         modification: {
             value: form.catalogModificationId ?? '',
-            options: modifications.map(item => ({
+            options: displayedModifications.map(item => ({
                 value: item.id,
                 label: [
                     item.name,
+                    ...(needsModificationChoice && item.attributes.bodyCode
+                        ? [`Кузов ${item.attributes.bodyCode}`]
+                        : []),
                     item.attributes.engine,
                     item.attributes.transmission,
                     item.attributes.drivetrain,
                 ].filter(Boolean).join(' · '),
             })),
-            disabled: !catalog.loaded || !model,
+            disabled: !catalog.loaded || (!model && !needsModificationChoice),
+            required: needsModificationChoice,
+            total: modifications.length,
             onChange: selectModification,
         },
 

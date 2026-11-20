@@ -9,6 +9,7 @@ import type {
 import {usePartDetails} from "@/features/admin/catalog/hooks/usePartDetails";
 import {PartDetailsHeader} from "@/features/admin/catalog/components/part-details/PartDetailsHeader";
 import {PartIdentity} from "@/features/admin/catalog/components/part-details/PartIdentity";
+import { PartOriginalityEditor } from './PartOriginalityEditor';
 import {OemCrossEditor} from "@/features/admin/catalog/components/OemCrossEditor";
 import {PartRelations} from "@/features/admin/catalog/components/part-details/PartRelations";
 import {PartStats} from "@/features/admin/catalog/components/part-details/PartStats";
@@ -71,6 +72,7 @@ export function PartDetailsModal({
 
                 <div className="custom-scrollbar flex-1 space-y-6 overflow-y-auto p-6">
                     <PartIdentity part={part} />
+                    <PartOriginalityEditor key={part.id} nodeId={node.id} part={part} />
 
                     {nameDraft === null ? (
                         <button
@@ -163,7 +165,7 @@ export function PartDetailsModal({
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
 
-                        <PartStats part={part} />
+                        <PartStats key={part.id} part={part} nodeId={node.id} />
 
                         <PartCompatibility
                             key={JSON.stringify([

@@ -23,7 +23,7 @@ import {
     saveUserCategories,
 } from '@/features/garage/lib/userCategories';
 
-import { getCategoriesFor } from '@/features/garage/lib/getCategories';
+import { getCategoriesFor, getCategoryLabel } from '@/features/garage/lib/getCategories';
 import { systemStore } from '@/features/admin/lib/systemStore';
 
 import type { CarSummaryInfo } from '@/features/garage/components/CarPartsCard';
@@ -40,13 +40,20 @@ const normalizeCategoryName = (value: string): string =>
 
 const getEnabledCategoriesKey = (carId: string): string =>
     `automate-enabled-part-categories:${carId}`;
+const getCategoryOrderKey = (carId: string): string =>
+    `automate-part-category-order:${carId}`;
+const hiddenCategory = (id: string) => `hidden:${id}`;
 
 function readEnabledCategories(carId: string): string[] {
+    return readCategoryIds(getEnabledCategoriesKey(carId));
+}
+
+function readCategoryIds(key: string): string[] {
     if (typeof window === 'undefined') return [];
 
     try {
         const raw = localStorage.getItem(
-            getEnabledCategoriesKey(carId)
+            key
         );
 
         if (!raw) return [];
@@ -99,6 +106,7 @@ export function useCarPartsCard({
     // Категории, которые пользователь явно добавил
     const [enabledSystemCategories, setEnabledSystemCategories] =
         useState<string[]>([]);
+    const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
 
     // Ключ автомобиля, для которого загружены категории
     const [loadedCarId, setLoadedCarId] =
@@ -119,6 +127,7 @@ export function useCarPartsCard({
         );
 
         setLoadedCarId(targetCarId);
+        setCategoryOrder(readCategoryIds(getCategoryOrderKey(targetCarId)));
 
         const query = new URLSearchParams(
             window.location.search
@@ -131,7 +140,7 @@ export function useCarPartsCard({
 
         const validCategory =
             requestedCategory &&
-            getCategoriesFor().some(
+            getCategoriesFor(targetCarId).some(
                 item => item.id === requestedCategory
             )
                 ? requestedCategory
@@ -167,9 +176,9 @@ export function useCarPartsCard({
 
         const current = readEnabledCategories(targetCarId);
 
-        if (current.includes(id)) return;
+        if (current.includes(id) && !current.includes(hiddenCategory(id))) return;
 
-        const next = [...current, id];
+        const next = [...new Set([...current.filter(key => key !== hiddenCategory(id)), id])];
 
         writeEnabledCategories(targetCarId, next);
         setEnabledSystemCategories(next);
@@ -182,9 +191,7 @@ export function useCarPartsCard({
 
         const current = readEnabledCategories(targetCarId);
 
-        const next = current.filter(
-            (categoryId) => categoryId !== id
-        );
+        const next = [...new Set([...current.filter(categoryId => categoryId !== id), hiddenCategory(id)])];
 
         writeEnabledCategories(targetCarId, next);
         setEnabledSystemCategories(next);
@@ -192,20 +199,37 @@ export function useCarPartsCard({
     };
 
     // Все существующие категории
-    const allCategories = getCategoriesFor();
+    const allCategories = getCategoriesFor(targetCarId);
+    for (const part of items) {
+        if (!allCategories.some(item => item.id === part.category)) {
+            allCategories.push({ id: part.category, label: getCategoryLabel(part.category, targetCarId), isCustom: false });
+        }
+    }
 
     // Показываем:
     // 1. Пользовательские категории
     // 2. Явно добавленные системные категории
     // 3. Системные категории с запчастями
+    const categoryRanks = new Map(
+        (loadedCarId === targetCarId ? categoryOrder : []).map((id, index) => [id, index])
+    );
     const categories = allCategories.filter(
         (item) =>
             item.isCustom ||
+            (item.isDefault && !activeEnabledCategories.includes(hiddenCategory(item.id))) ||
             activeEnabledCategories.includes(item.id) ||
             items.some(
                 (part) => part.category === item.id
             )
+    ).sort((a, b) =>
+        (categoryRanks.get(a.id) ?? categoryRanks.size) - (categoryRanks.get(b.id) ?? categoryRanks.size)
     );
+
+    function saveCategoryOrder(ids: string[]) {
+        if (!targetCarId) return;
+        localStorage.setItem(getCategoryOrderKey(targetCarId), JSON.stringify(ids));
+        setCategoryOrder(ids);
+    }
 
     const inCategory = category
         ? items.filter(
@@ -237,7 +261,7 @@ export function useCarPartsCard({
 
     // Открытие категории
     const openCategory = (id: string) => {
-        const existing = getCategoriesFor().find(
+        const existing = getCategoriesFor(targetCarId).find(
             (item) => item.id === id
         );
 
@@ -334,7 +358,7 @@ export function useCarPartsCard({
         const normalizedName =
             normalizeCategoryName(trimmedName);
 
-        const existing = getCategoriesFor().find(
+        const existing = getCategoriesFor(targetCarId).find(
             (item) =>
                 normalizeCategoryName(item.label) ===
                 normalizedName
@@ -374,7 +398,7 @@ export function useCarPartsCard({
 
     // Удаление категории
     const deleteCategory = (categoryId: string) => {
-        const categoryInfo = getCategoriesFor().find(
+        const categoryInfo = getCategoriesFor(targetCarId).find(
             (item) => item.id === categoryId
         );
 
@@ -448,6 +472,7 @@ export function useCarPartsCard({
         setSub,
 
         categories,
+        saveCategoryOrder,
         inCategory,
         subs,
         inSub,

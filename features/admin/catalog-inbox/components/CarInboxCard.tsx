@@ -91,8 +91,8 @@ export function CarInboxCard({ item, onApprove, onReject }: Props) {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onApprove={(id, payload) => {
-                    setIsModalOpen(false);
                     onApprove(id, payload);
+                    setIsModalOpen(false);
                 }}
                 onReject={(id) => {
                     setIsModalOpen(false);

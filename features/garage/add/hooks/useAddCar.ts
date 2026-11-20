@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { DecodedCar, ManualCarForm } from '@/types';
@@ -12,15 +12,17 @@ import {
 } from "@/features/garage/add/lib/manualForm";
 import { fetchVinData, mapNhtsaToDecodedCar } from "@/features/garage/add/lib/decodeVin";
 import { isValidVin, normalizeVin } from "@/features/garage/add/lib/config/vin";
-import { addCarToGarage } from "@/features/garage/add/lib/storage";
+import { addCarToGarage, getGarageCars, saveGarageCars } from '@/features/garage/add/lib/storage';
+import { captureInitialPartCategories } from '@/features/garage/lib/getCategories';
 
 // Импортируем глобальный стор админки
 import { systemStore } from '@/features/admin/lib/systemStore';
-import { submitCarCatalogReview } from '@/features/admin/lib/system-store/carCatalogReview';
-import {resolveCarCatalogIdentity} from "@/features/catalog/lib/carCatalogIdentity";
+import { getCarReviewSpecs } from '@/features/admin/lib/system-store/carCatalogReview';
+import { linkMatchingCatalogModification, resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIdentity';
 
 export function useAddCar() {
     const router = useRouter();
+    const savingManualCar = useRef(false);
 
     const [vin, setVin] = useState('');
     const [decoded, setDecoded] = useState<DecodedCar | null>(null);
@@ -99,7 +101,7 @@ export function useAddCar() {
     const updateManualField = (field: keyof ManualCarForm, value: string) => {
         setManualForm(prev => ({
             ...prev,
-            ...(['make', 'model', 'engine', 'transmission', 'driveType',
+            ...(['make', 'model', 'year', 'bodyCode', 'engine', 'transmission', 'driveType',
                 'trim', 'displacementL', 'fuel', 'bodyClass'].includes(field) &&
                 prev[field] !== value
                 ? { catalogModificationId: '', modificationName: '' }
@@ -113,8 +115,8 @@ export function useAddCar() {
     const saveDecodedCar = editDecodedCar;
 
     // 2. Сохранение авто из ручной формы
-    const saveManualCar = (e: React.FormEvent) => {
-        e.preventDefault();
+    const saveManualCar = () => {
+        if (savingManualCar.current) return;
         setError('');
 
         if (!isManualFormValid(manualForm)) {
@@ -122,7 +124,8 @@ export function useAddCar() {
             return;
         }
 
-        const savedCar = {
+        const state = systemStore.getState();
+        const savedCar = linkMatchingCatalogModification({
             ...mapManualFormToCar(manualForm),
 
             id: crypto.randomUUID(),
@@ -138,9 +141,7 @@ export function useAddCar() {
 
             modificationName:
                 manualForm.modificationName || undefined,
-        };
-
-        const state = systemStore.getState();
+        }, state.masterModels);
 
         // Выбранную готовую модификацию нельзя молча
         // отправлять на проверку как неизвестную.
@@ -157,8 +158,11 @@ export function useAddCar() {
             return;
         }
 
+        savingManualCar.current = true;
+        let addedToGarage = false;
         try {
-            addCarToGarage(savedCar);
+            addCarToGarage({ ...savedCar, initialPartCategories: captureInitialPartCategories(savedCar, state) });
+            addedToGarage = true;
 
             const currentUser = state.users[0];
 
@@ -178,19 +182,27 @@ export function useAddCar() {
                 driveType: savedCar.driveType,
                 bodyClass: savedCar.bodyClass,
                 color: savedCar.color,
-                carSpecs: {
-                    trim: savedCar.trim,
-                },
+                carSpecs: getCarReviewSpecs(savedCar),
             });
 
-            router.push('/garage');
         } catch (error) {
+            if (addedToGarage) {
+                try {
+                    saveGarageCars(getGarageCars().filter(car => car.id !== savedCar.id));
+                } catch {
+                    setError('Регистрация не завершилась. Проверьте гараж перед повторным добавлением.');
+                    return;
+                }
+            }
+            savingManualCar.current = false;
             setError(
                 error instanceof Error
                     ? error.message
                     : 'Не удалось завершить сохранение автомобиля.'
             );
+            return;
         }
+        router.push('/garage');
     };
 
     return {

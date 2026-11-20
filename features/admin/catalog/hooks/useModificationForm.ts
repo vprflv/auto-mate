@@ -3,10 +3,14 @@
 import * as React from 'react';
 import { toast } from 'sonner';
 
-import { createCatalogModification } from '@/features/admin/lib/system-store/actions/modifications';
+import {
+    createCatalogModification,
+    updateCatalogModification,
+} from '@/features/admin/lib/system-store/actions/modifications';
 
 import type { CatalogModification } from '@/features/admin/lib/system-store/types';
 import {useCarCatalog} from "@/features/garage/add/hooks/useCarCatalog";
+import { normalizeRobotTransmission, ROBOT_TRANSMISSION } from '@/features/garage/add/lib/config/robotTransmission';
 
 interface ModificationFields {
     trim: string;
@@ -14,6 +18,9 @@ interface ModificationFields {
     transmission: string;
     year: string;
     yearEnd: string;
+    bodyCode: string;
+    bodyClass: string;
+    fuel: string;
     displacementL: string;
     drivetrain: string;
 }
@@ -24,16 +31,32 @@ interface CustomAttribute {
     value: string;
 }
 
+const emptyFields: ModificationFields = {
+    year: '',
+    yearEnd: '',
+    bodyCode: '',
+    bodyClass: '',
+    fuel: '',
+    displacementL: '',
+    trim: '',
+    engine: '',
+    transmission: '',
+    drivetrain: '',
+};
+const mainFieldKeys = Object.keys(emptyFields) as (keyof ModificationFields)[];
+
 interface Props {
     brandSlug: string;
     modelSlug: string;
-    onCreated: (modification: CatalogModification) => void;
+    initialModification?: CatalogModification;
+    onSaved: (modification: CatalogModification) => void;
 }
 
 export function useModificationForm({
                                         brandSlug,
                                         modelSlug,
-                                        onCreated
+                                        initialModification,
+                                        onSaved
                                     }: Props) {
 
     const { models } = useCarCatalog();
@@ -64,30 +87,44 @@ export function useModificationForm({
 
     const suggestions = {
         year: getSuggestions('year'),
+        yearEnd: getSuggestions('yearEnd'),
+        bodyCode: getSuggestions('bodyCode'),
+        bodyClass: getSuggestions('bodyClass'),
+        fuel: getSuggestions('fuel'),
         trim: getSuggestions('trim'),
         engine: getSuggestions('engine'),
         displacementL: getSuggestions('displacementL'),
-        transmission: getSuggestions('transmission'),
+        transmission: [
+            ...getSuggestions('transmission').filter(value =>
+                normalizeRobotTransmission(value) !== ROBOT_TRANSMISSION
+            ),
+            ROBOT_TRANSMISSION,
+        ],
     };
 
 
 
-    const [fields, setFields] =
-        React.useState<ModificationFields>({
-            year: '',
-            yearEnd: '',
-            displacementL: '',
-            trim: '',
-            engine: '',
-            transmission: '',
-            drivetrain: ''
-        });
+    const [fields, setFields] = React.useState<ModificationFields>(() => {
+        const initialFields = { ...emptyFields };
+        for (const key of mainFieldKeys) {
+            initialFields[key] = initialModification?.attributes?.[key] ?? '';
+        }
+        return initialFields;
+    });
 
     const [customAttributes, setCustomAttributes] =
-        React.useState<CustomAttribute[]>([]);
+        React.useState<CustomAttribute[]>(() =>
+            Object.entries(initialModification?.attributes ?? {}).flatMap(([key, value]) =>
+                typeof value === 'string' && value.trim() && !mainFieldKeys.some(field => field === key)
+                    ? [{ id: key, key, value }]
+                    : []
+            )
+        );
 
     const [customName, setCustomName] =
         React.useState<string | null>(null);
+    const [preserveSavedName, setPreserveSavedName] = React.useState(!!initialModification);
+    const requiresStartYear = !initialModification || !!initialModification.attributes?.year?.trim();
 
     const [error, setError] = React.useState('');
 
@@ -100,17 +137,21 @@ export function useModificationForm({
 
     const generatedName = [
         startYear && endYear ? `${startYear}–${endYear}` : startYear,
+        fields.bodyCode?.trim(),
         volume ? `${volume} л` : '',
         engine ? `(${engine})` : '',
         fields.transmission.trim(),
         fields.drivetrain.trim(),
         fields.trim.trim(),
+        fields.fuel?.trim(),
+        fields.bodyClass?.trim(),
         ...customAttributes.map(item => item.value.trim()),
     ]
         .filter(Boolean)
         .join(' / ');
 
-    const name = customName ?? generatedName;
+    const name = customName ??
+        (preserveSavedName ? initialModification?.name ?? generatedName : generatedName);
 
     const setName = (value: string) => {
         setCustomName(value);
@@ -119,6 +160,7 @@ export function useModificationForm({
 
     const resetName = () => {
         setCustomName(null);
+        setPreserveSavedName(false);
         setError('');
     };
 
@@ -126,6 +168,7 @@ export function useModificationForm({
         key: keyof ModificationFields,
         value: string
     ) => {
+        if (value !== fields[key]) setPreserveSavedName(false);
         setFields(current => ({
             ...current,
             [key]: value
@@ -152,6 +195,7 @@ export function useModificationForm({
         field: 'key' | 'value',
         value: string
     ) => {
+        if (field === 'value') setPreserveSavedName(false);
         setCustomAttributes(current =>
             current.map(item =>
                 item.id === id
@@ -164,6 +208,9 @@ export function useModificationForm({
     };
 
     const removeAttribute = (id: string) => {
+        if (customAttributes.some(item => item.id === id && item.value.trim())) {
+            setPreserveSavedName(false);
+        }
         setCustomAttributes(current =>
             current.filter(item => item.id !== id)
         );
@@ -186,12 +233,11 @@ export function useModificationForm({
         }
 
         if (yearEnd && Number(yearEnd) < Number(year)) {
-            setError('Год окончания выпуска не может быть раньше года начала.');
-            return;
+            setError('Год окончания выпуска не может быть раньше года на
         }
 
 
-        if (!/^[1-9]\d{3}$/.test(year)) {
+        if ((requiresStartYear || year || yearEnd) && !/^[1-9]\d{3}$/.test(year)) {
             setError('Укажите год выпуска четырьмя цифрами, например 2012.');
             return;
         }
@@ -212,15 +258,7 @@ export function useModificationForm({
         const additionalEntries: [string, string][] = [];
 
         // Дополнительные поля не должны заменять основные.
-        const usedKeys = new Set([
-            'trim',
-            'yearend',
-            'engine',
-            'transmission',
-            'drivetrain',
-            'year',
-            'displacementl'
-        ]);
+        const usedKeys = new Set(mainFieldKeys.map(key => key.toLowerCase()));
 
         for (const attribute of customAttributes) {
             const key = attribute.key.trim();
@@ -252,7 +290,7 @@ export function useModificationForm({
         let modification: CatalogModification;
 
         try {
-            modification = createCatalogModification({
+            const input = {
                 brandSlug,
                 modelSlug,
                 name,
@@ -264,11 +302,18 @@ export function useModificationForm({
                     drivetrain: fields.drivetrain,
                     year,
                     ...(yearEnd ? { yearEnd } : {}),
+                    bodyCode: fields.bodyCode,
+                    bodyClass: fields.bodyClass,
+                    fuel: fields.fuel,
                     ...(displacementL ? { displacementL } : {}),
 
                     ...Object.fromEntries(additionalEntries)
                 }
-            });
+            };
+
+            modification = initialModification
+                ? updateCatalogModification({ ...input, modificationId: initialModification.id })
+                : createCatalogModification(input);
         } catch (error: unknown) {
             setError(
                 error instanceof Error
@@ -279,15 +324,17 @@ export function useModificationForm({
             return;
         }
 
-        toast.success('Модификация добавлена');
+        toast.success(initialModification ? 'Модификация обновлена' : 'Модификация добавлена');
 
-        onCreated(modification);
+        onSaved(modification);
     };
 
     return {
         fields,
         setField,
         suggestions,
+        requiresStartYear,
+        requiresFuelAndBodyClass: !initialModification,
 
         name,
         setName,

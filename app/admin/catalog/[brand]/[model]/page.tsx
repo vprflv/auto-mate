@@ -13,6 +13,7 @@ import { ModelCatalogNodes } from '@/features/admin/catalog/components/ModelCata
 import type { CatalogSearchParams } from '@/features/admin/catalog/lib/catalogFilters';
 import {ModelModifications} from "@/features/admin/catalog/components/ModelModifications";
 import {AddCatalogPartModal} from "@/features/admin/catalog/components/AddCatalogPartModal";
+import { ModificationPartsPicker } from '@/features/admin/catalog/components/ModificationPartsPicker';
 
 interface Props {
     params: Promise<{
@@ -59,6 +60,17 @@ export default function ModelCatalogDashboard({
         );
     }
 
+    if (typeof query.pickPartsFor === 'string' && query.pickPartsFor) {
+        return (
+            <ModificationPartsPicker
+                key={`${catalog.modelPath}:${query.pickPartsFor}`}
+                model={catalog.masterModel}
+                modelPath={catalog.modelPath}
+                modificationId={query.pickPartsFor}
+            />
+        );
+    }
+
     return (
         <div className="mx-auto max-w-6xl space-y-8 pb-20">
             <ModelCatalogHeader
@@ -75,6 +87,10 @@ export default function ModelCatalogDashboard({
 
             <ModelModifications
                 model={catalog.masterModel}
+                selectedModificationIds={catalog.filters.modificationIds ?? []}
+                isPending={catalog.isPending}
+                onSelectModification={catalog.selectModification}
+                onReset={catalog.resetFilters}
             />
 
             <ModelCatalogFilters

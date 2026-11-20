@@ -9,20 +9,13 @@ interface Props {
 }
 
 interface Field {
-    key: 'year' | 'color' | 'nickname';
+    key: 'color' | 'nickname';
     label: string;
     placeholder: string;
-    required?: boolean;
     fullWidth?: boolean;
 }
 
 const fields: Field[] = [
-    {
-        key: 'year',
-        label: 'Год выпуска',
-        placeholder: 'Например, 2023',
-        required: true,
-    },
     {
         key: 'color',
         label: 'Цвет',
@@ -44,14 +37,6 @@ const inputClassName =
     'focus:ring-[var(--link)]/10';
 
 export function CarBasicsFields({ form, onChange }: Props) {
-    function handleChange(field: Field['key'], value: string) {
-        if (field === 'year' && !/^\d{0,4}$/.test(value)) {
-            return;
-        }
-
-        onChange(field, value);
-    }
-
     return (
         <section className="space-y-5 rounded-3xl border border-[var(--border)] bg-[var(--bg-elevated)] p-6">
             <h2 className="text-lg font-semibold text-[var(--text)]">
@@ -60,8 +45,6 @@ export function CarBasicsFields({ form, onChange }: Props) {
 
             <div className="grid gap-4 sm:grid-cols-2">
                 {fields.map(field => {
-                    const isYear = field.key === 'year';
-
                     return (
                         <label
                             key={field.key}
@@ -73,28 +56,14 @@ export function CarBasicsFields({ form, onChange }: Props) {
                         >
                             <span className="block text-sm font-medium text-[var(--text)]">
                                 {field.label}
-                                {field.required && ' *'}
                             </span>
 
                             <input
                                 type="text"
-                                inputMode={
-                                    isYear ? 'numeric' : undefined
-                                }
-                                maxLength={isYear ? 4 : undefined}
-                                pattern={
-                                    isYear ? '[0-9]{4}' : undefined
-                                }
-                                title={
-                                    isYear
-                                        ? 'Введите год из четырёх цифр'
-                                        : undefined
-                                }
                                 value={form[field.key]}
-                                required={field.required}
                                 placeholder={field.placeholder}
                                 onChange={event =>
-                                    handleChange(
+                                    onChange(
                                         field.key,
                                         event.target.value
                                     )

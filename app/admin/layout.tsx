@@ -12,6 +12,7 @@ import {
     Settings, PlaySquare,
 } from 'lucide-react';
 import { brand } from '@/features/lib/brand';
+import ThemeToggle from '@/components/layout/ThemeToggle';
 
 const nav = [
     {
@@ -125,7 +126,7 @@ export default function AdminLayout({
 
             <div className="lg:pl-64">
                 <header className="sticky top-0 z-30 bg-[var(--bg)]/95 px-4 py-4 backdrop-blur-md sm:px-6">
-                    <div className="mx-auto flex max-w-7xl items-center justify-between">
+                    <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
                         <div>
                             <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-dim)]">
                                 Admin
@@ -136,9 +137,12 @@ export default function AdminLayout({
                             </h1>
                         </div>
 
-                        <span className="rounded-full bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)]">
-                            Главный администратор
-                        </span>
+                        <div className="flex items-center justify-end gap-2 sm:gap-3">
+                            <span className="rounded-full bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)]">
+                                Главный администратор
+                            </span>
+                            <ThemeToggle />
+                        </div>
                     </div>
                 </header>
 

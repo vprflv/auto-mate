@@ -38,6 +38,29 @@ export function CarCatalogFields({ selection }: Props) {
                 />
             </div>
 
+            <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block space-y-2">
+                    <span className="block text-sm font-medium text-[var(--text)]">Год выпуска *</span>
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={4}
+                        pattern="[0-9]{4}"
+                        required
+                        value={selection.year.value}
+                        onChange={event => selection.year.onChange(event.target.value)}
+                        placeholder="Например, 2008"
+                        className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-3 text-[var(--text)] outline-none focus:border-[var(--link)]"
+                    />
+                </label>
+                <CatalogAutocompleteField
+                    {...selection.bodyCode}
+                    label="Код кузова (необязательно)"
+                    placeholder="Например, CL9"
+                    showOnEmpty
+                />
+            </div>
+
             <label className="block space-y-2">
                 <span className="text-sm font-medium text-[var(--text)]">
                     Проверенная модификация
@@ -45,20 +68,32 @@ export function CarCatalogFields({ selection }: Props) {
                 <select
                     value={selection.modification.value}
                     disabled={selection.modification.disabled}
+                    required={selection.modification.required}
                     onChange={event => selection.modification.onChange(event.target.value)}
                     className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-3 text-[var(--text)]"
                 >
-                    <option value="">Моей модификации нет / укажу характеристики</option>
+                    <option value="">
+                        {selection.modification.required
+                            ? 'Выберите одну из совпавших модификаций'
+                            : 'Моей модификации нет / укажу характеристики'}
+                    </option>
                     {selection.modification.options.map(option => (
                         <option key={option.value} value={option.value}>
                             {option.label}
                         </option>
                     ))}
                 </select>
+                {selection.modification.total > 0 && (
+                    <span className="block text-xs text-[var(--text-muted)]">
+                        Найдено модификаций: {selection.modification.options.length} из {selection.modification.total}
+                    </span>
+                )}
                 <span role="status" className="block text-sm text-[var(--text-muted)]">
                     {selection.modification.value
                         ? 'ИИ-каталог будет доступен сразу после сохранения автомобиля.'
-                        : 'Укажите характеристики. ИИ-каталог откроется после подтверждения модификации администратором.'}
+                        : selection.modification.required
+                            ? 'Подходят несколько модификаций. Укажите код кузова или выберите вариант из списка.'
+                            : 'Укажите характеристики. ИИ-каталог откроется после подтверждения модификации администратором.'}
                 </span>
             </label>
 

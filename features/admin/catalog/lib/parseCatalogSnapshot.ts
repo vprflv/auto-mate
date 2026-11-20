@@ -44,6 +44,7 @@ const partSchema = z.object({
     isVerified: z.boolean().optional(),
     installationsCount: count,
     compatibilityScore: z.number(),
+    compatibilityScoresByModification: z.record(id, z.number().int().min(0).max(100)).optional(),
     priceRange: z.string().optional(),
     note: z.string().optional(),
 }).passthrough();
@@ -63,6 +64,9 @@ const snapshotSchema = z.object({
     exportedAt: z.string().refine(value => Number.isFinite(Date.parse(value))),
     masterModels: z.array(modelSchema),
     catalogNodes: z.array(nodeSchema),
+    catalogCategoryLabels: z.record(z.string(), z.string()).optional(),
+    catalogCategoryOrder: z.array(id).optional(),
+    hiddenCatalogCategories: z.array(id).optional(),
 });
 
 function checkUnique(ids: string[], context: string): void {

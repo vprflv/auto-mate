@@ -18,6 +18,7 @@ interface Props {
     placeholder?: string;
     required?: boolean;
     disabled?: boolean;
+    showOnEmpty?: boolean;
 }
 
 export function CatalogAutocompleteField({
@@ -28,7 +29,8 @@ export function CatalogAutocompleteField({
                                              onSelect,
                                              placeholder,
                                              required = false,
-                                             disabled = false
+                                             disabled = false,
+                                             showOnEmpty = false
                                          }: Props) {
     const id = useId();
 
@@ -49,7 +51,8 @@ export function CatalogAutocompleteField({
         )
         .slice(0, 5);
 
-    const open = activeIndex !== null && query.length > 0;
+    const open = !disabled && activeIndex !== null &&
+        (query.length > 0 || (showOnEmpty && suggestions.length > 0));
 
     const activeOption = activeIndex !== null
         ? suggestions[activeIndex]

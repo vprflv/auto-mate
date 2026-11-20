@@ -67,6 +67,11 @@ export function PartCompatibility({ part, node }: Props) {
                                 <span className="min-w-0">
                                     <span className="block font-bold">
                                         {mod.name}
+                                        {part.compatibilityScoresByModification?.[mod.id] !== undefined && (
+                                            <span className="ml-2 text-[var(--text-muted)]">
+                                                · Индекс доверия {part.compatibilityScoresByModification[mod.id]}%
+                                            </span>
+                                        )}
                                     </span>
                                     {mod.description && (
                                         <span className="mt-1 block text-[var(--text-muted)]">

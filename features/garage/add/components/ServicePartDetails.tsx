@@ -1,9 +1,13 @@
 
+import { Tooltip } from 'radix-ui';
+import { CircleHelp } from 'lucide-react';
 import { PartForm } from '@/features/garage/add/types/serviceForm';
+import { formatFluidVolume } from '@/features/garage/add/lib/formatFluidVolume';
 import {PartInstallationFields} from "@/features/garage/components/PartInstallationFields";
 
 type Props = {
     part: PartForm;
+    recommendedFillCapacity?: string;
     onChange: (
         id: string,
         field: keyof PartForm,
@@ -19,14 +23,20 @@ const labelClass =
 
 export default function ServicePartDetails({
     part,
+    recommendedFillCapacity,
     onChange,
 }: Props) {
+    const formatVolumeField = (field: 'volume' | 'fillCapacity', value: string) => {
+        const formatted = formatFluidVolume(value);
+        if (formatted !== value) onChange(part.id, field, formatted);
+    };
+
     return (
         <div className="border-t border-[var(--border)]/20 pt-4">
             <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                     <label className={labelClass}>
-                        Ориг. номер
+                        Артикул
                     </label>
 
                     <input
@@ -38,7 +48,7 @@ export default function ServicePartDetails({
                                 e.target.value
                             )
                         }
-                        placeholder="90915-YZZD3"
+                        placeholder="Например, W 610/6"
                         className={fieldClass}
                     />
                 </div>
@@ -113,6 +123,70 @@ export default function ServicePartDetails({
                         className={fieldClass}
                     />
                 </div>
+
+                {part.itemType === 'fluid' && (
+                    <label className="block">
+                        <span className={labelClass}>Спецификация</span>
+                        <input
+                            value={part.spec ?? ''}
+                            onChange={event => onChange(part.id, 'spec', event.target.value)}
+                            placeholder="Например, SAE 5W-30 или DOT 4"
+                            className={fieldClass}
+                        />
+                    </label>
+                )}
+
+                {part.itemType === 'fluid' && (
+                    <label className="block">
+                        <span className={labelClass}>Объём</span>
+                        <input
+                            value={part.volume ?? ''}
+                            onChange={event => onChange(part.id, 'volume', event.target.value)}
+                            onBlur={event => formatVolumeField('volume', event.target.value)}
+                            placeholder="Например, 4,2 л"
+                            className={fieldClass}
+                        />
+                    </label>
+                )}
+
+                {part.itemType === 'fluid' && (
+                    <div>
+                        <label className="block">
+                            <span className={labelClass}>Заправочный объём</span>
+                            <input
+                                value={part.fillCapacity ?? ''}
+                                onChange={event => onChange(part.id, 'fillCapacity', event.target.value)}
+                                onBlur={event => formatVolumeField('fillCapacity', event.target.value)}
+                                placeholder="Например, 5 л"
+                                className={fieldClass}
+                            />
+                        </label>
+
+                        {recommendedFillCapacity && (
+                            <Tooltip.Provider delayDuration={250}>
+                                <Tooltip.Root>
+                                    <Tooltip.Trigger asChild>
+                                        <button
+                                            type="button"
+                                            className="mt-2 inline-flex items-start gap-1.5 rounded text-left text-xs text-[var(--link)] focus-visible:outline focus-visible:outline-2"
+                                        >
+                                            <span>Рекомендуемый заправочный объём: {recommendedFillCapacity}</span>
+                                            <CircleHelp size={14} className="shrink-0" aria-hidden="true" />
+                                        </button>
+                                    </Tooltip.Trigger>
+                                    <Tooltip.Portal>
+                                        <Tooltip.Content
+                                            sideOffset={6}
+                                            className="z-[260] max-w-64 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs leading-relaxed text-[var(--text)] shadow-lg"
+                                        >
+                                            Средний заправочный объём по вашим прошлым ТО для этой жидкости и автомобиля.
+                                        </Tooltip.Content>
+                                    </Tooltip.Portal>
+                                </Tooltip.Root>
+                            </Tooltip.Provider>
+                        )}
+                    </div>
+                )}
 
                 {part.itemType === 'part' && (
                     <div className="mt-4">

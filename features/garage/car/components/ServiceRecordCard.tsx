@@ -94,6 +94,11 @@ export default function ServiceRecordCard({
                                     ? ` • ${part.oemNumber}`
                                     : ''}
 
+                                {part.itemType === 'fluid' && part.spec ? ` • Спецификация: ${part.spec}` : ''}
+                                {part.itemType === 'fluid' && part.volume ? ` • ${part.volume}` : ''}
+                                {part.itemType === 'fluid' && part.fillCapacity
+                                    ? ` • Заправочный объём: ${part.fillCapacity}`
+                                    : ''}
                                 <PartInstallationBadge value={part} />
                             </p>
                         ))}

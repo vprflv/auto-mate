@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CarPartItem } from '@/types';
 import { learnKeywords } from '@/features/garage/lib/userSubcategories';
 import { getSubcategoriesFor } from '@/features/garage/lib/getSubcategories';
-import {formatPartNameWithInstallation, suggestServicePartName} from "@/features/garage/add/lib/suggestServicePartName";
+import { formatPartNameWithInstallation, stripPartInstallationFromName, suggestServicePartName } from '@/features/garage/add/lib/suggestServicePartName';
 
 type Props = {
     item: CarPartItem | null;
@@ -103,6 +103,13 @@ export function useEditPartModal({
 
             const updated = { ...previous, ...patch };
 
+            if ('axle' in patch || 'side' in patch) {
+                return {
+                    ...updated,
+                    name: formatPartNameWithInstallation(previous.name || getAutomaticPartName(updated), updated),
+                };
+            }
+
             if (!canUpdateName || !classificationChanged) {
                 return updated;
             }
@@ -112,7 +119,7 @@ export function useEditPartModal({
 
             if (
                 previous.name.trim() &&
-                previous.name !== previousSuggestion
+                stripPartInstallationFromName(previous.name) !== stripPartInstallationFromName(previousSuggestion)
             ) {
                 return updated;
             }

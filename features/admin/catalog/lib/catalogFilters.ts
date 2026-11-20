@@ -9,9 +9,10 @@ export interface CatalogFilters {
     transmission: string;
     drivetrain: string;
     trim: string;
+    modificationIds?: string[];
 }
 
-export type CatalogFilterKey = keyof CatalogFilters;
+export type CatalogFilterKey = Exclude<keyof CatalogFilters, 'modificationIds'>;
 
 export type CatalogSearchParams = Record<
     string,
@@ -61,7 +62,8 @@ export function readCatalogFilters(
         engine: read('engine'),
         transmission: read('transmission'),
         drivetrain: read('drivetrain'),
-        trim: read('trim')
+        trim: read('trim'),
+        modificationIds: [...new Set([query.modificationId ?? []].flat().filter(Boolean))],
     };
 }
 
@@ -70,6 +72,7 @@ export function buildCatalogQuery(
     filters: CatalogFilters
 ): string {
     const query = new URLSearchParams();
+    for (const id of filters.modificationIds ?? []) query.append('modificationId', id);
 
     for (const field of catalogFilterFields) {
         const value = filters[field.key];
@@ -85,7 +88,7 @@ export function buildCatalogQuery(
 export function hasCatalogFilters(
     filters: CatalogFilters
 ): boolean {
-    return catalogFilterFields.some(
+    return Boolean(filters.modificationIds?.length) || catalogFilterFields.some(
         field => filters[field.key] !== 'all'
     );
 }
@@ -95,6 +98,11 @@ export function getMatchingModificationIds(
     modifications: CatalogModification[],
     filters: CatalogFilters
 ): Set<string> {
+    const selectedIds = filters.modificationIds;
+    if (selectedIds?.length) {
+        return new Set(modifications.filter(mod => selectedIds.includes(mod.id)).map(mod => mod.id));
+    }
+
     return new Set(
         modifications
             .filter(mod =>

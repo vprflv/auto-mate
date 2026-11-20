@@ -4,6 +4,9 @@ import * as React from 'react';
 import { X, Copy, Check, CarFront, GitBranchPlus, ShieldCheck, ChevronDown, Plus } from 'lucide-react';
 import { InboxItem, normalizeSlug } from '@/features/admin/lib/systemStore';
 import { useCarCatalog } from '@/features/garage/add/hooks/useCarCatalog';
+import { ROBOT_TRANSMISSION } from '@/features/garage/add/lib/config/robotTransmission';
+import { checkCarReviewModification } from '@/features/admin/lib/system-store/carCatalogReview';
+import { assertRequiredModificationAttributes } from '@/features/admin/lib/system-store/actions/modifications';
 
 interface Props {
     item: InboxItem;
@@ -15,6 +18,24 @@ interface Props {
 
 export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject }: Props) {
     const specs = item.carSpecs || (item as any).specs || {};
+    const rawVin = specs.vin || item.carVin;
+    const vin = rawVin === 'UNKNOWN' ? '' : rawVin;
+    const incomingFields = [
+        ['Марка и модель', `${item.carBrand} ${item.carModel}`],
+        ['Год выпуска', item.carYear || specs.year],
+        ['Код кузова', specs.bodyCode],
+        ['Тип кузова', specs.bodyClass],
+        ['Двигатель', item.engine || specs.engineCode || item.engineCode],
+        ['Объём двигателя, л', specs.displacementL],
+        ['Количество цилиндров', specs.cylinders],
+        ['Тип топлива', specs.fuel],
+        ['Комплектация (Trim)', specs.trim],
+        ['КПП', specs.transmission || item.transmission],
+        ['Привод', specs.driveType || item.drivetrain],
+        ['Количество дверей', specs.doors],
+        ['Страна сборки', specs.plantCountry],
+        ['Цвет', specs.color],
+    ];
 
     const [copiedVin, setCopiedVin] = React.useState(false);
 
@@ -30,9 +51,13 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
         candidate.brandSlug === normalizeSlug(brand) &&
         candidate.modelSlug === normalizeSlug(model)
     );
-    const existingModification = existingModel?.modifications.find(
+    const existingModification = existingModel?.modifications?.find(
         candidate => candidate.id === existingModificationId
     );
+    const modificationCheck = existingModification
+        ? checkCarReviewModification(item, existingModification)
+        : null;
+    const [approvalError, setApprovalError] = React.useState('');
     const [createMod, setCreateMod] = React.useState(true);
     const [modName, setModName] = React.useState<string>('');
     const [isModNameEdited, setIsModNameEdited] = React.useState(false);
@@ -41,7 +66,10 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
         item.engine || item.engineCode || specs.engineCode || ''
     );
     const [modTrans, setModTrans] = React.useState<string>((specs.transmission as string) || (item.transmission as string) || '');
+    const transmissionOptionsId = React.useId();
     const [modDrive, setModDrive] = React.useState<string>((specs.driveType as string) || (item.drivetrain as string) || '');
+    const [modFuel, setModFuel] = React.useState(typeof specs.fuel === 'string' ? specs.fuel : '');
+    const [modBodyClass, setModBodyClass] = React.useState(typeof specs.bodyClass === 'string' ? specs.bodyClass : '');
 
     // Стейт для кастомных полей (спасательный люк)
     const [customAttributes, setCustomAttributes] = React.useState<{id: string, key: string, value: string}[]>([]);
@@ -55,6 +83,8 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
         if (modEngine.trim()) parts.push(`(${modEngine.trim()})`);
         if (modTrans.trim()) parts.push(modTrans.trim());
         if (modDrive.trim()) parts.push(modDrive.trim());
+        if (modFuel.trim()) parts.push(modFuel.trim());
+        if (modBodyClass.trim()) parts.push(modBodyClass.trim());
 
         // Добавляем значения кастомных полей в автоназвание
         customAttributes.forEach(attr => {
@@ -65,7 +95,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
         if (generatedName !== modName) {
             setModName(generatedName);
         }
-    }, [modTrim, modEngine, modTrans, modDrive, customAttributes, isModNameEdited]);
+    }, [modTrim, modEngine, modTrans, modDrive, modFuel, modBodyClass, customAttributes, isModNameEdited]);
 
     React.useEffect(() => {
         if (isOpen) {
@@ -79,13 +109,15 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
     if (!isOpen) return null;
 
     const handleCopyVin = () => {
-        if (!specs.vin) return;
-        navigator.clipboard.writeText(specs.vin);
+        if (!vin) return;
+        navigator.clipboard.writeText(vin);
         setCopiedVin(true);
         setTimeout(() => setCopiedVin(false), 2000);
     };
 
     const handleApprove = () => {
+        setApprovalError('');
+        if (modificationCheck?.conflicts.length) return;
         // Упаковываем кастомные атрибуты в один объект
         const customObj = customAttributes.reduce((acc, curr) => {
             if (curr.key.trim() && curr.value.trim()) {
@@ -98,11 +130,14 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
             brandName: brand.trim(),
             modelName: model.trim(),
             years: years.trim(),
+            existingModificationId: existingModificationId || undefined,
             modification: existingModification ?? (createMod && modName.trim() ? {
                 id: `mod_${Date.now().toString(36)}`,
                 name: modName.trim(),
                 attributes: {
                     ...customObj,
+                    year: item.carYear ? String(item.carYear) : undefined,
+                    bodyCode: typeof specs.bodyCode === 'string' ? specs.bodyCode.trim() || undefined : undefined,
                     trim: modTrim.trim() || undefined,
                     engine: modEngine.trim() || undefined,
                     engineCode:
@@ -115,18 +150,20 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                         typeof specs.displacementL === 'string'
                             ? specs.displacementL.trim() || undefined
                             : undefined,
-                    fuel:
-                        typeof specs.fuel === 'string'
-                            ? specs.fuel.trim() || undefined
-                            : undefined,
-                    bodyClass:
-                        typeof specs.bodyClass === 'string'
-                            ? specs.bodyClass.trim() || undefined
-                            : undefined,
+                    fuel: modFuel.trim(),
+                    bodyClass: modBodyClass.trim(),
                 }
             } : undefined)
         };
-        onApprove(item.id, payload);
+        try {
+            if (createMod && !existingModificationId) {
+                assertRequiredModificationAttributes({ fuel: modFuel, bodyClass: modBodyClass });
+                if (!payload.modification) throw new Error('Укажите название модификации.');
+            }
+            onApprove(item.id, payload);
+        } catch (error: unknown) {
+            setApprovalError(error instanceof Error ? error.message : 'Не удалось одобрить заявку.');
+        }
     };
 
     const handleReject = () => {
@@ -170,37 +207,19 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                                             className="flex w-full items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 transition hover:border-[var(--link)]/50 active:scale-[0.98]"
                                         >
                                             <span className="font-mono text-lg font-bold tracking-widest text-[var(--text)]">
-                                                {specs.vin || 'НЕ УКАЗАН'}
+                                                {vin || 'НЕ УКАЗАН'}
                                             </span>
                                             {copiedVin ? <Check className="h-5 w-5 text-emerald-500" /> : <Copy className="h-5 w-5 text-[var(--text-muted)]" />}
                                         </button>
                                     </div>
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between border-b border-[var(--border)]/20 pb-2">
-                                            <span className="text-[var(--text-dim)] font-medium">Марка и Модель</span>
-                                            <span className="font-semibold text-[var(--text)] text-right">{item.carBrand} {item.carModel}</span>
-                                        </div>
-                                        <div className="flex justify-between border-b border-[var(--border)]/20 pb-2">
-                                            <span className="text-[var(--text-dim)] font-medium">Год выпуска</span>
-                                            <span className="font-semibold text-[var(--text)] text-right">{item.carYear || specs.year || '—'}</span>
-                                        </div>
-                                        <div className="flex justify-between border-b border-[var(--border)]/20 pb-2">
-                                            <span className="text-[var(--text-dim)] font-medium">Двигатель</span>
-                                            <span className="font-semibold text-[var(--text)] text-right">{item.engine || specs.displacementL || '—'}</span>
-                                        </div>
-                                        <div className="flex justify-between border-b border-[var(--border)]/20 pb-2">
-                                            <span className="text-[var(--text-dim)] font-medium">Комплектация (Trim)</span>
-                                            <span className="font-semibold text-[var(--text)] text-right">{specs.trim || '—'}</span>
-                                        </div>
-                                        <div className="flex justify-between border-b border-[var(--border)]/20 pb-2">
-                                            <span className="text-[var(--text-dim)] font-medium">КПП</span>
-                                            <span className="font-semibold text-[var(--text)] text-right">{specs.transmission || '—'}</span>
-                                        </div>
-                                        <div className="flex justify-between border-b border-[var(--border)]/20 pb-2">
-                                            <span className="text-[var(--text-dim)] font-medium">Привод</span>
-                                            <span className="font-semibold text-[var(--text)] text-right">{specs.driveType || '—'}</span>
-                                        </div>
-                                    </div>
+                                    <dl className="space-y-2 text-sm">
+                                        {incomingFields.map(([label, value]) => (
+                                            <div key={label} className="flex justify-between gap-3 border-b border-[var(--border)]/20 pb-2">
+                                                <dt className="font-medium text-[var(--text-dim)]">{label}</dt>
+                                                <dd className="min-w-0 break-words text-right font-semibold text-[var(--text)]">{value || '—'}</dd>
+                                            </div>
+                                        ))}
+                                    </dl>
                                 </div>
                             </div>
                         </div>
@@ -249,6 +268,17 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                                         Машина будет связана с выбранной модификацией и получит её характеристики.
                                     </span>}
                                 </label>
+
+                                {modificationCheck && (
+                                    <div className="mt-2 space-y-1 text-xs">
+                                        {modificationCheck.conflicts.map(message => (
+                                            <p key={message} role="alert" className="text-[var(--danger)]">{message}</p>
+                                        ))}
+                                        {modificationCheck.warnings.map(message => (
+                                            <p key={message} className="text-amber-600 dark:text-amber-400">{message}</p>
+                                        ))}
+                                    </div>
+                                )}
 
                                 {!existingModification && <div className={`mt-4 rounded-2xl border transition-colors p-5 ${createMod ? 'border-[var(--link)]/50 bg-[var(--link)]/5' : 'border-[var(--border)]/40 bg-[var(--bg-elevated)]/20'}`}>
                                     <button
@@ -312,12 +342,33 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                                                 </div>
                                                 <div>
                                                     <label className="mb-1 block text-xs text-[var(--text-muted)]">КПП</label>
-                                                    <input value={modTrans} onChange={(e) => setModTrans(e.target.value)} placeholder="AT, MT, CVT..." className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
+                                                    <input value={modTrans} list={transmissionOptionsId} onChange={(e) => setModTrans(e.target.value)} placeholder="AT, MT, CVT..." className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
+                                                    <datalist id={transmissionOptionsId}>
+                                                        <option value={ROBOT_TRANSMISSION} />
+                                                    </datalist>
                                                 </div>
                                                 <div>
                                                     <label className="mb-1 block text-xs text-[var(--text-muted)]">Привод</label>
                                                     <input value={modDrive} onChange={(e) => setModDrive(e.target.value)} placeholder="FWD, 4WD..." className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
                                                 </div>
+                                                {[
+                                                    { label: 'Тип топлива', placeholder: 'Бензин', value: modFuel, setValue: setModFuel },
+                                                    { label: 'Тип кузова', placeholder: 'Седан', value: modBodyClass, setValue: setModBodyClass },
+                                                ].map(({ label, placeholder, value, setValue }) => (
+                                                    <label key={label} className="block space-y-1 text-xs text-[var(--text-muted)]">
+                                                        <span>{label} *</span>
+                                                        <input
+                                                            value={value}
+                                                            onChange={event => {
+                                                                setValue(event.target.value);
+                                                                setApprovalError('');
+                                                            }}
+                                                            placeholder={placeholder}
+                                                            required
+                                                            className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]"
+                                                        />
+                                                    </label>
+                                                ))}
                                             </div>
 
                                             {/* БЛОК СОБСТВЕННЫХ ХАРАКТЕРИСТИК */}
@@ -379,6 +430,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                 </div>
 
                 {/* Футер с кнопками */}
+                {approvalError && <p role="alert" className="px-6 py-2 text-sm text-[var(--danger)]">{approvalError}</p>}
                 <div className="flex shrink-0 items-center justify-end gap-3 border-t border-[var(--border)]/40 bg-[var(--bg-elevated)]/30 px-6 py-4">
                     <button
                         type="button"
@@ -397,7 +449,8 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                     <button
                         type="button"
                         onClick={handleApprove}
-                        className="rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-600"
+                        disabled={Boolean(modificationCheck?.conflicts.length)}
+                        className="rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-50"
                     >
                         Одобрить в эталон
                     </button>
