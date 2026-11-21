@@ -14,6 +14,8 @@ export type CarCatalogSelection = {
     modificationName?: string;
 };
 
+export type CatalogBranch = { category: string; title: string };
+
 export type CatalogPartPayload = {
     part: {
         brand: string;
@@ -24,10 +26,7 @@ export type CatalogPartPayload = {
         oemCrosses?: string[];
         compatibilityScore?: number;
     };
-    node: {
-        category: string;
-        title: string;
-    };
+    nodes: CatalogBranch[];
     compatibleModifications: string[];
     installationsByModification?: PartInstallationMap;
 };

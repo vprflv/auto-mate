@@ -3,9 +3,13 @@
 import * as React from 'react';
 
 import { storage } from '@/features/admin/lib/system-store/storage';
+import { getFluidAnalogFamily } from '@/features/admin/lib/system-store/fluidAnalogFamily';
+import { FLUID_CATALOG_CATEGORY } from '@/features/catalog/lib/catalogSections';
 import {
     getOemCrosses,
-    getRelatedParts
+    getRelatedParts,
+    uniqueOemCrosses,
+    uniqueRelatedProducts
 } from '@/features/admin/lib/system-store/oemCrosses';
 
 import type {
@@ -68,13 +72,12 @@ export function usePartDetails({
         const oemNumbers = getOemCrosses(part);
 
         const targetNumbers = part.isOem
-            ? [part.article, ...oemNumbers]
+            ? uniqueOemCrosses([part.article, ...oemNumbers])
             : oemNumbers;
 
-        const relatedParts = getRelatedParts(
-            part,
-            allCatalogParts
-        );
+        const relatedParts = uniqueRelatedProducts(part, node.category === FLUID_CATALOG_CATEGORY
+            ? getFluidAnalogFamily(state.catalogNodes, node, part).members
+            : getRelatedParts(part, allCatalogParts));
 
         // Применимость берём только у самой детали.
         const compatibilityIds = Array.from(

@@ -8,7 +8,10 @@ import { storage } from '@/features/admin/lib/system-store/storage';
 
 import type { StoredCatalogNode } from '@/features/admin/lib/system-store/types';
 
+import type { CatalogSection } from '@/types/catalog/catalog';
+
 interface Props {
+    section: CatalogSection;
     nodesByCategory: Record<string, StoredCatalogNode[]>;
     visiblePartsCount: number;
 
@@ -20,6 +23,7 @@ interface Props {
 }
 
 export function ModelCatalogNodes({
+                                      section,
                                       nodesByCategory,
                                       visiblePartsCount,
                                       hasActiveFilters,
@@ -27,6 +31,7 @@ export function ModelCatalogNodes({
                                       modelPath,
                                       currentQuery
                                   }: Props) {
+    const isFluids = section === 'fluids';
     const { catalogCategoryLabels: labels, catalogCategoryOrder } = storage.getState();
     const categories = sortCatalogCategoryKeys(Object.keys(nodesByCategory), catalogCategoryOrder, labels)
         .map(category => [category, nodesByCategory[category]] as const);
@@ -53,8 +58,12 @@ export function ModelCatalogNodes({
         hasActiveFilters && matchingModCount === 0
             ? 'Нет модификаций с таким сочетанием параметров.'
             : hasActiveFilters
-                ? 'Для выбранных модификаций пока нет подтверждённых деталей.'
-                : 'В каталоге этой модели пока нет узлов.';
+                ? isFluids
+                    ? 'Для выбранных модификаций пока нет подтверждённых жидкостей.'
+                    : 'Для выбранных модификаций пока нет подтверждённых деталей.'
+                : isFluids
+                    ? 'В каталоге этой модели пока нет масел и жидкостей.'
+                    : 'В каталоге этой модели пока нет узлов.';
 
     return (
         <section className="space-y-4">
@@ -63,14 +72,14 @@ export function ModelCatalogNodes({
                     <Wrench className="h-5 w-5 text-[var(--text-muted)]" />
 
                     <h2 className="text-lg font-bold text-[var(--text)]">
-                        Каталог запчастей
+                        {isFluids ? 'Масла и жидкости' : 'Каталог запчастей'}
                     </h2>
                 </div>
 
                 <span className="text-xs text-[var(--text-dim)]">
                     Узлов: {nodesCount}
                     {' · '}
-                    Деталей: {visiblePartsCount}
+                    {isFluids ? 'Жидкостей' : 'Деталей'}: {visiblePartsCount}
                 </span>
             </div>
 
@@ -134,8 +143,8 @@ export function ModelCatalogNodes({
 
                                                 <p className="text-xs text-[var(--text-dim)]">
                                                     {hasActiveFilters
-                                                        ? 'Подходит деталей'
-                                                        : 'Деталей в базе'}
+                                                        ? isFluids ? 'Подходит жидкостей' : 'Подходит деталей'
+                                                        : isFluids ? 'Жидкостей в базе' : 'Деталей в базе'}
                                                     :{' '}
                                                     {node.items.length}
                                                 </p>

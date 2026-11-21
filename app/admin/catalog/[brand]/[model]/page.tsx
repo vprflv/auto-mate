@@ -10,7 +10,8 @@ import { ModelCatalogHeader } from '@/features/admin/catalog/components/ModelCat
 import { ModelCatalogFilters } from '@/features/admin/catalog/components/ModelCatalogFilters';
 import { ModelCatalogNodes } from '@/features/admin/catalog/components/ModelCatalogNodes';
 
-import type { CatalogSearchParams } from '@/features/admin/catalog/lib/catalogFilters';
+import { buildModelCatalogHref, type CatalogSearchParams } from '@/features/admin/catalog/lib/catalogFilters';
+import { CatalogSectionLinks } from '@/features/catalog/components/CatalogSectionLinks';
 import {ModelModifications} from "@/features/admin/catalog/components/ModelModifications";
 import {AddCatalogPartModal} from "@/features/admin/catalog/components/AddCatalogPartModal";
 import { ModificationPartsPicker } from '@/features/admin/catalog/components/ModificationPartsPicker';
@@ -75,12 +76,21 @@ export default function ModelCatalogDashboard({
         <div className="mx-auto max-w-6xl space-y-8 pb-20">
             <ModelCatalogHeader
                 model={catalog.masterModel}
+                section={catalog.section}
                 onAddPart={() => setIsAddPartOpen(true)}
+            />
+
+            <CatalogSectionLinks
+                section={catalog.section}
+                partsHref={buildModelCatalogHref(catalog.modelPath, catalog.currentQuery, 'parts')}
+                fluidsHref={buildModelCatalogHref(catalog.modelPath, catalog.currentQuery, 'fluids')}
             />
 
             {isAddPartOpen && (
                 <AddCatalogPartModal
+                    key={catalog.section}
                     model={catalog.masterModel}
+                    section={catalog.section}
                     onClose={() => setIsAddPartOpen(false)}
                 />
             )}
@@ -104,6 +114,7 @@ export default function ModelCatalogDashboard({
             />
 
             <ModelCatalogNodes
+                section={catalog.section}
                 nodesByCategory={catalog.nodesByCategory}
                 visiblePartsCount={catalog.visiblePartsCount}
                 hasActiveFilters={catalog.hasActiveFilters}

@@ -8,6 +8,19 @@ import { getRecommendedFillCapacity } from '@/features/garage/add/lib/getRecomme
 import ServicePartCard from './ServicePartCard';
 import { PartForm } from '@/features/garage/add/types/serviceForm';
 
+import type { FluidFillCapacities } from '@/types/oil';
+import { storage } from '@/features/admin/lib/system-store/storage';
+import { getGarageCars } from '@/features/garage/add/lib/storage';
+import { resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIdentity';
+import { formatFillCapacity, getServiceFillCapacities } from '@/features/catalog/lib/fluidFillCapacities';
+
+function getReferenceFillCapacity(part: PartForm, capacities?: FluidFillCapacities) {
+    const liters = capacities?.[part.fluidCategory];
+    if (part.itemType === 'fluid' && typeof liters === 'number' && liters > 0) {
+        return formatFillCapacity(liters);
+    }
+}
+
 type Props = {
     carId: string;
     serviceDate: string;
@@ -43,7 +56,36 @@ export default function ServicePartsSection({
         }
     }, [carId]);
 
+    const [reference, setReference] = useState<{ carId: string; capacities?: FluidFillCapacities } | null>(null);
+
+    useEffect(() => {
+        const loadReference = () => {
+            try {
+                const car = getGarageCars().find(item => item.id === carId);
+                const state = storage.getState();
+                const identity = car && resolveCarCatalogIdentity(car, state.masterModels);
+                setReference({
+                    carId,
+                    capacities: identity ? getServiceFillCapacities(state.catalogNodes, identity.model, identity.modification) : undefined,
+                });
+            } catch {
+                setReference(null);
+            }
+        };
+
+        loadReference();
+        window.addEventListener('system-store-updated', loadReference);
+        window.addEventListener('garage-updated', loadReference);
+        window.addEventListener('storage', loadReference);
+        return () => {
+            window.removeEventListener('system-store-updated', loadReference);
+            window.removeEventListener('garage-updated', loadReference);
+            window.removeEventListener('storage', loadReference);
+        };
+    }, [carId]);
+
     const records = history?.carId === carId ? history.records : [];
+    const capacities = reference?.carId === carId ? reference.capacities : undefined;
 
     return (
         <div className="rounded-3xl border border-[var(--border)]/30 bg-[var(--card)] p-5 transition-colors duration-200 sm:p-6">
@@ -81,6 +123,7 @@ export default function ServicePartsSection({
                         key={part.id}
                         part={part}
                         index={index}
+                        referenceFillCapacity={getReferenceFillCapacity(part, capacities)}
                         recommendedFillCapacity={getRecommendedFillCapacity(part, records, serviceDate, excludedRecordId)}
                         onChange={onChange}
                         onRemove={onRemove}

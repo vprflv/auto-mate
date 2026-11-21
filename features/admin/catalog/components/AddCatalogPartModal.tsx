@@ -4,12 +4,14 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
 import { CompatibilityBlock } from '@/features/admin/catalog-inbox/components/part-moderation/CompatibilityBlock';
-import { NodeEditorBlock } from '@/features/admin/catalog-inbox/components/part-moderation/NodeEditorBlock';
+import { CatalogBranchesPicker } from './CatalogBranchesPicker';
+import { FluidBranchPreview } from './FluidBranchPreview';
+import { catalogBranchKey } from '@/features/admin/lib/system-store/catalogBranches';
+import type { CatalogBranch } from '@/types';
 import { PartEditorBlock } from '@/features/admin/catalog-inbox/components/part-moderation/PartEditorBlock';
 import type { OemSuggestion } from '@/features/admin/catalog-inbox/components/part-moderation/OemCrossSelect';
 import { getPartCategoryWarning } from '@/features/admin/catalog-inbox/hooks/getPartCategoryWarning';
 import { storage } from '@/features/admin/lib/system-store/storage';
-import { getCatalogSectionOptions } from '@/features/admin/lib/system-store/categoryLabels';
 import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArticle';
 import { getOemCrosses } from '@/features/admin/lib/system-store/oemCrosses';
 import type { StoredMasterModel } from '@/features/admin/lib/system-store/types';
@@ -19,14 +21,20 @@ import { formatPartNameWithInstallation } from '@/features/garage/add/lib/sugges
 import type { PartInstallation } from '@/types/partInstallation';
 import {PartInstallationFields} from "@/features/garage/components/PartInstallationFields";
 
+import type { CatalogSection } from '@/types/catalog/catalog';
+import { getCatalogSection } from '@/features/catalog/lib/catalogSections';
+
 interface Props {
     model: StoredMasterModel;
+    section: CatalogSection;
     onClose: () => void;
 }
 
 
 
-export function AddCatalogPartModal({ model, onClose }: Props) {
+export function AddCatalogPartModal({ model, section, onClose }: Props) {
+    const isFluids = section === 'fluids';
+    const addTitle = isFluids ? 'Добавить жидкость' : 'Добавить запчасть';
     const [brand, setBrand] = useState('');
     const [article, setArticle] = useState('');
     const [manualName, setManualName] = useState<string | null>(null);
@@ -36,22 +44,17 @@ export function AddCatalogPartModal({ model, onClose }: Props) {
     const [oemCross, setOemCross] = useState('');
     const [installationOverride, setInstallationOverride] = useState<PartInstallation>({});
 
-    const [nodeCategory, setNodeCategory] = useState('');
-    const [selectedNodeTitle, setNodeTitle] = useState('');
-    const [isCustomNode, setIsCustomNode] = useState(false);
+    const [branches, setBranches] = useState<CatalogBranch[] | null>(null);
 
     const [compatibilityType, setCompatibilityType] =
         useState<'all' | 'specific'>('specific');
     const [selectedModIds, setSelectedModIds] = useState<string[]>([]);
     const [hasAutomaticCompatibility, setHasAutomaticCompatibility] = useState(false);
 
-    const [catalogNodes] = useState(() => storage.getState().catalogNodes);
+    const [catalogNodes] = useState(() => storage.getState().catalogNodes.filter(node => getCatalogSection(node.category) === section));
 
-    const { existingCategories, existingNodes } = getCatalogSectionOptions(catalogNodes, nodeCategory);
-    const nodeTitle = selectedNodeTitle ||
-        (!isCustomNode && existingNodes.length === 1 ? existingNodes[0] : '');
-
-    const subcategoryKey = nodeTitle.trim().toLocaleLowerCase('ru');
+    const source = findCatalogOemSource(catalogNodes, isOem ? article : oemCross, !isOem, model);
+    const selectedBranches = branches ?? (source ? [{ category: source.node.category, title: source.node.title }] : []);
     const oemNumber = normalizeArticle(isOem ? article : oemCross);
     const oemMatches = useMemo(() => {
         if (!oemNumber) return [];
@@ -137,7 +140,7 @@ export function AddCatalogPartModal({ model, onClose }: Props) {
         }))
     );
     const positions = uniqueInstallations(positionsByModification.flat());
-    const nameSource = findCatalogOemSource(catalogNodes, isOem ? article : oemCross, !isOem, model)?.part;
+    const nameSource = source?.part;
     const sourcePositions = uniqueInstallations(
         Object.values(nameSource?.installationsByModification ?? {}).flat()
     );
@@ -151,19 +154,19 @@ export function AddCatalogPartModal({ model, onClose }: Props) {
             ? positions[0]
             : undefined) ??
         (!isOem && sourcePositions.length === 1 ? sourcePositions[0] : undefined);
-    const installation = { ...suggestedInstallation, ...installationOverride };
+    const installation = isFluids ? {} : { ...suggestedInstallation, ...installationOverride };
     const suggestedName = formatPartNameWithInstallation(nameSource?.name ?? '', installation);
     const name = formatPartNameWithInstallation(manualName ?? nameSource?.name ?? '', installation);
 
     const oemSuggestions = useMemo(() => {
         const suggestions: OemSuggestion[] = [];
+        const selectedKeys = new Set(selectedBranches.map(catalogBranchKey));
 
         for (const node of catalogNodes) {
             const sameNode =
                 node.brandSlug === model.brandSlug &&
                 node.modelSlug === model.modelSlug &&
-                node.category === nodeCategory &&
-                node.title.trim().toLocaleLowerCase('ru') === subcategoryKey;
+                selectedKeys.has(catalogBranchKey(node));
 
             for (const part of node.items) {
                 if (part.isOem) {
@@ -193,7 +196,7 @@ export function AddCatalogPartModal({ model, onClose }: Props) {
         }
 
         return suggestions;
-    }, [catalogNodes, model.brandSlug, model.modelSlug, nodeCategory, subcategoryKey]);
+    }, [catalogNodes, model.brandSlug, model.modelSlug, selectedBranches]);
 
     const originalNumber = isOem ? normalizeArticle(article) : '';
     const existingOriginal = originalNumber
@@ -203,7 +206,7 @@ export function AddCatalogPartModal({ model, onClose }: Props) {
         )
         : undefined;
 
-    const categoryWarning = getPartCategoryWarning(name, nodeCategory);
+    const categoryWarnings = [...new Set(selectedBranches.map(branch => getPartCategoryWarning(name, branch.category)).filter(Boolean))];
 
     const articleKey = normalizeArticle(article);
 
@@ -233,11 +236,10 @@ export function AddCatalogPartModal({ model, onClose }: Props) {
         }`
         : '';
 
-    const warning = [categoryWarning, duplicateWarning].filter(Boolean).join('\n');
+    const warning = [...categoryWarnings, duplicateWarning].filter(Boolean).join('\n');
 
     const missingFields = [
-        !nodeCategory.trim() && 'категория',
-        !nodeTitle.trim() && 'подкатегория',
+        selectedBranches.length === 0 && 'ветки каталога',
         !brand.trim() && 'бренд',
         !normalizeArticle(article) && 'артикул',
         !name.trim() && 'эталонное название',
@@ -264,7 +266,7 @@ export function AddCatalogPartModal({ model, onClose }: Props) {
         if (
             warning &&
             !window.confirm(
-                `${warning}\n\nДобавить деталь в выбранную подкатегорию?`
+                `${warning}\n\nДобавить позицию в выбранные ветки?`
             )
         ) {
             return;
@@ -280,10 +282,7 @@ export function AddCatalogPartModal({ model, onClose }: Props) {
                     oemCross: isOem ? '' : oemCross.trim(),
                     compatibilityScore: Number(confidence),
                 },
-                node: {
-                    category: nodeCategory.trim(),
-                    title: nodeTitle.trim(),
-                },
+                nodes: selectedBranches,
                 compatibleModifications: compatibilityType === 'all'
                     ? ['all']
                     : selectedModIds,
@@ -306,27 +305,18 @@ export function AddCatalogPartModal({ model, onClose }: Props) {
             <form
                 role="dialog"
                 aria-modal="true"
-                aria-label="Добавить запчасть"
+                aria-label={addTitle}
                 onSubmit={handleSubmit}
                 className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-3xl bg-[var(--card)] p-6"
             >
                 <div>
-                    <h2 className="text-lg font-bold">Добавить запчасть</h2>
+                    <h2 className="text-lg font-bold">{addTitle}</h2>
                     <p className="text-sm text-[var(--text-muted)]">
                         {model.brandName} {model.modelName}
                     </p>
                 </div>
 
-                <NodeEditorBlock
-                    nodeCategory={nodeCategory}
-                    setNodeCategory={setNodeCategory}
-                    nodeTitle={nodeTitle}
-                    setNodeTitle={setNodeTitle}
-                    existingCategories={existingCategories}
-                    existingNodes={existingNodes}
-                    isCustomNode={isCustomNode}
-                    setIsCustomNode={setIsCustomNode}
-                />
+                <CatalogBranchesPicker section={section} value={selectedBranches} onChange={setBranches} />
 
                 <PartEditorBlock
                     brand={brand}
@@ -347,16 +337,7 @@ export function AddCatalogPartModal({ model, onClose }: Props) {
                             setInstallationOverride({});
                         }
                         applyOemCompatibility(value);
-                        const source = findCatalogOemSource(catalogNodes, value, true, model);
-                        if (source) {
-                            setManualName(null);
-
-                            if (source.node.category && source.node.category !== nodeCategory) {
-                                setNodeCategory(source.node.category);
-                                setNodeTitle('');
-                                setIsCustomNode(false);
-                            }
-                        }
+                        if (findCatalogOemSource(catalogNodes, value, true, model)) setManualName(null);
                     }}
                     oemSuggestions={oemSuggestions}
                 />
@@ -377,14 +358,14 @@ export function AddCatalogPartModal({ model, onClose }: Props) {
                     </p>
                 )}
 
-                <PartInstallationFields
+                {!isFluids && <PartInstallationFields
                     key={oemNumber}
                     partName={name}
                     value={installation}
                     onChange={patch => {
                         setInstallationOverride(previous => ({ ...previous, ...patch }));
                     }}
-                />
+                />}
 
                 {warning && (
                     <p
@@ -406,6 +387,7 @@ export function AddCatalogPartModal({ model, onClose }: Props) {
 
                 <CompatibilityBlock
                     targetCar={model}
+                    isFluid={isFluids}
                     compatibilityType={compatibilityType}
                     setCompatibilityType={value => {
                         setHasAutomaticCompatibility(false);
@@ -417,6 +399,12 @@ export function AddCatalogPartModal({ model, onClose }: Props) {
                         setSelectedModIds(value);
                     }}
                 />
+
+                {isFluids && (
+                    <FluidBranchPreview model={model} branches={selectedBranches} catalogNodes={catalogNodes}
+                        part={{ brand, article, name, isOem, oemCross: isOem ? '' : oemCross }}
+                        modificationIds={compatibilityType === 'all' ? ['all'] : selectedModIds} />
+                )}
 
                 {showRequiredFields && missingFields.length > 0 && (
                     <p role="alert" className="rounded-xl bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">

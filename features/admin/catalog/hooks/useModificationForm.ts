@@ -233,7 +233,8 @@ export function useModificationForm({
         }
 
         if (yearEnd && Number(yearEnd) < Number(year)) {
-            setError('Год окончания выпуска не может быть раньше года на
+            setError('Год окончания выпуска не может быть раньше года начала выпуска.');
+            return;
         }
 
 

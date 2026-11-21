@@ -1,5 +1,5 @@
 import type { StoredPartItem } from './types';
-import { formatArticle, normalizeArticle } from './normalizeArticle';
+import { catalogProductKey, formatArticle, normalizeArticle } from './normalizeArticle';
 
 /** Убираем пустые номера и повторы, сохраняя формат отображения. */
 export function uniqueOemCrosses(values: string[]): string[] {
@@ -24,6 +24,23 @@ export function getOemCrosses(
         ...(part.oemCrosses ?? []),
         part.oemCross ?? '',
     ]);
+}
+
+export function uniqueRelatedProducts(part: StoredPartItem, relatedParts: StoredPartItem[]): StoredPartItem[] {
+    const ownKey = catalogProductKey(part.brand, part.article);
+    const unique = new Map<string, StoredPartItem>();
+
+    for (const related of relatedParts) {
+        const key = catalogProductKey(related.brand, related.article);
+        if (key === ownKey) continue;
+
+        const previous = unique.get(key);
+        if (!previous || (related.installationsCount ?? 0) > (previous.installationsCount ?? 0)) {
+            unique.set(key, related);
+        }
+    }
+
+    return [...unique.values()];
 }
 
 /** Расширяем поиск по связям, заданным на подтверждённых оригиналах. */

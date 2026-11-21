@@ -5,8 +5,11 @@ import { PartForm } from '@/features/garage/add/types/serviceForm';
 import { formatFluidVolume } from '@/features/garage/add/lib/formatFluidVolume';
 import {PartInstallationFields} from "@/features/garage/components/PartInstallationFields";
 
+import { FLUID_FILL_CAPACITY_NOTICE } from '@/features/catalog/lib/fluidFillCapacities';
+
 type Props = {
     part: PartForm;
+    referenceFillCapacity?: string;
     recommendedFillCapacity?: string;
     onChange: (
         id: string,
@@ -23,6 +26,7 @@ const labelClass =
 
 export default function ServicePartDetails({
     part,
+    referenceFillCapacity,
     recommendedFillCapacity,
     onChange,
 }: Props) {
@@ -162,7 +166,16 @@ export default function ServicePartDetails({
                             />
                         </label>
 
-                        {recommendedFillCapacity && (
+                        {referenceFillCapacity && (
+                            <div className="mt-2 space-y-1 text-xs">
+                                <p className="font-medium text-[var(--text)]">
+                                    Справочный заправочный объём: {referenceFillCapacity}
+                                </p>
+                                <p className="text-[var(--text-muted)]">{FLUID_FILL_CAPACITY_NOTICE}</p>
+                            </div>
+                        )}
+
+                        {!referenceFillCapacity && recommendedFillCapacity && (
                             <Tooltip.Provider delayDuration={250}>
                                 <Tooltip.Root>
                                     <Tooltip.Trigger asChild>
@@ -170,7 +183,7 @@ export default function ServicePartDetails({
                                             type="button"
                                             className="mt-2 inline-flex items-start gap-1.5 rounded text-left text-xs text-[var(--link)] focus-visible:outline focus-visible:outline-2"
                                         >
-                                            <span>Рекомендуемый заправочный объём: {recommendedFillCapacity}</span>
+                                            <span>Средний объём по вашим ТО: {recommendedFillCapacity}</span>
                                             <CircleHelp size={14} className="shrink-0" aria-hidden="true" />
                                         </button>
                                     </Tooltip.Trigger>
@@ -179,7 +192,7 @@ export default function ServicePartDetails({
                                             sideOffset={6}
                                             className="z-[260] max-w-64 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs leading-relaxed text-[var(--text)] shadow-lg"
                                         >
-                                            Средний заправочный объём по вашим прошлым ТО для этой жидкости и автомобиля.
+                                            Средний заправочный объём по вашим прошлым ТО для этой жидкости и автомобиля. Перед заправкой сверьте объём с руководством производителя.
                                         </Tooltip.Content>
                                     </Tooltip.Portal>
                                 </Tooltip.Root>

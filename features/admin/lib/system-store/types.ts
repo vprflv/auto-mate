@@ -1,5 +1,7 @@
 import {PartInstallation, PartInstallationMap} from "@/types/partInstallation";
 
+import type { FluidCategory, FluidFillCapacities } from '@/types/oil';
+
 export interface AppUser {
     id: string;
     name: string;
@@ -113,6 +115,7 @@ export interface CatalogModification {
     id: string;
     name: string;
     registeredCount: number;
+    fluidFillCapacities?: FluidFillCapacities;
     attributes: {
         trim?: string;
         engine?: string;
@@ -145,6 +148,7 @@ export interface StoredPartItem {
     compatibleModifications?: string[];
 
     isVerified?: boolean;
+    fluidAnalogDetached?: boolean;
     installationsCount: number;
     compatibilityScore: number;
     compatibilityScoresByModification?: Record<string, number>;
@@ -160,6 +164,9 @@ export interface StoredCatalogNode {
     category: 'service' | 'brakes' | 'suspension' | 'ignition' | 'fluids' | string;
     compatibleModifications: string[]; // Массив ID модификаций (['mod_cf4_sir']) или ['all']
     items: StoredPartItem[];
+    fluidCategory?: FluidCategory | null;
+    excludedFluidProducts?: string[];
+    fillCapacitiesByModification?: Record<string, number>;
 }
 
 export interface StoredMasterModel {

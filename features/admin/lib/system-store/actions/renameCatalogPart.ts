@@ -1,4 +1,5 @@
 import { storage } from '../storage';
+import { getCatalogPartPlacements } from '../catalogBranches';
 
 interface RenameCatalogPartInput {
     nodeId: string;
@@ -30,8 +31,8 @@ export function renameCatalogPart({
         throw new Error('Запчасть больше не найдена в этом разделе.');
     }
 
-    if (part.name === nextName) return;
-
-    part.name = nextName;
+    for (const { part: placement } of getCatalogPartPlacements(state.catalogNodes, node, part)) {
+        placement.name = nextName;
+    }
     storage.saveState(state);
 }

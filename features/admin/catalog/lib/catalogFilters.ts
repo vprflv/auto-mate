@@ -4,6 +4,8 @@ import type {
 } from '@/features/admin/lib/system-store/types';
 import {resolvePartApplicability} from "@/features/admin/catalog/lib/resolvePartApplicability";
 
+import type { CatalogSection } from '@/types/catalog/catalog';
+
 export interface CatalogFilters {
     engine: string;
     transmission: string;
@@ -83,6 +85,13 @@ export function buildCatalogQuery(
     }
 
     return query.toString();
+}
+
+export function buildModelCatalogHref(modelPath: string, currentQuery: string, section: CatalogSection): string {
+    const query = new URLSearchParams(currentQuery);
+    if (section === 'fluids') query.set('section', section);
+    const search = query.toString();
+    return search ? `${modelPath}?${search}` : modelPath;
 }
 
 export function hasCatalogFilters(

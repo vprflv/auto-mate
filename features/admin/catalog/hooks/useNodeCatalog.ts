@@ -3,7 +3,8 @@
 import * as React from 'react';
 
 import { storage } from '@/features/admin/lib/system-store/storage';
-import { getRelatedParts } from '@/features/admin/lib/system-store/oemCrosses';
+import { getCatalogSection } from '@/features/catalog/lib/catalogSections';
+import { getRelatedParts, uniqueRelatedProducts } from '@/features/admin/lib/system-store/oemCrosses';
 
 import type {
     StoredCatalogNode,
@@ -15,6 +16,7 @@ import {
     catalogFilterFields,
     readCatalogFilters,
     buildCatalogQuery,
+    buildModelCatalogHref,
     hasCatalogFilters,
     getMatchingModificationIds,
     matchesCatalogFilters,
@@ -69,9 +71,9 @@ export function useNodeCatalog(
                 nodeId,
                 node,
                 masterModel,
-                modelParts: modelNodes.flatMap(
-                    item => item.items
-                )
+                modelParts: node
+                    ? modelNodes.filter(item => getCatalogSection(item.category) === getCatalogSection(node.category)).flatMap(item => item.items)
+                    : []
             });
 
             // Если открытую деталь удалили,
@@ -140,11 +142,9 @@ export function useNodeCatalog(
     const getAnalogsCount = (
         part: StoredPartItem
     ): number => {
-        if (!part.isOem) return 0;
-
-        return getRelatedParts(part, matchingModelParts)
-            .filter(item => !item.isOem)
-            .length;
+        if (!part.isOem || part.fluidAnalogDetached) return 0;
+        const analogs = getRelatedParts(part, matchingModelParts).filter(item => !item.isOem);
+        return uniqueRelatedProducts(part, analogs).length;
     };
 
     // Берём актуальную деталь из хранилища после
@@ -170,9 +170,11 @@ export function useNodeCatalog(
 
     const currentQuery = buildCatalogQuery(filters);
 
-    const modelHref = currentQuery
-        ? `${modelPath}?${currentQuery}`
-        : modelPath;
+    const modelHref = buildModelCatalogHref(
+        modelPath,
+        currentQuery,
+        node ? getCatalogSection(node.category) : 'parts',
+    );
 
     const activeFilterLabels = catalogFilterFields
         .filter(field => filters[field.key] !== 'all')
@@ -184,6 +186,7 @@ export function useNodeCatalog(
     return {
         loaded,
         node,
+        masterModel: currentSnapshot?.masterModel ?? null,
 
         visibleParts,
         getAnalogsCount,

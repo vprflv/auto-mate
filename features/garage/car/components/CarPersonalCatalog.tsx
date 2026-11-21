@@ -96,11 +96,11 @@ export default function CarPersonalCatalog({
 
             <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--border)] pt-5">
                 <p className="text-sm text-[var(--text-muted)]">
-                    Нужна деталь, которой здесь ещё нет?
+                    {tab === 'fluids' ? 'Нужно масло или жидкость?' : 'Нужна деталь, которой здесь ещё нет?'}
                 </p>
 
                 <Link
-                    href={`/garage/${carId}/catalog`}
+                    href={`/garage/${carId}/catalog${tab === 'fluids' ? '/fluids' : ''}`}
                     className="inline-flex items-center gap-2 text-sm font-medium text-[var(--link)] transition-opacity hover:opacity-80"
                 >
                     <Sparkles
@@ -108,7 +108,7 @@ export default function CarPersonalCatalog({
                         aria-hidden="true"
                     />
 
-                    Открыть ИИ-каталог
+                    {tab === 'fluids' ? 'Открыть общий каталог жидкостей' : 'Открыть ИИ-каталог'}
 
                     <ArrowUpRight
                         size={16}

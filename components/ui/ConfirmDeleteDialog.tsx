@@ -10,6 +10,7 @@ interface Props {
     children: ReactElement;
     content?: ReactNode;
     onOpen?: () => void;
+    confirmLabel?: string;
 
     // true — удаление выполнено, окно можно закрыть.
     onConfirm: () => boolean;
@@ -21,6 +22,7 @@ export function ConfirmDeleteDialog({
                                         children,
                                         content,
                                         onOpen,
+                                        confirmLabel = 'Удалить',
                                         onConfirm
                                     }: Props) {
     const [open, setOpen] = useState(false);
@@ -75,7 +77,7 @@ export function ConfirmDeleteDialog({
                             }}
                             className="flex-1 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
                         >
-                            Удалить
+                            {confirmLabel}
                         </AlertDialog.Action>
                     </div>
                 </AlertDialog.Content>

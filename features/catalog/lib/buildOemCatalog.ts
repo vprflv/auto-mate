@@ -18,6 +18,8 @@ import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArt
 import { getOemCrosses } from '@/features/admin/lib/system-store/oemCrosses';
 import { getCatalogCategoryLabel, sortCatalogCategoryKeys } from '@/features/admin/lib/system-store/categoryLabels';
 import { resolveCarCatalogIdentity } from './carCatalogIdentity';
+import { getCatalogSection } from './catalogSections';
+import { getNodeFillCapacity } from './fluidFillCapacities';
 import {uniqueInstallations} from "@/features/catalog/lib/partInstallations";
 
 type Entry = {
@@ -126,6 +128,8 @@ export function buildOemCatalog(
 
     // Общий индекс проверенных деталей всех моделей.
     for (const node of state.catalogNodes) {
+        if (params.section && getCatalogSection(node.category) !== params.section) continue;
+
         const model = models.get(
             JSON.stringify([node.brandSlug, node.modelSlug])
         );
@@ -141,7 +145,9 @@ export function buildOemCatalog(
                 continue;
             }
 
-            const key = partKey(part);
+            const key = part.fluidAnalogDetached && getCatalogSection(node.category) === 'fluids'
+                ? JSON.stringify([partKey(part), node.id])
+                : partKey(part);
             const group = groups.get(key) ?? {
                 key,
                 entries: [],
@@ -159,7 +165,7 @@ export function buildOemCatalog(
     for (const group of groups.values()) {
         const part = group.entries[0].part;
 
-        if (!part.isOem) continue;
+        if (!part.isOem || part.fluidAnalogDetached) continue;
 
         const number = normalizeArticle(part.article);
         const keys = originalsByNumber.get(number) ?? new Set();
@@ -175,7 +181,7 @@ export function buildOemCatalog(
         if (!part.isOem) continue;
 
         const number = normalizeArticle(part.article);
-        if (originalsByNumber.get(number)?.size !== 1) continue;
+        if (part.fluidAnalogDetached || originalsByNumber.get(number)?.size !== 1) continue;
 
         for (const cross of crossNumbers(group).keys()) {
             if ((originalsByNumber.get(cross)?.size ?? 0) > 1) continue;
@@ -324,8 +330,9 @@ export function buildOemCatalog(
 
     function toArticle(
         group: PartGroup,
-        nodeId: string
+        nodeId: string,
     ): CatalogArticle {
+        const placements = catalogNodeIds(group);
         const { part } = preferredEntry(group);
 
         const linkedOemNumbers = Array.from(
@@ -351,7 +358,8 @@ export function buildOemCatalog(
 
         return {
             id: `master-part:${group.key}`,
-            nodeId,
+            nodeId: placements[0] ?? nodeId,
+            nodeIds: params.section === 'fluids' || placements.length ? placements : undefined,
 
             oem: part.article,
             name: part.name,
@@ -381,9 +389,7 @@ export function buildOemCatalog(
     const categoryMap = new Map<string, CatalogNode>();
     const nodeMap = new Map<string, CatalogNode>();
 
-    function getNodeId(entry: Entry): string {
-        const { node } = entry;
-
+    function getNodeId(node: StoredCatalogNode, hasArticles = true, fillCapacity?: number): string {
         const isFluid = node.category === 'fluids';
         const prefix = isFluid ? 'fluids-master' : 'master-node';
 
@@ -392,7 +398,11 @@ export function buildOemCatalog(
             node.title.trim().toLowerCase(),
         ])}`;
 
-        if (nodeMap.has(id)) return id;
+        const existing = nodeMap.get(id);
+        if (existing) {
+            if (hasArticles) existing.hasArticles = true;
+            return id;
+        }
 
         const categoryId = getOemCatalogCategoryId(node.category);
 
@@ -412,13 +422,35 @@ export function buildOemCatalog(
             id,
             parentId: categoryId,
             name: node.title,
-            hasArticles: true,
+            hasArticles,
+            fillCapacity,
         };
 
         nodeMap.set(id, child);
         category.children?.push(child);
 
         return id;
+    }
+
+    if (params.section === 'fluids') {
+        for (const node of state.catalogNodes) {
+            if (getCatalogSection(node.category) !== 'fluids' ||
+                node.brandSlug !== identity.model.brandSlug || node.modelSlug !== identity.model.modelSlug) continue;
+            const liters = getNodeFillCapacity(node, identity.modification);
+            if (liters != null) getNodeId(node, false, liters);
+        }
+    }
+
+    function catalogNodeIds(group: PartGroup): string[] {
+        const ids = new Set<string>();
+        for (const { node, part } of group.entries) {
+            if (node.brandSlug !== identity!.model.brandSlug || node.modelSlug !== identity!.model.modelSlug) continue;
+            const compatible = part.compatibleModifications ?? [];
+            if (compatible.includes('all') || compatible.includes(identity!.modification.id)) {
+                ids.add(getNodeId(node));
+            }
+        }
+        return [...ids];
     }
 
     const analogs = Array.from(groups.values()).filter(
@@ -439,11 +471,13 @@ export function buildOemCatalog(
 
         const number = normalizeArticle(part.article);
         const chain = oemChain(number);
-        for (const linked of chain) visibleOriginalNumbers.add(linked);
-        const unambiguous =
-            originalsByNumber.get(number)?.size === 1;
+        if (!part.fluidAnalogDetached) {
+            for (const linked of chain) visibleOriginalNumbers.add(linked);
+        }
+        const unambiguous = !part.fluidAnalogDetached && originalsByNumber.get(number)?.size === 1;
 
-        const nodeId = getNodeId(preferredEntry(group));
+        const placements = catalogNodeIds(group);
+        const nodeId = placements[0] ?? getNodeId(preferredEntry(group).node);
 
 
 
@@ -498,7 +532,8 @@ export function buildOemCatalog(
         if (!relevantGroup) continue;
 
         const entry = preferredEntry(relevantGroup);
-        const nodeId = getNodeId(entry);
+        const placements = [...new Set(bucket.groups.flatMap(catalogNodeIds))];
+        const nodeId = placements[0] ?? getNodeId(entry.node);
 
         // Внутри карточки — вся цепочка по всей базе.
         const variants = bucket.groups.map(
@@ -508,6 +543,7 @@ export function buildOemCatalog(
         catalog.articles.push({
             id: `master-oem-reference:${number}`,
             nodeId,
+            nodeIds: placements.length ? placements : undefined,
             oem: bucket.display,
             originalNumbers: [bucket.display],
             name: entry.part.name,
@@ -521,6 +557,14 @@ export function buildOemCatalog(
                 )
             ),
         });
+    }
+
+    if (params.section === 'fluids') {
+        for (const group of analogs) {
+            if (crossNumbers(group).size > 0) continue;
+            const [nodeId] = catalogNodeIds(group);
+            if (nodeId) catalog.articles.push(toArticle(group, nodeId));
+        }
     }
 
     const categoryByKey = new Map([...categoryMap.values()].map(node => [

@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { Wrench, User, Calendar, Tag, ShieldCheck, ArrowRight } from 'lucide-react';
+import type { CatalogPartPayload } from '@/types';
 import { InboxItem } from '@/features/admin/lib/systemStore';
 import { storage } from '@/features/admin/lib/system-store/storage';
 
@@ -17,7 +18,7 @@ export function PartInboxCard({ item }: { item: InboxItem }) {
     const name = item.partName || item.partSpecs?.name || (item as any).specs?.name || 'Не указано';
     const isOem = item.isOem ?? item.partSpecs?.isOem ?? (item as any).specs?.isOem ?? false;
 
-    const handleApprove = (id: string, payload: any) => {
+    const handleApprove = (id: string, payload: CatalogPartPayload) => {
         storage.approvePartTicket(id, payload); // <--- Вызываем метод напрямую
         setIsModalOpen(false);
     };

@@ -9,8 +9,12 @@ const NEW_NODE = '__CUSTOM__';
 const fieldClassName =
     'w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]';
 
+import type { CatalogSection } from '@/types/catalog/catalog';
+import { FLUID_CATALOG_CATEGORY, getCatalogSection } from '@/features/catalog/lib/catalogSections';
+
 interface NodeEditorBlockProps {
     nodeCategory: string;
+    section?: CatalogSection;
     setNodeCategory: (value: string) => void;
     nodeTitle: string;
     setNodeTitle: (value: string) => void;
@@ -22,6 +26,7 @@ interface NodeEditorBlockProps {
 
 export function NodeEditorBlock({
                                     nodeCategory,
+    section,
                                     setNodeCategory,
                                     nodeTitle,
                                     setNodeTitle,
@@ -35,7 +40,11 @@ export function NodeEditorBlock({
     const nodeId = React.useId();
 
     const [{ catalogCategoryLabels: labels, catalogCategoryOrder, hiddenCatalogCategories }] = React.useState(() => storage.getState());
-    const categories = sortCatalogCategoryKeys(getCatalogCategoryKeys(existingCategories, hiddenCatalogCategories), catalogCategoryOrder, labels);
+    const isFluidSection = section === 'fluids';
+    const categories = isFluidSection
+        ? [FLUID_CATALOG_CATEGORY]
+        : sortCatalogCategoryKeys(getCatalogCategoryKeys(existingCategories, hiddenCatalogCategories), catalogCategoryOrder, labels)
+            .filter(category => !section || getCatalogSection(category) === section);
 
     const isListedCategory =
         categories.includes(nodeCategory);
@@ -59,6 +68,7 @@ export function NodeEditorBlock({
 
                     <select
                         id={categoryId}
+                        disabled={isFluidSection}
                         value={showCategoryInput ? NEW_CATEGORY : nodeCategory}
                         onChange={event => {
                             const category = event.target.value;
@@ -78,7 +88,7 @@ export function NodeEditorBlock({
                         {categories.map(category => (
                             <option key={category} value={category}>{getCatalogCategoryLabel(category, labels)}</option>
                         ))}
-                        <option value={NEW_CATEGORY}>＋ Создать категорию</option>
+                        {!isFluidSection && <option value={NEW_CATEGORY}>＋ Создать категорию</option>}
                     </select>
 
                     {showCategoryInput && (

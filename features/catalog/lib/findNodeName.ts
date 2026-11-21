@@ -4,6 +4,14 @@ export function findNodeName(nodes: CatalogNode[], id: string | null): string | 
     return findNodePath(nodes, id).at(-1) ?? null;
 }
 
+export function findCatalogNode(nodes: CatalogNode[], id: string): CatalogNode | undefined {
+    for (const node of nodes) {
+        if (node.id === id) return node;
+        const child = node.children && findCatalogNode(node.children, id);
+        if (child) return child;
+    }
+}
+
 export function findNodePath(nodes: CatalogNode[], id: string | null): string[] {
     if (!id) return [];
 

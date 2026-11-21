@@ -1,12 +1,15 @@
 import { Search } from 'lucide-react';
+import type { CatalogSection } from '@/types/catalog/catalog';
 
 type Props = {
     search: string;
+    section: CatalogSection;
     onClear?: () => void;
 };
 
 export default function CatalogEmpty({
                                          search,
+                                         section,
                                          onClear,
                                      }: Props) {
     return (
@@ -22,7 +25,9 @@ export default function CatalogEmpty({
             <p className="mt-1 text-sm text-[var(--text-dim)]">
                 {search
                     ? 'Попробуйте изменить поисковый запрос'
-                    : 'В этом разделе пока нет запчастей'}
+                    : section === 'fluids'
+                        ? 'Для этой модификации пока нет масел и жидкостей'
+                        : 'В этом разделе пока нет запчастей'}
             </p>
 
             {onClear && (
@@ -31,7 +36,7 @@ export default function CatalogEmpty({
                     onClick={onClear}
                     className="mt-5 text-sm text-[var(--link)] transition-colors hover:text-[var(--btn-primary-hover)]"
                 >
-                    Показать все запчасти
+                    Очистить поиск
                 </button>
             )}
         </div>

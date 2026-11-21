@@ -2,6 +2,9 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import type { CatalogSection } from '@/types/catalog/catalog';
+import { getCatalogSection } from '@/features/catalog/lib/catalogSections';
+import { getNodeFillCapacity } from '@/features/catalog/lib/fluidFillCapacities';
 
 import { storage } from '@/features/admin/lib/system-store/storage';
 
@@ -14,6 +17,7 @@ import {
     catalogFilterFields,
     readCatalogFilters,
     buildCatalogQuery,
+    buildModelCatalogHref,
     hasCatalogFilters,
     getMatchingModificationIds,
     matchesCatalogFilters,
@@ -105,6 +109,8 @@ export function useModelCatalog(
 
     const modifications = masterModel?.modifications ?? [];
 
+    const section: CatalogSection = query.section === 'fluids' ? 'fluids' : 'parts';
+    const sectionNodes = catalogNodes.filter(node => getCatalogSection(node.category) === section);
     const filters = readCatalogFilters(query);
     const hasActiveFilters = hasCatalogFilters(filters);
     const currentQuery = buildCatalogQuery(filters);
@@ -136,13 +142,13 @@ export function useModelCatalog(
         ).sort((a, b) => a.localeCompare(b));
     }
 
-    const modelParts = catalogNodes.flatMap(
+    const modelParts = sectionNodes.flatMap(
         node => node.items
     );
 
     // Создаём отфильтрованные копии узлов,
     // исходные данные каталога не изменяем.
-    const visibleNodes = catalogNodes
+    const visibleNodes = sectionNodes
         .map(node => ({
             ...node,
             items: node.items.filter(part =>
@@ -155,7 +161,11 @@ export function useModelCatalog(
             )
         }))
         .filter(node =>
-            !hasActiveFilters || node.items.length > 0
+            !hasActiveFilters || node.items.length > 0 || (
+                section === 'fluids' && modifications.some(modification =>
+                    matchingModIds.has(modification.id) && getNodeFillCapacity(node, modification) !== undefined
+                )
+            )
         );
 
     const nodesByCategory = visibleNodes.reduce<
@@ -187,9 +197,7 @@ export function useModelCatalog(
 
         startTransition(() => {
             router.replace(
-                nextQuery
-                    ? `${modelPath}?${nextQuery}`
-                    : modelPath,
+                buildModelCatalogHref(modelPath, nextQuery, section),
                 { scroll: false }
             );
         });
@@ -197,7 +205,7 @@ export function useModelCatalog(
 
     const resetFilters = () => {
         startTransition(() => {
-            router.replace(modelPath, { scroll: false });
+            router.replace(buildModelCatalogHref(modelPath, '', section), { scroll: false });
         });
     };
 
@@ -211,7 +219,7 @@ export function useModelCatalog(
             modificationIds: [...selected],
         });
         startTransition(() => {
-            router.replace(nextQuery ? `${modelPath}?${nextQuery}` : modelPath, { scroll: false });
+            router.replace(buildModelCatalogHref(modelPath, nextQuery, section), { scroll: false });
         });
     };
 
@@ -222,6 +230,7 @@ export function useModelCatalog(
 
         modelPath,
         currentQuery,
+        section,
 
         filters,
         filterOptions,

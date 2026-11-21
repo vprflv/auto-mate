@@ -20,6 +20,7 @@ type Props = {
     carId: string;
     part: PartForm;
     index: number;
+    referenceFillCapacity?: string;
     recommendedFillCapacity?: string;
     onChange: (
         id: string,
@@ -33,6 +34,7 @@ export default function ServicePartCard({
     carId,
     part,
     index,
+    referenceFillCapacity,
     recommendedFillCapacity,
     onChange,
     onRemove,
@@ -136,6 +138,7 @@ export default function ServicePartCard({
 
             <ServicePartDetails
                 part={part}
+                referenceFillCapacity={referenceFillCapacity}
                 recommendedFillCapacity={recommendedFillCapacity}
                 onChange={onChange}
             />

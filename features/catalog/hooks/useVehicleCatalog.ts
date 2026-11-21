@@ -5,21 +5,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { catalogProvider } from '@/features/catalog/lib/providers';
 import { STORAGE_KEY } from '@/features/admin/lib/system-store/defaults';
 import { STORAGE_KEYS } from '@/features/garage/add/lib/config/storage';
-import type { VehicleCatalog } from '@/types/catalog/catalog';
+import type { CatalogProviderParams, VehicleCatalog } from '@/types/catalog/catalog';
 
-type Params = {
-    carId: string;
-    vin?: string;
-    make: string;
-    model: string;
-    year: number;
-    enabled?: boolean;
-};
+type Params = CatalogProviderParams & { enabled?: boolean };
 
 export function useVehicleCatalog({ enabled = true, ...params }: Params) {
     const queryClient = useQueryClient();
     const query = useQuery<VehicleCatalog>({
-        queryKey: ['vehicle-catalog', params.carId, params.vin, params.make, params.model, params.year],
+        queryKey: ['vehicle-catalog', params.carId, params.vin, params.make, params.model, params.year, params.section],
         enabled: enabled && !!params.carId && !!params.make && !!params.model,
         queryFn: () => catalogProvider.getCatalog(params),
         staleTime: 0,

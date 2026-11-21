@@ -7,6 +7,7 @@ import type { StoredMasterModel } from '@/features/admin/lib/system-store/types'
 
 interface CompatibilityBlockProps {
     targetCar: StoredMasterModel | null;
+    isFluid?: boolean;
 
     compatibilityType: 'all' | 'specific';
     setCompatibilityType: (value: 'all' | 'specific') => void;
@@ -19,6 +20,7 @@ interface CompatibilityBlockProps {
 
 export function CompatibilityBlock({
                                        targetCar,
+                                       isFluid = false,
                                        compatibilityType,
                                        setCompatibilityType,
                                        selectedModIds,
@@ -43,12 +45,13 @@ export function CompatibilityBlock({
             <div>
                 <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--text)]">
                     <GitBranch className="h-4 w-4 text-[var(--link)]" />
-                    Применимость запчасти
+                    {isFluid ? 'Применимость жидкости' : 'Применимость запчасти'}
                 </h3>
 
                 <p className="mt-1.5 text-xs leading-relaxed text-[var(--text-muted)]">
-                    Укажите, на какие модификации автомобиля
-                    подходит именно эта деталь.
+                    {isFluid
+                        ? 'Укажите, для каких модификаций жидкость подходит в выбранных ветках.'
+                        : 'Укажите, на какие модификации автомобиля подходит именно эта деталь.'}
                 </p>
             </div>
 
@@ -58,8 +61,7 @@ export function CompatibilityBlock({
 
                     <p className="text-xs leading-relaxed">
                         Модель автомобиля не найдена в эталонном
-                        каталоге. Сначала добавьте её, затем
-                        укажите применимость запчасти.
+                        каталоге. Сначала добавьте её, затем укажите применимость.
                     </p>
                 </div>
             ) : (
@@ -112,8 +114,7 @@ export function CompatibilityBlock({
                     {compatibilityType === 'all' ? (
                         <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
                             <p className="text-xs leading-relaxed text-[var(--text)]">
-                                Вы подтверждаете, что эта деталь
-                                подходит для всех модификаций{' '}
+                                {isFluid ? 'Жидкость подходит в выбранных ветках для всех модификаций' : 'Вы подтверждаете, что эта деталь подходит для всех модификаций'}{' '}
                                 <span className="font-bold">
                                     {targetCar.brandName}{' '}
                                     {targetCar.modelName}

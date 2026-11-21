@@ -15,14 +15,15 @@ import { formatPartNameWithInstallation, stripPartInstallationFromName, suggestS
 
 import {getPartCategoryWarning} from "@/features/admin/catalog-inbox/hooks/getPartCategoryWarning";
 import {PartInstallation} from "@/types/partInstallation";
-import {PartCategory} from "@/types";
-import { getCatalogSectionOptions } from '@/features/admin/lib/system-store/categoryLabels';
+import type { CatalogBranch, CatalogPartPayload, PartCategory } from '@/types';
+import type { CatalogSection } from '@/types/catalog/catalog';
+import { getCatalogSection } from '@/features/catalog/lib/catalogSections';
 import {getOemCrosses} from "@/features/admin/lib/system-store/oemCrosses";
 
 interface UsePartModerationProps {
     item: InboxItem;
     isOpen: boolean;
-    onApprove: (id: string, payload: any) => void;
+    onApprove: (id: string, payload: CatalogPartPayload) => void;
     onReject: (id: string) => void;
     requestApprovalConfirmation?: (
         message: string,
@@ -90,11 +91,23 @@ export function usePartModeration({
     const [isOem, setIsOem] = React.useState(initialIsOem);
     const [oemCross, setOemCross] = React.useState('');
 
-    const [nodeCategory, setNodeCategory] =
-        React.useState('');
+    const [branches, setBranches] = React.useState<CatalogBranch[] | null>(null);
+    const [suggestedBranch, setSuggestedBranch] = React.useState<CatalogBranch | null>(null);
+    const [sectionOverride, setSectionOverride] = React.useState<CatalogSection | null>(null);
+    const detectedSection: CatalogSection | null =
+        item.itemType === 'fluid' || item.itemType === 'Техническая жидкость' ? 'fluids' :
+        item.itemType === 'part' || item.itemType === 'Запчасть / Расходник' ? 'parts' : null;
+    const section: CatalogSection = sectionOverride ?? detectedSection ??
+        (suggestedBranch ? getCatalogSection(suggestedBranch.category) : 'parts');
+    const selectedBranches = branches ?? (suggestedBranch && getCatalogSection(suggestedBranch.category) === section
+        ? [suggestedBranch] : []);
 
-    const [nodeTitle, setNodeTitle] = React.useState('');
-    const [isCustomNode, setIsCustomNode] = React.useState(false);
+    function setSection(nextSection: CatalogSection) {
+        setSectionOverride(nextSection);
+        setBranches([]);
+    }
+    const nodeCategory = selectedBranches[0]?.category ?? '';
+    const nodeTitle = selectedBranches[0]?.title ?? '';
 
     const [compatibilityType, setCompatibilityType] =
         React.useState<'all' | 'specific'>('specific');
@@ -136,11 +149,6 @@ export function usePartModeration({
             document.body.style.overflow = previousOverflow;
         };
     }, [isOpen]);
-
-    const { existingCategories, existingNodes } = React.useMemo(
-        () => getCatalogSectionOptions(isOpen ? storage.getState().catalogNodes : [], nodeCategory),
-        [isOpen, nodeCategory]
-    );
 
     // Глобальный поиск OEM по всему мастер-каталогу
     const oemSuggestions = React.useMemo<OemSuggestion[]>(() => {
@@ -328,10 +336,8 @@ export function usePartModeration({
             subcategoryTitle === 'помпы' ? 'Помпа' :
                 '';
 
-    const displayName = formatPartNameWithInstallation(
-        canUpdateName ? suggestedName || baseName : name,
-        installation
-    );
+    const selectedName = canUpdateName ? suggestedName || baseName : name;
+    const displayName = section === 'fluids' ? selectedName : formatPartNameWithInstallation(selectedName, installation);
 
     const categoryWarning = getPartCategoryWarning(
         displayName,
@@ -362,21 +368,20 @@ export function usePartModeration({
         const key = normalizeArticle(value);
         if (!key || key === normalizeArticle(oemCross)) return;
 
-        const source = findCatalogOemSource(storage.getState().catalogNodes, value, true, targetCar);
+        const catalogNodes = storage.getState().catalogNodes;
+        const options = detectedSection || sectionOverride
+            ? catalogNodes.filter(node => getCatalogSection(node.category) === section)
+            : catalogNodes;
+        const source = findCatalogOemSource(options, value, true, targetCar);
         if (!source) return;
 
         setNameOverride(source.part.name);
-        setNodeCategory(source.node.category);
-        setNodeTitle(source.node.title);
-        setIsCustomNode(false);
+        setSuggestedBranch({ category: source.node.category, title: source.node.title });
     };
 
     const handleApprove = () => {
-        const category = nodeCategory.trim();
-        const title = nodeTitle.trim();
-
-        if (!category) {
-            toast.error('Выберите категорию или введите название новой.');
+        if (!selectedBranches.length) {
+            toast.error('Выберите хотя бы одну ветку каталога.');
             return;
         }
 
@@ -418,11 +423,6 @@ export function usePartModeration({
             }
         }
 
-        if (!title) {
-            toast.error('Выберите или создайте подраздел каталога. Например, «Фильтры».');
-            return;
-        }
-
         const appliesToAll = compatibilityType === 'all';
         const installationIds = appliesToAll
             ? modifications.map(modification => modification.id)
@@ -436,12 +436,12 @@ export function usePartModeration({
                 isOem,
                 oemCross: isOem ? '' : oemCross.trim(),
             },
-            node: { category, title },
+            nodes: selectedBranches,
             compatibleModifications: appliesToAll ? ['all'] : selectedIds,
             installationsByModification: Object.fromEntries(
                 installationIds.map(modificationId => [
                     modificationId,
-                    installation.axle || installation.side
+                    section !== 'fluids' && (installation.axle || installation.side)
                         ? [{ ...installation }]
                         : [],
                 ])
@@ -496,8 +496,8 @@ export function usePartModeration({
             const destinationNode = catalogNodes.find(node =>
                 node.brandSlug === targetCar.brandSlug &&
                 node.modelSlug === targetCar.modelSlug &&
-                node.category === category &&
-                node.title.trim().toLowerCase() === title.toLowerCase()
+                selectedBranches.some(branch => node.category === branch.category &&
+                    node.title.trim().toLowerCase() === branch.title.trim().toLowerCase())
             );
 
             const existingPart = destinationNode?.items.find(part =>
@@ -579,19 +579,12 @@ export function usePartModeration({
         setOemCross: changeOemCross,
         oemSuggestions,
 
-        nodeCategory,
+        section,
+        setSection,
+        branches: selectedBranches,
+        setBranches,
         categoryWarning,
         articleMatches,
-        setNodeCategory,
-
-        nodeTitle,
-        setNodeTitle,
-
-        existingNodes,
-        existingCategories,
-
-        isCustomNode,
-        setIsCustomNode,
 
         compatibilityType,
         setCompatibilityType,

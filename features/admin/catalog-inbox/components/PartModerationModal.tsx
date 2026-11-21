@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { AlertTriangle, ShieldCheck, Wrench, X } from 'lucide-react';
 
+import type { CatalogPartPayload } from '@/types';
 import type { InboxItem } from '@/features/admin/lib/systemStore';
 import { getOemCrosses } from '@/features/admin/lib/system-store/oemCrosses';
 import { usePartModeration } from '@/features/admin/catalog-inbox/hooks/usePartModeration';
@@ -11,14 +12,16 @@ import { PartInstallationFields } from '@/features/garage/components/PartInstall
 
 import { CompatibilityBlock } from './part-moderation/CompatibilityBlock';
 import { IncomingDataBlock } from './part-moderation/IncomingDataBlock';
-import { NodeEditorBlock } from './part-moderation/NodeEditorBlock';
+import { CatalogBranchesPicker } from '@/features/admin/catalog/components/CatalogBranchesPicker';
+import { FluidBranchPreview } from '@/features/admin/catalog/components/FluidBranchPreview';
+import { storage } from '@/features/admin/lib/system-store/storage';
 import { PartEditorBlock } from './part-moderation/PartEditorBlock';
 
 interface Props {
     item: InboxItem;
     isOpen: boolean;
     onClose: () => void;
-    onApprove: (id: string, payload: any) => void;
+    onApprove: (id: string, payload: CatalogPartPayload) => void;
     onReject: (id: string) => void;
 }
 
@@ -81,7 +84,7 @@ export function PartModerationModal(props: Props) {
 
                         <div>
                             <h2 id={titleId} className="text-lg font-bold text-[var(--text)]">
-                                Модерация запчасти
+                                {state.section === 'fluids' ? 'Модерация жидкости' : 'Модерация запчасти'}
                             </h2>
                             <p className="text-xs text-[var(--text-dim)]">
                                 Для {item.carBrand} {item.carModel}
@@ -254,7 +257,7 @@ export function PartModerationModal(props: Props) {
                                     </section>
                                 )}
 
-                                <PartInstallationFields
+                                {state.section !== 'fluids' && <PartInstallationFields
                                     key={item.id}
                                     partName={state.name}
                                     value={state.installation}
@@ -264,18 +267,26 @@ export function PartModerationModal(props: Props) {
                                             ...patch,
                                         }));
                                     }}
-                                />
+                                />}
 
-                                <NodeEditorBlock
-                                    nodeCategory={state.nodeCategory}
-                                    setNodeCategory={state.setNodeCategory}
-                                    nodeTitle={state.nodeTitle}
-                                    setNodeTitle={state.setNodeTitle}
-                                    existingNodes={state.existingNodes}
-                                    existingCategories={state.existingCategories}
-                                    isCustomNode={state.isCustomNode}
-                                    setIsCustomNode={state.setIsCustomNode}
-                                />
+                                <label className="grid gap-1 text-sm">
+                                    Раздел каталога
+                                    <select value={state.section}
+                                        onChange={event => state.setSection(event.target.value === 'fluids' ? 'fluids' : 'parts')}
+                                        className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2">
+                                        <option value="parts">Запчасти</option>
+                                        <option value="fluids">Масла и жидкости</option>
+                                    </select>
+                                </label>
+                                <CatalogBranchesPicker key={state.section} section={state.section} value={state.branches} onChange={state.setBranches} />
+
+                                {state.section === 'fluids' && state.targetCar && (
+                                    <FluidBranchPreview model={state.targetCar} branches={state.branches}
+                                        catalogNodes={storage.getState().catalogNodes}
+                                        part={{ brand: state.brand, article: state.article, name: state.name,
+                                            isOem: state.isOem, oemCross: state.isOem ? '' : state.oemCross }}
+                                        modificationIds={state.compatibilityType === 'all' ? ['all'] : state.selectedModIds} />
+                                )}
 
                                 {state.categoryWarning && (
                                     <div
@@ -289,6 +300,7 @@ export function PartModerationModal(props: Props) {
 
                                 <CompatibilityBlock
                                     targetCar={state.targetCar}
+                                    isFluid={state.section === 'fluids'}
                                     compatibilityType={state.compatibilityType}
                                     setCompatibilityType={state.setCompatibilityType}
                                     selectedModIds={state.selectedModIds}

@@ -9,6 +9,7 @@ export type CatalogNode = {
     image?: string;                // URL или base64 схемы
     children?: CatalogNode[];
     hasArticles?: boolean;
+    fillCapacity?: number;
 };
 
 
@@ -35,6 +36,7 @@ export type CatalogArticle = {
     note?: string;
     image?: string;
     nodeId: string;
+    nodeIds?: string[];
     analogs?: string[];
     isOem?: boolean;
     isVerified?: boolean;
@@ -60,7 +62,10 @@ export type VehicleCatalog = {
     articles: CatalogArticle[];    // плоский список для поиска
 };
 
+export type CatalogSection = 'parts' | 'fluids';
+
 export type CatalogProviderParams = {
+    section?: CatalogSection;
     carId: string;
     vin?: string;
     make: string;

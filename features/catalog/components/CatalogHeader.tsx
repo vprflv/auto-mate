@@ -7,9 +7,11 @@ import {
 } from 'lucide-react';
 
 import { Car } from '@/types';
+import type { CatalogSection } from '@/types/catalog/catalog';
 
 type Props = {
     car: Car;
+    section: CatalogSection;
     search: string;
     onSearch: (value: string) => void;
     onRefresh: () => void;
@@ -19,6 +21,7 @@ type Props = {
 
 export default function CatalogHeader({
                                           car,
+                                          section,
                                           search,
                                           onSearch,
                                           onRefresh,
@@ -38,7 +41,7 @@ export default function CatalogHeader({
 
                     <div className="min-w-0">
                         <h1 className="truncate font-semibold text-[var(--text)]">
-                            Каталог · {car.make}{' '}
+                            {section === 'fluids' ? 'Масла и жидкости' : 'Запчасти'} · {car.make}{' '}
                             {car.model}
                         </h1>
 

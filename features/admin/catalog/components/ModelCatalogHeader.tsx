@@ -8,12 +8,15 @@ import {
 
 import type { StoredMasterModel } from '@/features/admin/lib/system-store/types';
 
+import type { CatalogSection } from '@/types/catalog/catalog';
+
 interface Props {
     model: StoredMasterModel;
+    section: CatalogSection;
     onAddPart?: () => void;
 }
 
-export function ModelCatalogHeader({ model, onAddPart }: Props) {
+export function ModelCatalogHeader({ model, section, onAddPart }: Props) {
     return (
         <div className="space-y-4">
             <Link
@@ -67,7 +70,7 @@ export function ModelCatalogHeader({ model, onAddPart }: Props) {
                                     className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--btn-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)]"
                                 >
                                     <Plus className="h-4 w-4" aria-hidden="true" />
-                                    Добавить запчасть
+                                    {section === 'fluids' ? 'Добавить жидкость' : 'Добавить запчасть'}
                                 </button>
                             )}
 

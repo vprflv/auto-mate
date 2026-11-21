@@ -12,8 +12,8 @@ import {
 } from '@/features/catalog/lib/saveToPersonalCatalog';
 import { getGarageCars } from '@/features/garage/add/lib/storage';
 import { CarPartItem,  } from '@/types';
-import { CatalogArticle } from '@/types/catalog/catalog';
-import { findNodeName, findNodePath } from '@/features/catalog/lib/findNodeName';
+import type { CatalogArticle, CatalogSection } from '@/types/catalog/catalog';
+import { findCatalogNode, findNodePath } from '@/features/catalog/lib/findNodeName';
 
 import { CarFluidItem } from '@/types/oil';
 
@@ -32,7 +32,7 @@ function getPersonalFluids(carId: string): CarFluidItem[] {
 
 
 
-export function useCatalogPage(carId: string) {
+export function useCatalogPage(carId: string, section: CatalogSection) {
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [personalParts, setPersonalParts] = useState<CarPartItem[]>([]);
@@ -48,6 +48,7 @@ export function useCatalogPage(carId: string) {
 
     const { catalog, isLoading, isFetching, error, refresh } = useVehicleCatalog({
         carId,
+        section,
         vin: car?.vin,
         make: car?.make || '',
         model: car?.model || '',
@@ -86,7 +87,10 @@ export function useCatalogPage(carId: string) {
         const q = search.trim().toLowerCase();
 
         if (q) {
-            return catalog.articles.filter(article =>
+            const searchable = section === 'fluids'
+                ? catalog.articles.map(article => ({ ...article, variants: article.variants?.filter(variant => variant.nodeIds?.length !== 0) }))
+                : catalog.articles;
+            return searchable.filter(article =>
                 [article, ...(article.variants ?? [])].some(item =>
                     [
                         item.name,
@@ -126,14 +130,30 @@ export function useCatalogPage(carId: string) {
 
         collectSelectedNodes(catalog.nodes);
 
-        return catalog.articles.filter(article =>
-            selectedNodeIds.has(article.nodeId)
-        );
-    }, [catalog, selectedNodeId, search]);
+        const belongsToSelection = (article: CatalogArticle) =>
+            (article.nodeIds ?? [article.nodeId]).some(id => selectedNodeIds.has(id));
+        const groups: CatalogArticle[] = [];
+        const ungrouped = new Map<string, CatalogArticle>();
+        const groupedVariantIds = new Set<string>();
 
-    const selectedNodeName = catalog
-        ? findNodeName(catalog.nodes, selectedNodeId)
-        : null;
+        for (const article of catalog.articles) {
+            const variants = article.variants?.filter(variant =>
+                variant.nodeIds ? belongsToSelection(variant) : selectedNodeIds.has(article.nodeId)
+            );
+            if (belongsToSelection(article)) {
+                groups.push({ ...article, variants });
+                variants?.forEach(variant => groupedVariantIds.add(variant.id));
+            } else {
+                variants?.forEach(variant => ungrouped.set(variant.id, variant));
+            }
+        }
+
+        return [...groups, ...[...ungrouped.values()].filter(variant => !groupedVariantIds.has(variant.id))];
+    }, [catalog, selectedNodeId, search, section]);
+
+    const selectedNode = catalog && selectedNodeId
+        ? findCatalogNode(catalog.nodes, selectedNodeId)
+        : undefined;
 
     const isAlreadyAdded = (article: CatalogArticle) =>
         isFluidArticle(article)
@@ -178,12 +198,12 @@ export function useCatalogPage(carId: string) {
 
     const removeFromPersonal = (art: CatalogArticle) => {
         if (isFluidArticle(art)) {
-            const result = removeArticleFromPersonalCatalog(carId, art);
+            const result = removeFluidFromPersonalCatalog(carId, art.oem);
             if (result.success) setPersonalFluids(getPersonalFluids(carId));
             return;
         }
 
-        const result = removeArticleFromPersonalCatalog(carId, art.oem);
+        const result = removeArticleFromPersonalCatalog(carId, art);
         if (result.success) {
             setPersonalParts(getPersonalParts(carId));
         }
@@ -202,7 +222,7 @@ export function useCatalogPage(carId: string) {
         selectedNodeId,
         setSelectedNodeId,
         filteredArticles,
-        selectedNodeName,
+        selectedNode,
         isAlreadyAdded,
         addToPersonal,
         partToSave,

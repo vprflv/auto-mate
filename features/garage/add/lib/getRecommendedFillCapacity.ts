@@ -1,10 +1,7 @@
 import type { ServiceRecord } from '@/types';
 import type { PartForm } from '../types/serviceForm';
 
-const formatLiters = new Intl.NumberFormat('ru-RU', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 3,
-});
+import { formatFillCapacity } from '@/features/catalog/lib/fluidFillCapacities';
 
 function parseLiters(value?: string): number | undefined {
     const match = value?.trim().match(/^(\d+(?:[.,]\d+)?)\s*(мл|ml|л|l)?$/i);
@@ -52,5 +49,5 @@ export function getRecommendedFillCapacity(
 
     if (!volumes.length) return undefined;
     const average = volumes.reduce((sum, liters) => sum + liters / volumes.length, 0);
-    return `${formatLiters.format(average)} л`;
+    return formatFillCapacity(average);
 }

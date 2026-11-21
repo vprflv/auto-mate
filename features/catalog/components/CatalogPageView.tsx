@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import type { CatalogArticle } from '@/types/catalog/catalog';
+import type { CatalogArticle, CatalogSection } from '@/types/catalog/catalog';
+import { FLUID_FILL_CAPACITY_NOTICE, formatFillCapacity } from '../lib/fluidFillCapacities';
+import { CatalogSectionLinks } from './CatalogSectionLinks';
 import { useCatalogArticleDialog } from '../hooks/useCatalogArticleDialog';
 import { CatalogArticleDialog } from './article-card/CatalogArticleDialog';
 import CatalogTree from '@/features/catalog/components/CatalogTree';
@@ -16,9 +18,13 @@ import Link from "next/link";
 
 export default function CatalogPageView({
                                             carId,
+                                            section = 'parts',
                                         }: {
     carId: string;
+    section?: CatalogSection;
 }) {
+    const isFluids = section === 'fluids';
+    const catalogPath = `/garage/${carId}/catalog`;
     const {
         car,
         catalog,
@@ -31,14 +37,14 @@ export default function CatalogPageView({
         selectedNodeId,
         setSelectedNodeId,
         filteredArticles,
-        selectedNodeName,
+        selectedNode,
         isAlreadyAdded,
         addToPersonal,
         removeFromPersonal,
         partToSave,
         closeSaveModal,
         finishSavingPart,
-    } = useCatalogPage(carId);
+    } = useCatalogPage(carId, section);
     const [analogArticle, setAnalogArticle] = useState<CatalogArticle | null>(null);
     const analogDialog = useCatalogArticleDialog();
 
@@ -85,7 +91,7 @@ export default function CatalogPageView({
                 <p className="text-[var(--text-muted)]">
                     Модификация автомобиля ожидает проверки.
                     После подтверждения здесь появится каталог
-                    подходящих запчастей.
+                    {isFluids ? ' подходящих масел и жидкостей.' : ' подходящих запчастей.'}
                 </p>
 
                 <a
@@ -138,6 +144,7 @@ export default function CatalogPageView({
 
             <CatalogHeader
                 car={car}
+                section={section}
                 search={search}
                 onSearch={setSearch}
                 onRefresh={refresh}
@@ -148,7 +155,8 @@ export default function CatalogPageView({
                 }
             />
 
-            <div className="flex justify-end border-b border-[var(--border)] px-4 py-3 md:px-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 md:px-6">
+                <CatalogSectionLinks section={section} partsHref={catalogPath} fluidsHref={`${catalogPath}/fluids`} />
                 <Link
                     href={`/garage/${carId}?section=catalog`}
                     className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[var(--link)] transition-colors hover:bg-[var(--bg-elevated)]"
@@ -177,15 +185,25 @@ export default function CatalogPageView({
                 <main className="flex-1 p-4 md:p-6">
                     <CatalogArticlesHeader
                         title={
-                            selectedNodeName ||
-                            'Все запчасти'
+                            selectedNode?.name ||
+                            (isFluids ? 'Все масла и жидкости' : 'Все запчасти')
                         }
                         count={filteredArticles.length}
                     />
 
+                    {isFluids && !search.trim() && selectedNode?.fillCapacity !== undefined && (
+                        <div className="mb-5 space-y-1 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4">
+                            <p className="text-sm font-semibold">
+                                Справочный заправочный объём: {formatFillCapacity(selectedNode.fillCapacity)}
+                            </p>
+                            <p className="text-xs leading-relaxed text-[var(--text-muted)]">{FLUID_FILL_CAPACITY_NOTICE}</p>
+                        </div>
+                    )}
+
                     {filteredArticles.length === 0 ? (
                         <CatalogEmpty
                             search={search}
+                            section={section}
                             onClear={
                                 search
                                     ? () => setSearch('')
@@ -210,7 +228,7 @@ export default function CatalogPageView({
                             {otherParts.size > 0 && (
                                 <section className="space-y-3">
                                     <h3 className="text-sm font-semibold text-[var(--text)]">
-                                        Аналоги и другие детали
+                                        {isFluids ? 'Масла и жидкости' : 'Аналоги и другие детали'}
                                     </h3>
                                     <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                                         {[...otherParts.values()].map(part => (
@@ -234,7 +252,7 @@ export default function CatalogPageView({
                         <CatalogArticleDialog
                             dialogRef={analogDialog.dialogRef}
                             article={analogArticle}
-                            catalogArticles={catalog.articles}
+                            catalogArticles={isFluids ? filteredArticles : catalog.articles}
                             onClose={analogDialog.close}
                         />
                     )}

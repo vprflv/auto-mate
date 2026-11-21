@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { FLUID_CATALOG_CATEGORY } from '@/features/catalog/lib/catalogSections';
 
 import type {
     StoredPartItem,
@@ -15,7 +16,7 @@ import {PartRelations} from "@/features/admin/catalog/components/part-details/Pa
 import {PartStats} from "@/features/admin/catalog/components/part-details/PartStats";
 import {PartCompatibility} from "@/features/admin/catalog/components/part-details/PartCompatibility";
 import {DeleteCatalogPartButton} from "@/features/admin/catalog/components/part-details/DeleteCatalogPartButton";
-import {MoveCatalogPartForm} from "@/features/admin/catalog/components/part-details/MoveCatalogPartForm";
+import { CatalogPartBranchesForm } from './CatalogPartBranchesForm';
 import {renameCatalogPart} from "@/features/admin/lib/system-store/actions/renameCatalogPart";
 import {EditPartInstallationForm} from "@/features/admin/catalog/components/part-details/EditPartInstallationForm";
 
@@ -37,13 +38,11 @@ export function PartDetailsModal({
                                  }: Props) {
     const titleId = React.useId();
 
-    const [isMoving, setIsMoving] = React.useState(false);
     const [isEditingInstallation, setIsEditingInstallation] = React.useState(false);
     const [nameDraft, setNameDraft] = React.useState<string | null>(null);
     const [renameError, setRenameError] = React.useState('');
 
     const closeDetails = () => {
-        setIsMoving(false);
         setIsEditingInstallation(false);
         onClose();
     };
@@ -177,7 +176,7 @@ export function PartDetailsModal({
                             node={node}
                         />
                     </div>
-                    {isEditingInstallation ? (
+                    {node.category !== FLUID_CATALOG_CATEGORY && (isEditingInstallation ? (
                         <EditPartInstallationForm
                             key={`${node.id}:${part.id}`}
                             part={part}
@@ -192,28 +191,18 @@ export function PartDetailsModal({
                         >
                             Изменить расположение
                         </button>
-                    )}
+                    ))}
 
-                    {isMoving ? (
-                        <MoveCatalogPartForm
-                            part={part}
-                            node={node}
-                            onCancel={() => setIsMoving(false)}
-                            onMoved={closeDetails}
-                        />
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={() => setIsMoving(true)}
-                            className="rounded-xl border border-[var(--border)] px-4 py-2.5 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--link)] hover:text-[var(--link)]"
-                        >
-                            Переместить запчасть
-                        </button>
-                    )}
+                    <CatalogPartBranchesForm
+                        key={`${node.id}:${part.id}`}
+                        node={node}
+                        part={part}
+                        onSaved={sourceRemoved => { if (sourceRemoved) closeDetails(); }}
+                    />
 
                     <DeleteCatalogPartButton
                         part={part}
-                        nodeId={node.id}
+                        node={node}
                         onDeleted={closeDetails}
                     />
 

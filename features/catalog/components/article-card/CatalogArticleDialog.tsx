@@ -2,7 +2,7 @@
 
 import { useId, type RefObject } from 'react';
 import type { CatalogArticle } from '@/types/catalog/catalog';
-import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArticle';
+import { catalogProductKey, normalizeArticle } from '@/features/admin/lib/system-store/normalizeArticle';
 import { CopyNumberButton } from './CopyNumberButton';
 
 type Props = {
@@ -31,10 +31,11 @@ export function CatalogArticleDialog({ dialogRef, article, catalogArticles, onCl
     }
 
     const variants = new Map<string, CatalogArticle>();
+    const ownKey = catalogProductKey(article.brand, article.oem);
     for (const variant of [...(article.variants ?? []), ...groups.flatMap(group => group.variants ?? [])]) {
-        const number = normalizeArticle(variant.oem);
-        if (variant.id === article.id || !number) continue;
-        const key = JSON.stringify([variant.brand?.trim().toLowerCase() ?? '', number]);
+        if (!normalizeArticle(variant.oem)) continue;
+        const key = catalogProductKey(variant.brand, variant.oem);
+        if (variant.id === article.id || key === ownKey) continue;
         if (!variants.has(key)) variants.set(key, variant);
     }
 

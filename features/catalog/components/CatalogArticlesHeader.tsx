@@ -14,8 +14,8 @@ export default function CatalogArticlesHeader({ title, count, onReset }: Props) 
     return (
         <div className="flex items-center justify-between gap-3 mb-5">
             <div>
-                <h2 className="text-lg font-semibold text-[#F5F5F5]">{title}</h2>
-                <p className="text-sm text-[#666666] mt-0.5">
+                <h2 className="text-lg font-semibold text-[var(--text)]">{title}</h2>
+                <p className="text-sm text-[var(--text-muted)] mt-0.5">
                     {count} {plural(count)}
                 </p>
             </div>

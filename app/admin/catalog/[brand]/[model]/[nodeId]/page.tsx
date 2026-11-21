@@ -6,6 +6,8 @@ import { Database, SearchX } from 'lucide-react';
 
 import { useNodeCatalog } from '@/features/admin/catalog/hooks/useNodeCatalog';
 
+import { NodeFluidFillCapacity } from '@/features/admin/catalog/components/NodeFluidFillCapacity';
+import { getCatalogSection } from '@/features/catalog/lib/catalogSections';
 import { NodeCatalogHeader } from '@/features/admin/catalog/components/NodeCatalogHeader';
 import { CatalogPartCard } from '@/features/admin/catalog/components/CatalogPartCard';
 
@@ -75,6 +77,10 @@ export default function NodeCatalogPage({
                 modelHref={catalog.modelHref}
                 nodePath={catalog.nodePath}
             />
+
+            {catalog.masterModel && getCatalogSection(catalog.node.category) === 'fluids' && (
+                <NodeFluidFillCapacity key={catalog.node.id} node={catalog.node} model={catalog.masterModel} />
+            )}
 
             {catalog.visibleParts.length > 0 ? (
                 <div className="space-y-3">

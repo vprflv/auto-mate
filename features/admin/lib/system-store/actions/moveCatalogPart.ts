@@ -1,7 +1,8 @@
+import { withCatalogNodeItems as withItems } from '../fluidAnalogFamily';
 import { getCatalogCategoryKeys, getCatalogCategoryLabel } from '../categoryLabels';
 import { normalizeArticle } from '../normalizeArticle';
 import { storage } from '../storage';
-import type { StoredCatalogNode, StoredPartItem } from '../types';
+import type { StoredCatalogNode } from '../types';
 
 interface MoveCatalogPartInput {
     nodeId: string;
@@ -10,26 +11,9 @@ interface MoveCatalogPartInput {
     title: string;
 }
 
-function withItems(
-    node: StoredCatalogNode,
-    items: StoredPartItem[]
-): StoredCatalogNode {
-    const modificationIds = items.flatMap(
-        item => item.compatibleModifications ?? []
-    );
-
-    return {
-        ...node,
-        items,
-        compatibleModifications: modificationIds.includes('all')
-            ? ['all']
-            : [...new Set(modificationIds)],
-    };
-}
-
 function movePartBetweenNodes(
     nodes: StoredCatalogNode[],
-    { nodeId, partId, category, title }: MoveCatalogPartInput
+    { nodeId, partId, category, title }: MoveCatalogPartInput,
 ): StoredCatalogNode[] {
     const targetCategory = category.trim();
     const targetTitle = title.trim();
@@ -45,7 +29,7 @@ function movePartBetweenNodes(
     }
 
     const part = source.items.find(
-        (item: StoredPartItem) => item.id === partId
+        item => item.id === partId
     );
 
     if (!part) {
@@ -77,10 +61,7 @@ function movePartBetweenNodes(
         throw new Error(`В выбранной подкатегории уже есть деталь «${part.brand} ${part.article}».`);
     }
 
-    const updatedSource = withItems(
-        source,
-        source.items.filter(item => item.id !== partId)
-    );
+    const updatedSource = withItems(source, source.items.filter(item => item.id !== partId));
 
     const destination = target ?? {
         id: `node_${crypto.randomUUID()}`,
@@ -102,12 +83,6 @@ function movePartBetweenNodes(
     if (!target) catalogNodes.push(updatedTarget);
 
     return catalogNodes;
-}
-
-export function moveCatalogPart(input: MoveCatalogPartInput): void {
-    const state = storage.getState();
-    const catalogNodes = movePartBetweenNodes(state.catalogNodes, input);
-    storage.saveState({ ...state, catalogNodes });
 }
 
 export function moveCatalogCategoryParts(

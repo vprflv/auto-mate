@@ -14,6 +14,10 @@ export function normalizeArticle(
         .replace(/[\s-]/g, '');
 }
 
+export function catalogProductKey(brand: string | undefined, article: string): string {
+    return JSON.stringify([brand?.trim().replace(/\s+/g, ' ').toLowerCase() ?? '', normalizeArticle(article)]);
+}
+
 /**
  * Единый формат отображения.
  *

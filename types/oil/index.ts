@@ -8,6 +8,8 @@ export type FluidCategory =
     | 'powerSteeringFluid'
     | 'otherFluid';
 
+export type FluidFillCapacities = Partial<Record<FluidCategory, number>>;
+
 export type CarFluidItem = {
     categoryLabel?: string | undefined;
     id: string;
