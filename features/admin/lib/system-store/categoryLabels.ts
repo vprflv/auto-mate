@@ -1,6 +1,6 @@
-import type { StoredCatalogNode } from './types';
+import type { CatalogBranch } from '@/types';
 
-export const defaultCatalogCategoryLabels: Readonly<Record<string, string>> = {
+const legacyCatalogCategoryLabels: Readonly<Record<string, string>> = {
     service: 'Расходники ТО',
     engine: 'Двигатель',
     transmission: 'Трансмиссия',
@@ -25,9 +25,9 @@ const categoryAliases: Readonly<Record<string, string>> = {
 const normalizeCategory = (value: string) =>
     value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru');
 
-const defaultOrder = Object.keys(defaultCatalogCategoryLabels);
+const defaultOrder = Object.keys(legacyCatalogCategoryLabels);
 const defaultKeysByLabel = new Map(
-    Object.entries(defaultCatalogCategoryLabels).map(([key, label]) => [normalizeCategory(label), key])
+    Object.entries(legacyCatalogCategoryLabels).map(([key, label]) => [normalizeCategory(label), key])
 );
 
 function defaultCategoryKey(value: string): string {
@@ -37,16 +37,11 @@ function defaultCategoryKey(value: string): string {
 }
 
 export function getCatalogCategoryKeys(
-    existing: readonly string[],
+    branches: readonly CatalogBranch[],
     hidden: readonly string[] = []
 ): string[] {
-    const keys = new Set(existing);
-    const existingStandards = new Set(existing.map(defaultCategoryKey));
-    const hiddenStandards = new Set(hidden.map(defaultCategoryKey));
-    for (const key of defaultOrder) {
-        if (!existingStandards.has(key) && !hiddenStandards.has(key)) keys.add(key);
-    }
-    return [...keys];
+    const hiddenKeys = new Set(hidden);
+    return [...new Set(branches.map(branch => branch.category).filter(key => !hiddenKeys.has(key)))];
 }
 
 export function sortCatalogCategoryKeys(
@@ -73,7 +68,7 @@ export function getCatalogCategoryLabel(
     category: string,
     labels?: Readonly<Record<string, string>>
 ): string {
-    for (const source of [labels, defaultCatalogCategoryLabels]) {
+    for (const source of [labels, legacyCatalogCategoryLabels]) {
         if (source && Object.prototype.hasOwnProperty.call(source, category)) {
             return source[category];
         }
@@ -81,12 +76,10 @@ export function getCatalogCategoryLabel(
     return category;
 }
 
-export function getCatalogSectionOptions(nodes: readonly StoredCatalogNode[], category: string) {
-    const categories = new Set<string>();
+export function getCatalogBranchTitles(nodes: readonly CatalogBranch[], category: string): string[] {
     const titles = new Map<string, string>();
 
     for (const node of nodes) {
-        if (node.category) categories.add(node.category);
         const title = node.title.trim();
         if (node.category === category && title) {
             const key = title.toLocaleLowerCase('ru');
@@ -95,8 +88,5 @@ export function getCatalogSectionOptions(nodes: readonly StoredCatalogNode[], ca
     }
 
     const sort = (a: string, b: string) => a.localeCompare(b, 'ru');
-    return {
-        existingCategories: [...categories].sort(sort),
-        existingNodes: [...titles.values()].sort(sort),
-    };
+    return [...titles.values()].sort(sort);
 }

@@ -1,5 +1,5 @@
 import type { CatalogBranch, CatalogPartPayload } from '@/types';
-import { catalogBranchKey } from '@/features/admin/lib/system-store/catalogBranches';
+import { catalogBranchKey, catalogBranchLabel } from '@/features/admin/lib/system-store/catalogBranches';
 import { fluidProductKey, planCompatibleFluidFamily } from '@/features/admin/lib/system-store/fluidAnalogFamily';
 import { getOemCrosses, uniqueOemCrosses } from '@/features/admin/lib/system-store/oemCrosses';
 import type { StoredCatalogNode, StoredMasterModel, StoredPartItem } from '@/features/admin/lib/system-store/types';
@@ -34,7 +34,7 @@ export function FluidBranchPreview({ model, branches, part, modificationIds, cat
 
         return (
             <p key={key} className="text-xs text-[var(--text-muted)]">
-                «{branch.title}» — {ambiguous
+                «{catalogBranchLabel(branch)}» — {ambiguous
                     ? 'OEM-цепочки пересекаются. Проверьте связи перед групповым добавлением.'
                     : `Подходящие аналоги: ${[...byProduct.values()].map(({ part }) => `${part.name} (${part.article})`).join(', ')}.`}
             </p>

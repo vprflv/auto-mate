@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { isValidCatalogVinRule } from '@/features/garage/add/lib/catalogVinRules';
+import { normalizeVin, VIN_LENGTH } from '@/features/garage/add/lib/config/vin';
 import type { CatalogSnapshot } from './catalogSnapshot';
 
 const id = z.string().trim().min(1);
@@ -14,6 +16,10 @@ const modificationSchema = z.object({
     name: z.string(),
     registeredCount: count,
     attributes: z.record(z.string(), z.string()),
+    vinRules: z.array(z.object({
+        sample: z.string().transform(normalizeVin),
+        positions: z.array(z.number().int().min(0).max(VIN_LENGTH - 1)),
+    }).refine(isValidCatalogVinRule)).optional(),
 }).passthrough();
 
 const modelSchema = z.object({
@@ -55,6 +61,8 @@ const nodeSchema = z.object({
     modelSlug: id,
     title: z.string(),
     category: z.string(),
+    assembly: id.optional(),
+    allowedModificationIds: z.array(id).optional(),
     compatibleModifications: z.array(id),
     items: z.array(partSchema),
 }).passthrough();
@@ -64,6 +72,7 @@ const snapshotSchema = z.object({
     exportedAt: z.string().refine(value => Number.isFinite(Date.parse(value))),
     masterModels: z.array(modelSchema),
     catalogNodes: z.array(nodeSchema),
+    catalogBranches: z.array(z.object({ category: id, assembly: id.optional(), title: id })).optional(),
     catalogCategoryLabels: z.record(z.string(), z.string()).optional(),
     catalogCategoryOrder: z.array(id).optional(),
     hiddenCatalogCategories: z.array(id).optional(),
@@ -133,6 +142,9 @@ export function parseCatalogSnapshot(text: string) {
 
         checkUnique(node.items.map(part => part.id), `разделе «${node.title}»`);
         partCount += node.items.length;
+
+        const unknownAllowedId = node.allowedModificationIds?.find(id => !ids.has(id));
+        if (unknownAllowedId) throw new Error(`В разделе «${node.title}» ограничение ссылается на отсутствующую модификацию «${unknownAllowedId}».`);
 
         const references = [
             ...node.compatibleModifications,

@@ -14,10 +14,12 @@ import type {
     VehicleCatalog,
 } from '@/types/catalog/catalog';
 
+import { catalogBranchKey, catalogSubcategoryKey } from '@/features/admin/lib/system-store/catalogBranches';
+import { catalogBranchAllowsModification } from './catalogBranchApplicability';
 import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArticle';
 import { getOemCrosses } from '@/features/admin/lib/system-store/oemCrosses';
 import { getCatalogCategoryLabel, sortCatalogCategoryKeys } from '@/features/admin/lib/system-store/categoryLabels';
-import { resolveCarCatalogIdentity } from './carCatalogIdentity';
+import { findCatalogPreviewModification, resolveCarCatalogIdentity } from './carCatalogIdentity';
 import { getCatalogSection } from './catalogSections';
 import { getNodeFillCapacity } from './fluidFillCapacities';
 import {uniqueInstallations} from "@/features/catalog/lib/partInstallations";
@@ -96,15 +98,23 @@ export function getOemCatalogCategoryId(category: string): string {
 export function buildOemCatalog(
     state: SystemState,
     params: CatalogProviderParams,
-    car?: Car
+    car?: Car,
+    { allowPreview = false } = {}
 ): VehicleCatalog {
-    const identity = car
-        ? resolveCarCatalogIdentity(car, state.masterModels)
+    const confirmed = car ? resolveCarCatalogIdentity(car, state.masterModels) : null;
+    const preview = car && allowPreview && !confirmed
+        ? findCatalogPreviewModification(car, state.masterModels)
         : null;
+    const identity = confirmed ?? preview;
 
     const catalog: VehicleCatalog = {
         ...params,
-        source: identity ? 'master' : 'master-pending',
+        source: preview ? 'master-preview' : confirmed ? 'master' : 'master-pending',
+        previewModification: preview ? {
+            name: preview.modification.name,
+            year: preview.modification.attributes?.year,
+            yearEnd: preview.modification.attributes?.yearEnd,
+        } : undefined,
         fetchedAt: new Date().toISOString(),
         nodes: [],
         articles: [],
@@ -240,8 +250,8 @@ export function buildOemCatalog(
 
             for (const modification of modifications) {
                 if (
-                    !ids.includes('all') &&
-                    !ids.includes(modification.id)
+                    !catalogBranchAllowsModification(node, modification.id) ||
+                    (!ids.includes('all') && !ids.includes(modification.id))
                 ) {
                     continue;
                 }
@@ -313,7 +323,7 @@ export function buildOemCatalog(
         return unique;
     }
 
-    function matchesCurrentCar(fitments: CatalogFitment[]) {
+    function matchesCatalogModification(fitments: CatalogFitment[]) {
         return fitments.some(fitment =>
             fitment.brandSlug === identity!.model.brandSlug &&
             fitment.modelSlug === identity!.model.modelSlug &&
@@ -341,7 +351,7 @@ export function buildOemCatalog(
 
         const fitments = effectiveFitments(group);
 
-        const installationOptions = uniqueInstallations(
+        const installationOptions = preview ? undefined : uniqueInstallations(
             directFitments(group)
                 .filter(fitment =>
                     fitment.brandSlug ===
@@ -379,8 +389,7 @@ export function buildOemCatalog(
             fitments,
             installationOptions,
 
-            appliesToCurrentCar:
-                matchesCurrentCar(fitments),
+            appliesToCurrentCar: preview ? undefined : matchesCatalogModification(fitments),
         };
     }
 
@@ -393,14 +402,12 @@ export function buildOemCatalog(
         const isFluid = node.category === 'fluids';
         const prefix = isFluid ? 'fluids-master' : 'master-node';
 
-        const id = `${prefix}:${JSON.stringify([
-            node.category,
-            node.title.trim().toLowerCase(),
-        ])}`;
+        const id = `${prefix}:${catalogBranchKey(node)}`;
 
         const existing = nodeMap.get(id);
         if (existing) {
             if (hasArticles) existing.hasArticles = true;
+            if (fillCapacity !== undefined) existing.fillCapacity = fillCapacity;
             return id;
         }
 
@@ -418,24 +425,37 @@ export function buildOemCatalog(
             categoryMap.set(categoryId, category);
         }
 
+        let parent = category;
+        if (node.assembly?.trim()) {
+            const parentId = `${prefix}:${catalogSubcategoryKey(node)}`;
+            let subcategory = nodeMap.get(parentId);
+            if (!subcategory) {
+                subcategory = { id: parentId, parentId: categoryId, name: node.title };
+                nodeMap.set(parentId, subcategory);
+                (category.children ??= []).push(subcategory);
+            }
+            parent = subcategory;
+        }
+
         const child: CatalogNode = {
             id,
-            parentId: categoryId,
-            name: node.title,
+            parentId: parent.id,
+            name: node.assembly?.trim() || node.title,
             hasArticles,
             fillCapacity,
         };
 
         nodeMap.set(id, child);
-        category.children?.push(child);
+        (parent.children ??= []).push(child);
 
         return id;
     }
 
-    if (params.section === 'fluids') {
+    if (params.section === 'fluids' && !preview) {
         for (const node of state.catalogNodes) {
             if (getCatalogSection(node.category) !== 'fluids' ||
                 node.brandSlug !== identity.model.brandSlug || node.modelSlug !== identity.model.modelSlug) continue;
+            if (!catalogBranchAllowsModification(node, identity.modification.id)) continue;
             const liters = getNodeFillCapacity(node, identity.modification);
             if (liters != null) getNodeId(node, false, liters);
         }
@@ -446,7 +466,9 @@ export function buildOemCatalog(
         for (const { node, part } of group.entries) {
             if (node.brandSlug !== identity!.model.brandSlug || node.modelSlug !== identity!.model.modelSlug) continue;
             const compatible = part.compatibleModifications ?? [];
-            if (compatible.includes('all') || compatible.includes(identity!.modification.id)) {
+            const modificationId = identity!.modification.id;
+            if (catalogBranchAllowsModification(node, modificationId) &&
+                (compatible.includes('all') || compatible.includes(modificationId))) {
                 ids.add(getNodeId(node));
             }
         }
@@ -464,7 +486,7 @@ export function buildOemCatalog(
 
         if (
             !part.isOem ||
-            !matchesCurrentCar(directFitments(group))
+            !matchesCatalogModification(directFitments(group))
         ) {
             continue;
         }
@@ -527,7 +549,7 @@ export function buildOemCatalog(
 
     for (const [number, bucket] of oemReferences) {
         const relevantGroup = bucket.groups.find(
-            group => matchesCurrentCar(directFitments(group))
+            group => matchesCatalogModification(directFitments(group))
         );
         if (!relevantGroup) continue;
 
@@ -548,7 +570,9 @@ export function buildOemCatalog(
             originalNumbers: [bucket.display],
             name: entry.part.name,
             canSave: false,
-            note: 'OEM-номер из одобренных связей с аналогами для вашей модификации.',
+            note: preview
+                ? 'OEM-номер из одобренных связей с аналогами для справочной модификации.'
+                : 'OEM-номер из одобренных связей с аналогами для вашей модификации.',
             fitments: [],
             variants,
             relatedFitments: uniqueFitments(

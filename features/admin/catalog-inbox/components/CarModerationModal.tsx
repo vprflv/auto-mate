@@ -6,13 +6,14 @@ import { InboxItem, normalizeSlug } from '@/features/admin/lib/systemStore';
 import { useCarCatalog } from '@/features/garage/add/hooks/useCarCatalog';
 import { ROBOT_TRANSMISSION } from '@/features/garage/add/lib/config/robotTransmission';
 import { checkCarReviewModification } from '@/features/admin/lib/system-store/carCatalogReview';
+import type { ApproveCarModelPayload } from '@/features/admin/lib/system-store/actions/catalog';
 import { assertRequiredModificationAttributes } from '@/features/admin/lib/system-store/actions/modifications';
 
 interface Props {
     item: InboxItem;
     isOpen: boolean;
     onClose: () => void;
-    onApprove: (id: string, payload: any) => void;
+    onApprove: (id: string, payload: ApproveCarModelPayload) => void;
     onReject: (id: string) => void;
 }
 
@@ -22,7 +23,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
     const vin = rawVin === 'UNKNOWN' ? '' : rawVin;
     const incomingFields = [
         ['Марка и модель', `${item.carBrand} ${item.carModel}`],
-        ['Год выпуска', item.carYear || specs.year],
+        ['Год автомобиля', item.carYear || specs.year],
         ['Код кузова', specs.bodyCode],
         ['Тип кузова', specs.bodyClass],
         ['Двигатель', item.engine || specs.engineCode || item.engineCode],
@@ -46,11 +47,15 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
 
     // Стейты для эталонной модификации
     const catalog = useCarCatalog();
-    const [existingModificationId, setExistingModificationId] = React.useState('');
+    const [selectedModificationId, setSelectedModificationId] = React.useState<string>();
     const existingModel = catalog.models.find(candidate =>
         candidate.brandSlug === normalizeSlug(brand) &&
         candidate.modelSlug === normalizeSlug(model)
     );
+    const proposedModification = existingModel?.modifications?.find(
+        candidate => candidate.id === item.proposedModificationId
+    );
+    const existingModificationId = selectedModificationId ?? proposedModification?.id ?? '';
     const existingModification = existingModel?.modifications?.find(
         candidate => candidate.id === existingModificationId
     );
@@ -126,12 +131,13 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
             return acc;
         }, {} as Record<string, string>);
 
-        const payload = {
+        const payload: ApproveCarModelPayload = {
             brandName: brand.trim(),
             modelName: model.trim(),
             years: years.trim(),
             existingModificationId: existingModificationId || undefined,
-            modification: existingModification ?? (createMod && modName.trim() ? {
+            approveYearMismatch: Boolean(modificationCheck?.yearConflicts.length),
+            modification: !existingModificationId && createMod && modName.trim() ? {
                 id: `mod_${Date.now().toString(36)}`,
                 name: modName.trim(),
                 attributes: {
@@ -153,7 +159,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                     fuel: modFuel.trim(),
                     bodyClass: modBodyClass.trim(),
                 }
-            } : undefined)
+            } : undefined,
         };
         try {
             if (createMod && !existingModificationId) {
@@ -237,11 +243,11 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
                                             <label className="mb-1 block text-xs text-[var(--text-muted)]">Марка</label>
-                                            <input value={brand} onChange={(e) => { setBrand(e.target.value); setExistingModificationId(''); }} className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
+                                            <input value={brand} onChange={(e) => { setBrand(e.target.value); setSelectedModificationId(''); }} className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
                                         </div>
                                         <div>
                                             <label className="mb-1 block text-xs text-[var(--text-muted)]">Модель</label>
-                                            <input value={model} onChange={(e) => { setModel(e.target.value); setExistingModificationId(''); }} className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
+                                            <input value={model} onChange={(e) => { setModel(e.target.value); setSelectedModificationId(''); }} className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
                                         </div>
                                         <div className="col-span-2">
                                             <label className="mb-1 block text-xs text-[var(--text-muted)]">Поколение / Годы (напр. 2013-2020)</label>
@@ -251,21 +257,29 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                                 </div>
 
                                 <label className="mt-4 block space-y-2 text-sm text-[var(--text)]">
-                                    <span>Связать с существующей модификацией</span>
+                                    <span>Модификация для ИИ-каталога</span>
                                     <select
-                                        value={existingModificationId}
-                                        onChange={event => setExistingModificationId(event.target.value)}
+                                        value={existingModification?.id ?? ''}
+                                        onChange={event => setSelectedModificationId(event.target.value)}
                                         className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] p-3"
                                     >
                                         <option value="">Создать новую / одобрить только модель</option>
-                                        {(existingModel?.modifications ?? []).map(modification => (
-                                            <option key={modification.id} value={modification.id}>
-                                                {modification.name}
-                                            </option>
-                                        ))}
+                                        {(existingModel?.modifications ?? []).map(modification => {
+                                            const { year, yearEnd, bodyCode } = modification.attributes;
+                                            const years = yearEnd && yearEnd !== year ? `${year ?? '…'}–${yearEnd}` : year;
+                                            const label = [modification.name, years, bodyCode,
+                                                modification.id === item.proposedModificationId ? 'выбрано пользователем' : '',
+                                            ].filter(Boolean).join(' · ');
+                                            return <option key={modification.id} value={modification.id}>{label}</option>;
+                                        })}
                                     </select>
+                                    {item.proposedModificationId && <span className="block text-xs text-[var(--text-muted)]">
+                                        {proposedModification
+                                            ? `Пользователь выбрал: ${proposedModification.name}`
+                                            : 'Выбранная пользователем модификация отсутствует в этой модели.'}
+                                    </span>}
                                     {existingModification && <span className="block text-xs text-[var(--text-muted)]">
-                                        Машина будет связана с выбранной модификацией и получит её характеристики.
+                                        ИИ-каталог откроется для выбранной модификации. Год автомобиля сохранится.
                                     </span>}
                                 </label>
 
@@ -274,7 +288,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                                         {modificationCheck.conflicts.map(message => (
                                             <p key={message} role="alert" className="text-[var(--danger)]">{message}</p>
                                         ))}
-                                        {modificationCheck.warnings.map(message => (
+                                        {[...modificationCheck.yearConflicts, ...modificationCheck.warnings].map(message => (
                                             <p key={message} className="text-amber-600 dark:text-amber-400">{message}</p>
                                         ))}
                                     </div>
@@ -431,7 +445,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
 
                 {/* Футер с кнопками */}
                 {approvalError && <p role="alert" className="px-6 py-2 text-sm text-[var(--danger)]">{approvalError}</p>}
-                <div className="flex shrink-0 items-center justify-end gap-3 border-t border-[var(--border)]/40 bg-[var(--bg-elevated)]/30 px-6 py-4">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-[var(--border)]/40 bg-[var(--bg-elevated)]/30 px-6 py-4">
                     <button
                         type="button"
                         onClick={handleReject}
@@ -449,10 +463,10 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                     <button
                         type="button"
                         onClick={handleApprove}
-                        disabled={Boolean(modificationCheck?.conflicts.length)}
+                        disabled={!catalog.loaded || Boolean(modificationCheck?.conflicts.length)}
                         className="rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-50"
                     >
-                        Одобрить в эталон
+                        {existingModification ? 'Одобрить каталог для модификации' : 'Одобрить в эталон'}
                     </button>
                 </div>
             </div>

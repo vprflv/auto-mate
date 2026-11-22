@@ -1,5 +1,6 @@
 import {PartInstallation, PartInstallationMap} from "@/types/partInstallation";
 
+import type { CatalogBranch } from '@/types';
 import type { FluidCategory, FluidFillCapacities } from '@/types/oil';
 
 export interface AppUser {
@@ -67,6 +68,7 @@ export interface AppServiceRecord {
 export interface InboxItem {
     /** Личные машины, ожидающие это решение; значение — снимок характеристик. */
     garageCarVersions?: Record<string, string>;
+    proposedModificationId?: string;
     id: string;
     type: 'part' | 'car_model';
     source?: 'user_manual' | 'user_service';
@@ -111,11 +113,17 @@ export interface InboxItem {
 
 // --- ЭТАЛОННЫЙ КАТАЛОГ (MASTER CATALOG) ---
 
+export interface CatalogVinRule {
+    sample: string;
+    positions: number[];
+}
+
 export interface CatalogModification {
     id: string;
     name: string;
     registeredCount: number;
     fluidFillCapacities?: FluidFillCapacities;
+    vinRules?: CatalogVinRule[];
     attributes: {
         trim?: string;
         engine?: string;
@@ -162,11 +170,13 @@ export interface StoredCatalogNode {
     modelSlug: string;
     title: string;
     category: 'service' | 'brakes' | 'suspension' | 'ignition' | 'fluids' | string;
+    assembly?: string;
     compatibleModifications: string[]; // Массив ID модификаций (['mod_cf4_sir']) или ['all']
     items: StoredPartItem[];
     fluidCategory?: FluidCategory | null;
     excludedFluidProducts?: string[];
     fillCapacitiesByModification?: Record<string, number>;
+    allowedModificationIds?: string[];
 }
 
 export interface StoredMasterModel {
@@ -187,6 +197,7 @@ export interface SystemState {
     inbox: InboxItem[];
     catalogNodes: StoredCatalogNode[];
     masterModels: StoredMasterModel[];
+    catalogBranches?: CatalogBranch[];
     catalogCategoryLabels?: Record<string, string>;
     catalogCategoryOrder?: string[];
     hiddenCatalogCategories?: string[];

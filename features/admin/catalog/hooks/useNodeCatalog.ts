@@ -122,13 +122,16 @@ export function useNodeCatalog(
         filters
     );
     const modelParts = currentSnapshot?.modelParts ?? [];
+    const branchModIds = node?.allowedModificationIds === undefined ? matchingModIds
+        : new Set(node.allowedModificationIds.filter(id => matchingModIds.has(id)));
+    const isFluid = node && getCatalogSection(node.category) === 'fluids';
 
     const matches = (part: StoredPartItem): boolean =>
         matchesCatalogFilters(
             part,
             filters,
-            matchingModIds,
-            modelParts
+            branchModIds,
+            isFluid ? [] : modelParts
         );
 
     // Только детали, подходящие выбранным параметрам.

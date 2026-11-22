@@ -3,9 +3,11 @@
 import { useId, useState } from 'react';
 import { Dialog } from 'radix-ui';
 import { Trash2 } from 'lucide-react';
-import { getCatalogCategoryKeys, getCatalogCategoryLabel, getCatalogSectionOptions, sortCatalogCategoryKeys } from '@/features/admin/lib/system-store/categoryLabels';
-import { deleteEmptyCatalogCategory, moveCatalogCategoryParts } from '@/features/admin/lib/system-store/actions/moveCatalogPart';
+import { getCatalogCategoryKeys, getCatalogCategoryLabel, getCatalogBranchTitles, sortCatalogCategoryKeys } from '@/features/admin/lib/system-store/categoryLabels';
+import { deleteEmptyCatalogBranch, deleteEmptyCatalogCategory, moveCatalogBranchParts, moveCatalogCategoryParts } from '@/features/admin/lib/system-store/actions/moveCatalogPart';
+import { catalogBranchKey, catalogBranchLabel, getCatalogAssemblyNames, getCatalogBranches } from '@/features/admin/lib/system-store/catalogBranches';
 import { storage } from '@/features/admin/lib/system-store/storage';
+import { getCatalogSection } from '@/features/catalog/lib/catalogSections';
 import type { SystemState } from '@/features/admin/lib/system-store/types';
 
 const NEW_CATEGORY = '__NEW_CATEGORY__';
@@ -15,21 +17,30 @@ const buttonClass = 'rounded-xl border border-[var(--border)] px-4 py-2 text-sm 
 interface Props {
     category: string;
     categoryLabel: string;
+    branchTitle?: string;
+    branchAssembly?: string;
 }
 
-export function DeleteCatalogCategoryDialog({ category: source, categoryLabel }: Props) {
+export function DeleteCatalogCategoryDialog({ category: source, categoryLabel, branchTitle, branchAssembly }: Props) {
+    const branch = branchTitle === undefined ? null : { category: source, assembly: branchAssembly, title: branchTitle };
+    const label = branch ? catalogBranchLabel(branch) : categoryLabel;
+    const targetKind = branch?.assembly ? 'узел' : branch ? 'подкатегорию' : 'категорию';
+    const moveAllFluids = branch !== null && getCatalogSection(source) === 'fluids';
     const [state, setState] = useState<SystemState | null>(null);
     const [destination, setDestination] = useState('');
     const [newCategory, setNewCategory] = useState('');
     const [title, setTitle] = useState('');
+    const [assembly, setAssembly] = useState('');
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
     const [error, setError] = useState('');
     const optionsId = useId();
+    const assemblyOptionsId = useId();
 
     const nodes = state?.catalogNodes ?? [];
+    const branches = getCatalogBranches(state);
     const labels = state?.catalogCategoryLabels;
     const categories = sortCatalogCategoryKeys(
-        getCatalogCategoryKeys(nodes.map(node => node.category).filter(Boolean), state?.hiddenCatalogCategories),
+        getCatalogCategoryKeys(branches, state?.hiddenCatalogCategories),
         state?.catalogCategoryOrder,
         labels
     );
@@ -37,45 +48,59 @@ export function DeleteCatalogCategoryDialog({ category: source, categoryLabel }:
         JSON.stringify([model.brandSlug, model.modelSlug]),
         model.brandName + ' ' + model.modelName,
     ] as const));
-    const rows = nodes.filter(node => source && node.category === source).flatMap(node =>
+    const sourceNodes = nodes.filter(node => branch ? catalogBranchKey(node) === catalogBranchKey(branch) : node.category === source);
+    const hasFillCapacities = branch !== null && sourceNodes.some(node =>
+        Object.keys(node.fillCapacitiesByModification ?? {}).length > 0
+    );
+    const rows = sourceNodes.flatMap(node =>
         node.items.map(part => ({
             key: JSON.stringify([node.id, part.id]),
             nodeId: node.id,
             part,
-            section: node.title,
+            section: catalogBranchLabel(node),
             model: models.get(JSON.stringify([node.brandSlug, node.modelSlug])) ??
                 node.brandSlug + ' ' + node.modelSlug,
         }))
     );
-    const selectedRows = rows.filter(row => selected.has(row.key));
+    const selectedRows = moveAllFluids ? rows : rows.filter(row => selected.has(row.key));
     const category = destination === NEW_CATEGORY ? newCategory : destination;
-    const options = getCatalogSectionOptions(nodes, destination).existingNodes;
+    const targetBranch = { category, assembly, title };
+    const assemblyOptions = getCatalogAssemblyNames(branches, targetBranch).filter(option =>
+        !branch || catalogBranchKey({ ...targetBranch, assembly: option }) !== catalogBranchKey(branch)
+    );
+    const options = getCatalogBranchTitles(branches, category);
+    const destinationCategories = categories.filter(key => branch
+        ? getCatalogSection(key) === getCatalogSection(source)
+        : key !== source
+    );
+    const sameBranch = branch !== null && catalogBranchKey(targetBranch) === catalogBranchKey(branch);
 
     function selectDestination(value: string) {
         setDestination(value);
         setNewCategory('');
         setTitle('');
+        setAssembly('');
         setError('');
     }
 
     function changeOpen(open: boolean) {
         setState(open ? storage.getState() : null);
         setSelected(new Set());
-        selectDestination('');
+        selectDestination(moveAllFluids ? source : '');
     }
 
     function save() {
         setError('');
         try {
             if (!rows.length) {
-                deleteEmptyCatalogCategory(source);
+                if (branch) deleteEmptyCatalogBranch(branch);
+                else deleteEmptyCatalogCategory(source);
                 changeOpen(false);
                 return;
             }
-            moveCatalogCategoryParts(source, selectedRows.map(row => ({
-                nodeId: row.nodeId,
-                partId: row.part.id,
-            })), { category, title });
+            const parts = selectedRows.map(row => ({ nodeId: row.nodeId, partId: row.part.id }));
+            if (branch) moveCatalogBranchParts(branch, parts, targetBranch);
+            else moveCatalogCategoryParts(source, parts, targetBranch);
             setSelected(new Set());
             setState(storage.getState());
         } catch (failure: unknown) {
@@ -89,8 +114,8 @@ export function DeleteCatalogCategoryDialog({ category: source, categoryLabel }:
             <Dialog.Trigger asChild>
                 <button
                     type="button"
-                    title="Удалить категорию"
-                    aria-label={`Удалить категорию «${categoryLabel}»`}
+                    title={`Удалить ${targetKind}`}
+                    aria-label={`Удалить ${targetKind} «${label}»`}
                     className="shrink-0 rounded-lg p-2 text-red-500 hover:bg-red-500/10"
                 >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -100,28 +125,34 @@ export function DeleteCatalogCategoryDialog({ category: source, categoryLabel }:
                 <Dialog.Overlay className="fixed inset-0 z-[300] bg-black/60" />
                 <Dialog.Content className="fixed left-1/2 top-1/2 z-[301] flex max-h-[85dvh] w-[calc(100%_-_2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl border border-[var(--border)] bg-[var(--card)] text-[var(--text)]">
                     <header className="space-y-1 px-5 pb-3 pt-5">
-                        <Dialog.Title className="text-lg font-bold">Удаление категории «{categoryLabel}»</Dialog.Title>
+                        <Dialog.Title className="text-lg font-bold">Удалить {targetKind} «{label}»</Dialog.Title>
                         <Dialog.Description className="text-sm text-[var(--text-muted)]">
-                            Категория общая для всех моделей. Перед удалением перенесите из неё все запчасти.
+                            {branch?.assembly
+                                ? 'Узел общий для всех моделей. Перед удалением перенесите из него все позиции.'
+                                : branch ? 'Подкатегория общая для всех моделей. Перед удалением перенесите из неё все позиции.'
+                                : 'Категория общая для всех моделей. Перед удалением перенесите из неё все запчасти.'}
                         </Dialog.Description>
                     </header>
                     <div className="min-h-0 space-y-4 overflow-y-auto px-5 pb-4 text-sm">
-                        {!rows.length && <p>Категория пуста. Её можно удалить.</p>}
+                        {!rows.length && <p>{branch?.assembly ? 'Узел пуст. Его можно удалить.' : branch ? 'Подкатегория пуста. Её можно удалить.' : 'Категория пуста. Её можно удалить.'}</p>}
+                        {hasFillCapacities && (
+                            <p className="text-[var(--text-muted)]">При удалении этой ветки её справочные объёмы исчезнут из каталога.</p>
+                        )}
                         {rows.length > 0 && (
                             <>
                                 <fieldset className="space-y-2">
-                                    <legend className="mb-2 font-medium">Запчасти для переноса</legend>
-                                    <label className="flex items-center gap-2">
+                                    <legend className="mb-2 font-medium">{moveAllFluids ? 'Жидкости для переноса' : 'Запчасти для переноса'}</legend>
+                                    {!moveAllFluids && <label className="flex items-center gap-2">
                                         <input type="checkbox" checked={selectedRows.length === rows.length}
                                             onChange={event => setSelected(event.target.checked ? new Set(rows.map(row => row.key)) : new Set())}
                                         />
                                         Выбрать все ({selectedRows.length} из {rows.length})
-                                    </label>
+                                    </label>}
                                     <ul className="max-h-56 overflow-y-auto divide-y divide-[var(--border)] rounded-xl border border-[var(--border)]">
                                         {rows.map(row => (
                                             <li key={row.key}>
                                                 <label className="flex cursor-pointer items-start gap-3 px-3 py-2">
-                                                    <input type="checkbox" className="mt-1" checked={selected.has(row.key)}
+                                                    <input type="checkbox" className="mt-1" disabled={moveAllFluids} checked={moveAllFluids || selected.has(row.key)}
                                                         onChange={event => {
                                                             const next = new Set(selected);
                                                             if (event.target.checked) next.add(row.key);
@@ -146,10 +177,10 @@ export function DeleteCatalogCategoryDialog({ category: source, categoryLabel }:
                                         <span>Категория назначения</span>
                                         <select className={fieldClass} value={destination} onChange={event => selectDestination(event.target.value)}>
                                             <option value="">Выберите категорию</option>
-                                            {categories.filter(key => key !== source).map(key => (
+                                            {destinationCategories.map(key => (
                                                 <option key={key} value={key}>{getCatalogCategoryLabel(key, labels)}</option>
                                             ))}
-                                            <option value={NEW_CATEGORY}>Создать категорию</option>
+                                            {!moveAllFluids && <option value={NEW_CATEGORY}>Создать категорию</option>}
                                         </select>
                                     </label>
                                     {destination === NEW_CATEGORY && (
@@ -162,11 +193,21 @@ export function DeleteCatalogCategoryDialog({ category: source, categoryLabel }:
                                         <label className="space-y-1">
                                             <span>Подкатегория назначения</span>
                                             <input className={fieldClass} list={optionsId} value={title}
-                                                onChange={event => setTitle(event.target.value)}
+                                                onChange={event => { setTitle(event.target.value); setAssembly(''); }}
                                                 placeholder="Выберите или введите название"
                                             />
                                             <datalist id={optionsId}>
                                                 {options.map(option => <option key={option} value={option} />)}
+                                            </datalist>
+                                        </label>
+                                    )}
+                                    {destination && (
+                                        <label className="space-y-1">
+                                            <span>Узел назначения (необязательно)</span>
+                                            <input className={fieldClass} list={assemblyOptionsId} value={assembly}
+                                                onChange={event => setAssembly(event.target.value)} />
+                                            <datalist id={assemblyOptionsId}>
+                                                {assemblyOptions.map(option => <option key={option} value={option} />)}
                                             </datalist>
                                         </label>
                                     )}
@@ -181,10 +222,10 @@ export function DeleteCatalogCategoryDialog({ category: source, categoryLabel }:
                                 <button type="button" className={buttonClass}>Закрыть</button>
                             </Dialog.Close>
                             <button type="button" onClick={save}
-                                disabled={rows.length > 0 && (!selectedRows.length || !category.trim() || !title.trim())}
+                                disabled={rows.length > 0 && (!selectedRows.length || !category.trim() || !title.trim() || sameBranch)}
                                 className={buttonClass + (rows.length ? '' : ' text-red-500')}
                             >
-                                {rows.length ? 'Перенести выбранные' : 'Удалить категорию'}
+                                {rows.length ? (moveAllFluids ? 'Перенести все жидкости' : 'Перенести выбранные') : `Удалить ${targetKind}`}
                             </button>
                         </div>
                     </footer>

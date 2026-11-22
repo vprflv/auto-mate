@@ -5,6 +5,7 @@ import { AlertTriangle, ShieldCheck, Wrench, X } from 'lucide-react';
 
 import type { CatalogPartPayload } from '@/types';
 import type { InboxItem } from '@/features/admin/lib/systemStore';
+import { catalogBranchLabel } from '@/features/admin/lib/system-store/catalogBranches';
 import { getOemCrosses } from '@/features/admin/lib/system-store/oemCrosses';
 import { usePartModeration } from '@/features/admin/catalog-inbox/hooks/usePartModeration';
 import { PartInstallationBadge } from '@/features/garage/components/PartInstallationBadge';
@@ -52,6 +53,7 @@ export function PartModerationModal(props: Props) {
 
     const closeModal = () => {
         setConfirmation(null);
+        state.branchSelection.setDraft(null);
         onClose();
     };
 
@@ -222,7 +224,7 @@ export function PartModerationModal(props: Props) {
                                                                 {model
                                                                     ? `${model.brandName} ${model.modelName}`
                                                                     : `${node.brandSlug} ${node.modelSlug}`}
-                                                                {' → '}{node.title}
+                                                                {' → '}{catalogBranchLabel(node)}
                                                             </p>
                                                             <p className="text-[var(--text-muted)]">
                                                                 {applicability}
@@ -278,7 +280,9 @@ export function PartModerationModal(props: Props) {
                                         <option value="fluids">Масла и жидкости</option>
                                     </select>
                                 </label>
-                                <CatalogBranchesPicker key={state.section} section={state.section} value={state.branches} onChange={state.setBranches} />
+                                <CatalogBranchesPicker key={state.section} section={state.section}
+                                    value={state.checkedBranches} onChange={state.setBranches} draft={state.branchSelection.draft}
+                                    setDraft={state.branchSelection.setDraft} pendingBranch={state.branchSelection.pendingBranch} />
 
                                 {state.section === 'fluids' && state.targetCar && (
                                     <FluidBranchPreview model={state.targetCar} branches={state.branches}

@@ -1,3 +1,4 @@
+import { restrictCatalogBranchModifications } from '@/features/catalog/lib/catalogBranchApplicability';
 import { FLUID_CATALOG_CATEGORY } from '@/features/catalog/lib/catalogSections';
 import { normalizeArticle } from './normalizeArticle';
 import { getOemCrosses } from './oemCrosses';
@@ -70,6 +71,15 @@ export function planCompatibleFluidFamily(
     const byProduct = new Map<string, CompatibleFluid>();
     if (family.ambiguous) return { ambiguous: true, byProduct };
 
+    const branchIds = restrictCatalogBranchModifications(node, modificationIds);
+    if (!branchIds.length) return { ambiguous: false, byProduct };
+
+    const sourceBranches = new Map<StoredPartItem, StoredCatalogNode>();
+    for (const branch of nodes) {
+        if (branch.category !== node.category || branch.brandSlug !== node.brandSlug || branch.modelSlug !== node.modelSlug) continue;
+        for (const item of branch.items) sourceBranches.set(item, branch);
+    }
+
     const directKey = fluidProductKey(part);
     const excludedKeys = new Set(node.excludedFluidProducts ?? []);
     const existing = new Map(node.items.map(item => [fluidProductKey(item), item]));
@@ -77,10 +87,11 @@ export function planCompatibleFluidFamily(
         const key = fluidProductKey(member);
         if (key === directKey || excludedKeys.has(key) || existing.get(key)?.fluidAnalogDetached) continue;
 
-        const proven = member.compatibleModifications ?? [];
-        const compatible = modificationIds.includes('all')
+        const source = sourceBranches.get(member);
+        const proven = restrictCatalogBranchModifications(source, member.compatibleModifications ?? []);
+        const compatible = branchIds.includes('all')
             ? proven
-            : modificationIds.filter(id => proven.includes('all') || proven.includes(id));
+            : branchIds.filter(id => proven.includes('all') || proven.includes(id));
         if (!compatible.length) continue;
 
         const entry = byProduct.get(key) ?? { part: member, ids: new Set<string>() };

@@ -53,6 +53,8 @@ export default function CatalogPageView({
         analogDialog.open();
     }
 
+    const preview = catalog?.previewModification;
+    const previewYears = [...new Set([preview?.year, preview?.yearEnd].filter(Boolean))].join('–');
     const oemCards = filteredArticles.filter(article =>
         article.isOem || article.canSave === false
     );
@@ -89,8 +91,8 @@ export default function CatalogPageView({
                 </h1>
 
                 <p className="text-[var(--text-muted)]">
-                    Модификация автомобиля ожидает проверки.
-                    После подтверждения здесь появится каталог
+                    Подходящей модификации для предварительного просмотра пока нет.
+                    После подтверждения модификации здесь появится каталог
                     {isFluids ? ' подходящих масел и жидкостей.' : ' подходящих запчастей.'}
                 </p>
 
@@ -154,6 +156,17 @@ export default function CatalogPageView({
                     catalog.source === 'mock'
                 }
             />
+
+            {preview && (
+                <div role="status" className="space-y-1 border-b border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm md:px-6">
+                    <p className="font-semibold">Предварительный ИИ-каталог</p>
+                    <p>Показаны позиции для модификации {preview.name}{previewYears ? ` · ${previewYears}` : ''}.</p>
+                    <p className="text-[var(--text-muted)]">
+                        Проверьте совместимость перед покупкой или использованием.
+                        Каталог для вашего автомобиля откроется после модерации.
+                    </p>
+                </div>
+            )}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 md:px-6">
                 <CatalogSectionLinks section={section} partsHref={catalogPath} fluidsHref={`${catalogPath}/fluids`} />

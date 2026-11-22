@@ -1,3 +1,5 @@
+import type { CatalogBranch } from '@/types';
+import { getCatalogBranches } from '@/features/admin/lib/system-store/catalogBranches';
 import { storage } from '@/features/admin/lib/system-store/storage';
 import type {
     StoredCatalogNode,
@@ -9,19 +11,22 @@ export type CatalogSnapshot = {
     exportedAt: string;
     masterModels: StoredMasterModel[];
     catalogNodes: StoredCatalogNode[];
+    catalogBranches?: CatalogBranch[];
     catalogCategoryLabels?: Record<string, string>;
     catalogCategoryOrder?: string[];
     hiddenCatalogCategories?: string[];
 };
 
 export function createCatalogSnapshot(): CatalogSnapshot {
-    const { masterModels, catalogNodes, catalogCategoryLabels, catalogCategoryOrder, hiddenCatalogCategories } = storage.getState();
+    const state = storage.getState();
+    const { masterModels, catalogNodes, catalogCategoryLabels, catalogCategoryOrder, hiddenCatalogCategories } = state;
 
     return {
         schemaVersion: 1,
         exportedAt: new Date().toISOString(),
         masterModels,
         catalogNodes,
+        catalogBranches: getCatalogBranches(state),
         ...(catalogCategoryLabels ? { catalogCategoryLabels } : {}),
         ...(catalogCategoryOrder ? { catalogCategoryOrder } : {}),
         ...(hiddenCatalogCategories ? { hiddenCatalogCategories } : {}),

@@ -44,12 +44,13 @@ export function NodeCatalogHeader({
                         </div>
 
                         <h1 className="break-words text-2xl font-bold text-[var(--text)]">
-                            {node.title}
+                            {node.assembly || node.title}
                         </h1>
                     </div>
 
                     <p className="text-sm uppercase tracking-wider text-[var(--text-muted)]">
-                        Категория: {getCatalogCategoryLabel(node.category, storage.getState().catalogCategoryLabels)}
+                        {getCatalogCategoryLabel(node.category, storage.getState().catalogCategoryLabels)}
+                        {node.assembly && ` → ${node.title}`}
                     </p>
                 </div>
 

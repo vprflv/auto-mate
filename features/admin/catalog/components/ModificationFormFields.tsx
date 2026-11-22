@@ -2,6 +2,7 @@
 
 import { useId } from 'react';
 import { Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { isValidVin, isValidVinPrefix, VIN_LENGTH, normalizeVin } from '@/features/garage/add/lib/config/vin';
 
 import type { useModificationForm } from '../hooks/useModificationForm';
 
@@ -155,6 +156,102 @@ export function ModificationFormFields({ form }: Props) {
                     );
                 })}
             </div>
+
+            <fieldset className="space-y-3 border-t border-[var(--border)]/40 pt-4">
+                <legend className="text-xs font-bold text-[var(--text)]">Поиск модификации по VIN</legend>
+                <p className="text-xs text-[var(--text-muted)]">
+                    Введите первые 11 символов VIN для сверки по префиксу. Для полного VIN из 17 символов отметьте нужные позиции или выберите сверку по всему номеру.
+                </p>
+
+                {form.vinRules.map((rule, index) => {
+                    const sampleId = `${idPrefix}-vin-${index}`;
+                    const isPrefix = isValidVinPrefix(rule.sample);
+                    const updateRule = (updated: typeof rule) => form.setVinRules(rules =>
+                        rules.map((item, itemIndex) => itemIndex === index ? updated : item)
+                    );
+
+                    return (
+                        <div key={sampleId} className="space-y-2 rounded-xl border border-[var(--border)] p-3">
+                            <div className="flex items-end gap-2">
+                                <label htmlFor={sampleId} className="block flex-1 space-y-1 text-xs text-[var(--text-muted)]">
+                                    <span>Префикс или полный VIN {index + 1}</span>
+                                    <input
+                                        id={sampleId}
+                                        value={rule.sample}
+                                        onChange={event => updateRule({
+                                            ...rule, sample: normalizeVin(event.target.value),
+                                        })}
+                                        maxLength={VIN_LENGTH}
+                                        placeholder="Например, SHHFK28607U"
+                                        spellCheck={false}
+                                        autoComplete="off"
+                                        required
+                                        className={`${inputClassName} font-mono uppercase`}
+                                    />
+                                </label>
+                                <button
+                                    type="button"
+                                    aria-label={`Удалить образец VIN ${index + 1}`}
+                                    onClick={() => form.setVinRules(rules => rules.filter((_, itemIndex) => itemIndex !== index))}
+                                    className="rounded-lg p-2.5 text-[var(--text-muted)] hover:bg-red-500/10 hover:text-red-500"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </button>
+                            </div>
+
+                            {isPrefix && (
+                                <p className="text-xs text-[var(--text-muted)]">Сверяем все 11 символов префикса.</p>
+                            )}
+                            {isValidVin(rule.sample) && (
+                                <div className="space-y-2">
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {Array.from({ length: VIN_LENGTH }, (_, position) => {
+                                            const selected = rule.positions.includes(position);
+                                            return (
+                                                <button
+                                                    key={position}
+                                                    type="button"
+                                                    aria-label={`Позиция ${position + 1}${rule.sample[position] ? `, ${rule.sample[position]}` : ''}`}
+                                                    aria-pressed={selected}
+                                                    onClick={() => updateRule({
+                                                        ...rule,
+                                                        positions: selected
+                                                            ? rule.positions.filter(item => item !== position)
+                                                            : [...rule.positions, position],
+                                                    })}
+                                                    className={`flex w-8 flex-col items-center rounded-lg border py-1 font-mono text-sm ${selected
+                                                        ? 'border-[var(--link)] bg-[var(--link)] text-[var(--btn-primary-text)]'
+                                                        : 'border-[var(--border)] text-[var(--text)]'}`}
+                                                >
+                                                    <span className="text-[10px] opacity-75">{position + 1}</span>
+                                                    {rule.sample[position] || '·'}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => updateRule({ ...rule, positions: Array.from({ length: VIN_LENGTH }, (_, position) => position) })}
+                                        className="text-xs font-medium text-[var(--link)] hover:underline"
+                                    >
+                                        Сверять весь VIN
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+
+                <button
+                    type="button"
+                    onClick={() => form.setVinRules(rules => [...rules, { sample: '', positions: [] }])}
+                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-[var(--link)] hover:bg-[var(--bg-elevated)]"
+                >
+                    <Plus className="h-4 w-4" />
+                    Добавить образец VIN
+                </button>
+            </fieldset>
 
             <div className="space-y-3 border-t border-[var(--border)]/40 pt-4">
                 <div>

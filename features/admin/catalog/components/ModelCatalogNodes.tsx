@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Wrench, Settings2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
+import { catalogBranchLabel, catalogSubcategoryKey } from '@/features/admin/lib/system-store/catalogBranches';
 import { getCatalogCategoryLabel, sortCatalogCategoryKeys } from '@/features/admin/lib/system-store/categoryLabels';
 import { renameCatalogSection } from '@/features/admin/lib/system-store/actions/renameCatalogSection';
 import { DeleteCatalogCategoryDialog } from './DeleteCatalogCategoryDialog';
@@ -22,6 +23,17 @@ interface Props {
     currentQuery: string;
 }
 
+function groupSubcategories(nodes: StoredCatalogNode[]): Map<string, StoredCatalogNode[]> {
+    const groups = new Map<string, StoredCatalogNode[]>();
+    for (const node of nodes) {
+        const key = catalogSubcategoryKey(node);
+        const group = groups.get(key) ?? [];
+        group.push(node);
+        groups.set(key, group);
+    }
+    return groups;
+}
+
 export function ModelCatalogNodes({
                                       section,
                                       nodesByCategory,
@@ -38,7 +50,8 @@ export function ModelCatalogNodes({
 
     function rename(section: Parameters<typeof renameCatalogSection>[0], currentName: string) {
         const value = window.prompt(
-            'category' in section ? 'Новое название категории для всех моделей' : 'Новое название подкатегории',
+            'category' in section ? 'Новое название категории для всех моделей' :
+                section.renameAssembly ? 'Новое название узла для всех моделей' : 'Новое название подкатегории для всех моделей',
             currentName
         );
         if (value === null) return;
@@ -121,52 +134,72 @@ export function ModelCatalogNodes({
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                {nodes.map(node => {
-                                    const nodePath =
-                                        `${modelPath}/` +
-                                        encodeURIComponent(node.id);
-
-                                    const href = currentQuery
-                                        ? `${nodePath}?${currentQuery}`
-                                        : nodePath;
-
+                            <div className="space-y-3">
+                                {[...groupSubcategories(nodes)].map(([key, subcategory]) => {
+                                    const hasAssemblies = subcategory.some(node => node.assembly);
+                                    const first = subcategory[0];
                                     return (
-                                        <div
-                                            key={node.id}
-                                            className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-2xs transition hover:border-[var(--link)]/40"
-                                        >
-                                            <div className="min-w-0">
-                                                <p className="break-words text-sm font-bold text-[var(--text)]">
-                                                    {node.title}
-                                                </p>
+                                        <div key={key} className="space-y-2">
+                                            {hasAssemblies && (
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="text-sm font-semibold">{first.title}</h4>
+                                                    <button type="button" aria-label={`Переименовать подкатегорию ${first.title}`}
+                                                        className="rounded-lg p-2 text-[var(--link)] hover:bg-[var(--bg-elevated)]"
+                                                        onClick={() => rename({ nodeId: first.id }, first.title)}>
+                                                        <Pencil className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {subcategory.map(node => {
+                                                const nodePath =
+                                                    `${modelPath}/` +
+                                                    encodeURIComponent(node.id);
 
-                                                <p className="text-xs text-[var(--text-dim)]">
-                                                    {hasActiveFilters
-                                                        ? isFluids ? 'Подходит жидкостей' : 'Подходит деталей'
-                                                        : isFluids ? 'Жидкостей в базе' : 'Деталей в базе'}
-                                                    :{' '}
-                                                    {node.items.length}
-                                                </p>
-                                            </div>
+                                                const href = currentQuery
+                                                    ? `${nodePath}?${currentQuery}`
+                                                    : nodePath;
 
-                                            <div className="flex shrink-0 items-center gap-1">
-                                            <button
-                                                type="button"
-                                                title="Переименовать подкатегорию"
-                                                aria-label={`Переименовать подкатегорию ${node.title}`}
-                                                onClick={() => rename({ nodeId: node.id }, node.title)}
-                                                className="rounded-lg p-2 text-[var(--link)] hover:bg-[var(--bg-elevated)]"
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                            </button>
-                                            <Link
-                                                href={href}
-                                                className="shrink-0 rounded-lg bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-semibold text-[var(--text)] transition hover:bg-[var(--link)] hover:text-[var(--btn-primary-text)]"
-                                            >
-                                                Открыть
-                                            </Link>
-                                            </div>
+                                                return (
+                                                    <div
+                                                        key={node.id}
+                                                        className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-2xs transition hover:border-[var(--link)]/40"
+                                                    >
+                                                        <div className="min-w-0">
+                                                            <p className="break-words text-sm font-bold text-[var(--text)]">
+                                                                {node.assembly ?? (hasAssemblies ? 'Общие позиции' : node.title)}
+                                                            </p>
+
+                                                            <p className="text-xs text-[var(--text-dim)]">
+                                                                {hasActiveFilters
+                                                                    ? isFluids ? 'Подходит жидкостей' : 'Подходит деталей'
+                                                                    : isFluids ? 'Жидкостей в базе' : 'Деталей в базе'}
+                                                                :{' '}
+                                                                {node.items.length}
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="flex shrink-0 items-center gap-1">
+                                                            {(node.assembly || !hasAssemblies) && <button
+                                                                type="button"
+                                                                title={node.assembly ? 'Переименовать узел' : 'Переименовать подкатегорию'}
+                                                                aria-label={`Переименовать ${catalogBranchLabel(node)}`}
+                                                                onClick={() => rename({ nodeId: node.id, renameAssembly: Boolean(node.assembly) }, node.assembly ?? node.title)}
+                                                                className="rounded-lg p-2 text-[var(--link)] hover:bg-[var(--bg-elevated)]"
+                                                            >
+                                                                <Pencil className="h-4 w-4" />
+                                                            </button>}
+                                                            <DeleteCatalogCategoryDialog category={category}
+                                                                categoryLabel={getCatalogCategoryLabel(category, labels)} branchTitle={node.title} branchAssembly={node.assembly} />
+                                                            <Link
+                                                                href={href}
+                                                                className="shrink-0 rounded-lg bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-semibold text-[var(--text)] transition hover:bg-[var(--link)] hover:text-[var(--btn-primary-text)]"
+                                                            >
+                                                                Открыть
+                                                            </Link>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     );
                                 })}

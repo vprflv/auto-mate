@@ -2,8 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { GitBranch, Pencil, Plus, Trash2 } from 'lucide-react';
+import { GitBranch, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { deleteCatalogModification, getModificationPartLinks } from '@/features/admin/lib/system-store/actions/modifications';
@@ -35,10 +34,9 @@ const attributeLabels: Record<string, string> = {
 };
 
 export function ModelModifications({ model, selectedModificationIds, isPending, onSelectModification, onReset }: Props) {
-    const router = useRouter();
     const modelPath = `/admin/catalog/${encodeURIComponent(model.brandSlug)}/${encodeURIComponent(model.modelSlug)}`;
     const partsPath = (id: string) => `${modelPath}?pickPartsFor=${encodeURIComponent(id)}`;
-    const [dialog, setDialog] = React.useState<{ modification?: CatalogModification } | null>(null);
+    const [editingModification, setEditingModification] = React.useState<CatalogModification | null>(null);
     const [links, setLinks] = React.useState<ReturnType<typeof getModificationPartLinks>>([]);
     const [destinations, setDestinations] = React.useState(new Map<string, string | null>());
 
@@ -82,14 +80,6 @@ export function ModelModifications({ model, selectedModificationIds, isPending, 
                     </span>
                 </div>
 
-                <button
-                    type="button"
-                    onClick={() => setDialog({})}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-blue-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-600"
-                >
-                    <Plus className="h-4 w-4" />
-                    Добавить модификацию
-                </button>
             </div>
 
             {modifications.length === 0 ? (
@@ -135,7 +125,7 @@ export function ModelModifications({ model, selectedModificationIds, isPending, 
                                     <div className="flex flex-wrap justify-end gap-1">
                                     <button
                                         type="button"
-                                        onClick={() => setDialog({ modification })}
+                                        onClick={() => setEditingModification(modification)}
                                         className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[var(--link)] hover:bg-[var(--bg-elevated)]"
                                         aria-label={`Редактировать модификацию ${modification.name}`}
                                     >
@@ -243,13 +233,12 @@ export function ModelModifications({ model, selectedModificationIds, isPending, 
                 </div>
             )}
 
-            {dialog && (
+            {editingModification && (
                 <AddModificationModal
-                    key={`${model.brandSlug}:${model.modelSlug}:${dialog.modification?.id ?? 'new'}`}
+                    key={`${model.brandSlug}:${model.modelSlug}:${editingModification.id}`}
                     model={model}
-                    modification={dialog.modification}
-                    onClose={() => setDialog(null)}
-                    onCreated={modification => router.push(partsPath(modification.id))}
+                    modification={editingModification}
+                    onClose={() => setEditingModification(null)}
                 />
             )}
         </section>

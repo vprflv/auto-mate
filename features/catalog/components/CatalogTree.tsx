@@ -27,8 +27,8 @@ function TreeNode({
                       selectedNodeId,
                       onSelect,
                   }: TreeNodeProps) {
-    const [isOpen, setIsOpen] =
-        useState(level < 1);
+    const [expanded, setIsOpen] = useState<boolean>();
+    const isOpen = expanded ?? (level === 0 || selectedNodeId === node.id);
 
     const hasChildren =
         node.children &&
@@ -57,9 +57,7 @@ function TreeNode({
                         e.stopPropagation();
 
                         if (hasChildren) {
-                            setIsOpen(
-                                (prev) => !prev
-                            );
+                            setIsOpen(!isOpen);
                         }
                     }}
                     className={`flex h-8 w-6 shrink-0 items-center justify-center ${
@@ -82,9 +80,10 @@ function TreeNode({
                 {/* Название узла */}
                 <button
                     type="button"
-                    onClick={() =>
-                        onSelect(node.id)
-                    }
+                    onClick={() => {
+                        if (hasChildren) setIsOpen(true);
+                        onSelect(node.id);
+                    }}
                     className="flex-1 truncate py-2 pr-3 text-left text-sm"
                 >
                     {node.name}

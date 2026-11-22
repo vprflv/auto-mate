@@ -3,6 +3,8 @@ import {
     resolveCarCatalogIdentity,
 } from '@/features/catalog/lib/carCatalogIdentity';
 import { getGarageCars, saveGarageCars } from '@/features/garage/add/lib/storage';
+import { isValidCatalogVinRule } from '@/features/garage/add/lib/catalogVinRules';
+import { isValidVinPrefix, normalizeVin } from '@/features/garage/add/lib/config/vin';
 import { uniqueInstallations } from '@/features/catalog/lib/partInstallations';
 import { storage } from '../storage';
 import type { CatalogModification, StoredMasterModel } from '../types';
@@ -12,6 +14,7 @@ export interface CreateModificationInput {
     modelSlug: string;
     name: string;
     attributes: CatalogModification['attributes'];
+    vinRules?: CatalogModification['vinRules'];
 }
 
 export interface UpdateModificationInput extends CreateModificationInput {
@@ -163,6 +166,9 @@ export function deleteCatalogModification({
     for (const node of state.catalogNodes) {
         if (node.brandSlug !== brandSlug || node.modelSlug !== modelSlug) continue;
 
+        if (node.allowedModificationIds) {
+            node.allowedModificationIds = node.allowedModificationIds.filter(id => id !== modificationId);
+        }
         const ids = new Set(node.items.flatMap(part => part.compatibleModifications ?? []));
         node.compatibleModifications = ids.has('all') ? ['all'] : [...ids];
     }
@@ -220,12 +226,22 @@ function saveCatalogModification(
         );
     }
 
+    const vinRules = input.vinRules?.map((rule, index) => {
+        if (!isValidCatalogVinRule(rule)) {
+            throw new Error(`Образец VIN ${index + 1}. Введите первые 11 символов или полный VIN из 17 символов и отметьте позиции для сверки.`);
+        }
+        const sample = normalizeVin(rule.sample);
+        const positions = isValidVinPrefix(sample) ? [] : [...new Set(rule.positions)].sort((a, b) => a - b);
+        return { sample, positions };
+    });
+
     const modification: CatalogModification = existing
-        ? { ...existing, name, attributes }
+        ? { ...existing, name, attributes, vinRules: vinRules ?? existing.vinRules }
         : {
             id: `mod_${crypto.randomUUID()}`,
             name,
             attributes,
+            vinRules,
             registeredCount: 0,
         };
 

@@ -19,19 +19,21 @@ export const normalizeCode = (value?: string) => (value ?? '').replace(/[\s-]/g,
 type IdentityField = keyof typeof modificationFields;
 const identityFields = Object.keys(modificationFields) as IdentityField[];
 
+function matchesIdentityValue(field: IdentityField, entered: string, stored: string): boolean {
+    if (field === 'transmission') {
+        return normalizeRobotTransmission(entered) === normalizeRobotTransmission(stored);
+    }
+    const decimal = /^\d+(?:[.,]\d+)?$/;
+    if (field === 'displacementL' && decimal.test(entered) && decimal.test(stored)) {
+        return Number(entered.replace(',', '.')) === Number(stored.replace(',', '.'));
+    }
+    return entered === stored;
+}
+
 function matchesIdentityFields(car: Pick<Car, IdentityField>, modification: CatalogModification): boolean {
-    return identityFields.every(field => {
-        const entered = normalize(car[field]);
-        const stored = normalize(modification.attributes?.[modificationFields[field]]);
-        if (field === 'transmission') {
-            return normalizeRobotTransmission(entered) === normalizeRobotTransmission(stored);
-        }
-        const decimal = /^\d+(?:[.,]\d+)?$/;
-        if (field === 'displacementL' && decimal.test(entered) && decimal.test(stored)) {
-            return Number(entered.replace(',', '.')) === Number(stored.replace(',', '.'));
-        }
-        return entered === stored;
-    });
+    return identityFields.every(field => matchesIdentityValue(
+        field, normalize(car[field]), normalize(modification.attributes?.[modificationFields[field]])
+    ));
 }
 
 function matchesProductionYear(year: number, modification: CatalogModification): boolean {
@@ -49,13 +51,18 @@ export function modificationValues(modification: CatalogModification) {
     ) as Record<keyof typeof modificationFields, string>;
 }
 
-export function matchesVehicleDetails(modification: CatalogModification, year: string, bodyCode: string) {
+export function matchesVehicleDetails(
+    modification: CatalogModification,
+    year: string,
+    bodyCode: string,
+    { ignoreYear = false } = {}
+) {
     const catalogCode = normalizeCode(modification.attributes?.bodyCode ?? '');
     const enteredCode = normalizeCode(bodyCode);
     if (enteredCode && catalogCode && catalogCode !== enteredCode) return false;
 
     const enteredYear = year.trim();
-    if (!/^\d{4}$/.test(enteredYear)) return true;
+    if (ignoreYear || !/^\d{4}$/.test(enteredYear)) return true;
 
     const start = modification.attributes?.year?.trim();
     const end = modification.attributes?.yearEnd?.trim();
@@ -66,6 +73,16 @@ export function matchesVehicleDetails(modification: CatalogModification, year: s
 type MatchInput = Pick<Car, IdentityField |
     'make' | 'model' | 'year' | 'bodyCode' | 'catalogBrandSlug' | 'catalogModelSlug'>;
 
+function findVerifiedModels(car: MatchInput, models: StoredMasterModel[]) {
+    return models.filter(model =>
+        model.verified &&
+        normalize(model.brandName) === normalize(car.make) &&
+        normalize(model.modelName) === normalize(car.model) &&
+        (!car.catalogBrandSlug || model.brandSlug === car.catalogBrandSlug) &&
+        (!car.catalogModelSlug || model.modelSlug === car.catalogModelSlug)
+    );
+}
+
 export function findMatchingCatalogModifications(
     car: MatchInput,
     models: StoredMasterModel[],
@@ -73,15 +90,8 @@ export function findMatchingCatalogModifications(
 ) {
     if (!normalize(car.engine)) return [];
 
-    const matchingModels = models.filter(model =>
-        model.verified &&
-        normalize(model.brandName) === normalize(car.make) &&
-        normalize(model.modelName) === normalize(car.model) &&
-        (!car.catalogBrandSlug || model.brandSlug === car.catalogBrandSlug) &&
-        (!car.catalogModelSlug || model.modelSlug === car.catalogModelSlug)
-    );
     const bodyCode = normalizeCode(car.bodyCode);
-    return matchingModels.flatMap(model =>
+    return findVerifiedModels(car, models).flatMap(model =>
         (Array.isArray(model.modifications) ? model.modifications : [])
             .filter(candidate =>
                 matchesProductionYear(car.year, candidate) &&
@@ -129,10 +139,68 @@ export function resolveCarCatalogIdentity(car: Car, models: StoredMasterModel[])
     );
     if (!model || !modification) return null;
 
+    const ignoreYear = Boolean(car.catalogYearApproval) &&
+        car.catalogYearApproval === carCatalogYearApprovalVersion(car);
     if (!matchesIdentityFields(car, modification) ||
-        !matchesVehicleDetails(modification, String(car.year), car.bodyCode ?? '')) return null;
+        !matchesVehicleDetails(modification, String(car.year), car.bodyCode ?? '', { ignoreYear })) return null;
 
     return { model, modification };
+}
+
+function productionYearDistance(year: number, modification: CatalogModification): number {
+    const first = modification.attributes?.year?.trim() ?? '';
+    const last = modification.attributes?.yearEnd?.trim() || first;
+    if (!/^\d{4}$/.test(first) || !/^\d{4}$/.test(last) || Number(last) < Number(first)) {
+        return Number.POSITIVE_INFINITY;
+    }
+    return Math.max(0, Number(first) - year, year - Number(last));
+}
+
+export function findCatalogPreviewModification(car: Car, models: StoredMasterModel[]) {
+    const bodyCode = normalizeCode(car.bodyCode);
+    const trim = normalize(car.trim);
+    const knownFields = identityFields
+        .filter(field => field !== 'trim')
+        .map(field => ({ field, value: normalize(car[field]) }))
+        .filter(({ value }) => value);
+
+    const candidates = findVerifiedModels(car, models).flatMap(model =>
+        (Array.isArray(model.modifications) ? model.modifications : []).flatMap(modification => {
+            const storedBodyCode = normalizeCode(modification.attributes?.bodyCode);
+            if (bodyCode && storedBodyCode && bodyCode !== storedBodyCode) return [];
+
+            const comparableFields = knownFields
+                .map(({ field, value }) => ({
+                    field,
+                    value,
+                    stored: normalize(modification.attributes?.[modificationFields[field]]),
+                }))
+                .filter(({ stored }) => stored);
+            if (comparableFields.some(({ field, value, stored }) => !matchesIdentityValue(field, value, stored))) return [];
+
+            const matchesBodyCode = Boolean(bodyCode) && bodyCode === storedBodyCode;
+            const matchingSpecs = comparableFields.length + Number(matchesBodyCode);
+            const yearDistance = productionYearDistance(car.year, modification);
+            if (matchingSpecs === 0 && (bodyCode || knownFields.length || !Number.isFinite(yearDistance))) return [];
+
+            const matchesTrim = Boolean(trim) && trim === normalize(modification.attributes?.trim);
+            return [{ model, modification, matchingSpecs, yearDistance, matchesTrim }];
+        })
+    );
+
+    candidates.sort((a, b) =>
+        b.matchingSpecs - a.matchingSpecs ||
+        a.yearDistance - b.yearDistance ||
+        Number(b.matchesTrim) - Number(a.matchesTrim)
+    );
+
+    const [best, next] = candidates;
+    if (!best || (next &&
+        best.matchingSpecs === next.matchingSpecs &&
+        best.yearDistance === next.yearDistance &&
+        best.matchesTrim === next.matchesTrim)) return null;
+
+    return { model: best.model, modification: best.modification };
 }
 
 export function refreshCatalogRegistrationCounts(models: StoredMasterModel[], cars: readonly Car[]): void {
@@ -152,6 +220,13 @@ export function refreshCatalogRegistrationCounts(models: StoredMasterModel[], ca
         identity.model.registeredCount += 1;
         identity.modification.registeredCount += 1;
     }
+}
+
+export function carCatalogYearApprovalVersion(car: Car): string {
+    return JSON.stringify([
+        car.id, car.catalogBrandSlug, car.catalogModelSlug, car.catalogModificationId,
+        carReviewVersion(car),
+    ]);
 }
 
 export function carReviewVersion(car: Car, legacy = false): string {

@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import type { CatalogSection } from '@/types/catalog/catalog';
 import { getCatalogSection } from '@/features/catalog/lib/catalogSections';
+import { catalogBranchAllowsModification } from '@/features/catalog/lib/catalogBranchApplicability';
 import { getNodeFillCapacity } from '@/features/catalog/lib/fluidFillCapacities';
 
 import { storage } from '@/features/admin/lib/system-store/storage';
@@ -149,21 +150,21 @@ export function useModelCatalog(
     // Создаём отфильтрованные копии узлов,
     // исходные данные каталога не изменяем.
     const visibleNodes = sectionNodes
-        .map(node => ({
-            ...node,
-            items: node.items.filter(part =>
-                matchesCatalogFilters(
-                    part,
-                    filters,
-                    matchingModIds,
-                    modelParts
-                )
-            )
-        }))
+        .map(node => {
+            const branchModIds = node.allowedModificationIds === undefined ? matchingModIds
+                : new Set(node.allowedModificationIds.filter(id => matchingModIds.has(id)));
+            return {
+                ...node,
+                items: node.items.filter(part =>
+                    matchesCatalogFilters(part, filters, branchModIds, section === 'fluids' ? [] : modelParts)
+                ),
+            };
+        })
         .filter(node =>
             !hasActiveFilters || node.items.length > 0 || (
                 section === 'fluids' && modifications.some(modification =>
-                    matchingModIds.has(modification.id) && getNodeFillCapacity(node, modification) !== undefined
+                    matchingModIds.has(modification.id) && catalogBranchAllowsModification(node, modification.id) &&
+                    getNodeFillCapacity(node, modification) !== undefined
                 )
             )
         );

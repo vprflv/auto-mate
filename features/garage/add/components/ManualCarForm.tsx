@@ -15,7 +15,7 @@ import { CarSpecificationFields } from './CarSpecificationFields';
 interface Props {
     form: ManualCarFormValues;
     error: string;
-    fromDecode?: boolean;
+    fromVinMatch?: boolean;
 
     onChange: (
         field: keyof ManualCarFormValues,
@@ -43,14 +43,15 @@ const optionalFields = [
 export default function ManualCarForm({
                                           form,
                                           error,
-                                          fromDecode = false,
+                                          fromVinMatch = false,
                                           onChange,
                                           onSubmit,
                                           onCancel
                                       }: Props) {
     const selection = useCatalogCarSelection({
         form,
-        onChange
+        onChange,
+        allowAllModifications: true,
     });
     const [confirmOpen, setConfirmOpen] = useState(false);
     const missingFields = optionalFields
@@ -100,10 +101,9 @@ export default function ManualCarForm({
                 onChange={value => onChange('vin', value)}
             />
 
-            {fromDecode && (
+            {fromVinMatch && (
                 <p className="rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4 text-sm leading-relaxed text-[var(--text-muted)]">
-                    Данные из VIN уже подставлены.
-                    Проверьте их и дополните перед сохранением.
+                    Подставили данные найденной модификации. Проверьте их и укажите год автомобиля, если поле пустое.
                 </p>
             )}
 

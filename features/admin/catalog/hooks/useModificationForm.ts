@@ -112,6 +112,8 @@ export function useModificationForm({
         return initialFields;
     });
 
+    const [vinRules, setVinRules] = React.useState(initialModification?.vinRules ?? []);
+
     const [customAttributes, setCustomAttributes] =
         React.useState<CustomAttribute[]>(() =>
             Object.entries(initialModification?.attributes ?? {}).flatMap(([key, value]) =>
@@ -142,10 +144,10 @@ export function useModificationForm({
         engine ? `(${engine})` : '',
         fields.transmission.trim(),
         fields.drivetrain.trim(),
-        fields.trim.trim(),
         fields.fuel?.trim(),
         fields.bodyClass?.trim(),
         ...customAttributes.map(item => item.value.trim()),
+        fields.trim.trim(),
     ]
         .filter(Boolean)
         .join(' / ');
@@ -295,6 +297,7 @@ export function useModificationForm({
                 brandSlug,
                 modelSlug,
                 name,
+                vinRules,
 
                 attributes: {
                     trim: fields.trim,
@@ -342,6 +345,8 @@ export function useModificationForm({
         resetName,
         isNameEdited: customName !== null,
 
+        vinRules,
+        setVinRules,
         customAttributes,
         addAttribute,
         updateAttribute,

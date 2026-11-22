@@ -2,6 +2,7 @@ import type { CatalogModification, StoredCatalogNode, StoredMasterModel } from '
 import { FLUID_CATEGORY_OPTIONS } from '@/features/garage/lib/config/serviceItemCategories';
 import type { FluidCategory, FluidFillCapacities } from '@/types/oil';
 import { FLUID_CATALOG_CATEGORY } from './catalogSections';
+import { catalogBranchAllowsModification } from './catalogBranchApplicability';
 
 export const FLUID_FILL_CAPACITY_NOTICE =
     'Справочная информация основана на опыте и данных пользователей. Перед заправкой сверьте объём и способ замены с руководством производителя для вашей модификации.';
@@ -41,7 +42,8 @@ export function getServiceFillCapacities(
 
     for (const node of nodes) {
         if (node.category !== FLUID_CATALOG_CATEGORY ||
-            node.brandSlug !== model.brandSlug || node.modelSlug !== model.modelSlug) continue;
+            node.brandSlug !== model.brandSlug || node.modelSlug !== model.modelSlug ||
+            !catalogBranchAllowsModification(node, modification.id)) continue;
 
         const category = getNodeFluidCategory(node);
         const liters = getNodeFillCapacity(node, modification);

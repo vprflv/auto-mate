@@ -3,6 +3,7 @@ import type {
     StoredCatalogNode
 } from '@/features/admin/lib/system-store/types';
 
+import { catalogBranchLabel } from '@/features/admin/lib/system-store/catalogBranches';
 import { getOemCrosses } from '@/features/admin/lib/system-store/oemCrosses';
 import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArticle';
 
@@ -53,7 +54,7 @@ export function collectOemSuggestions(
                     article,
                     brand: '',
                     name: '',
-                    nodeTitle: node.title,
+                    nodeTitle: catalogBranchLabel(node),
                     sameNode,
                     source: 'cross'
                 });
@@ -65,7 +66,7 @@ export function collectOemSuggestions(
                     article: item.article,
                     brand: item.brand,
                     name: item.name,
-                    nodeTitle: node.title,
+                    nodeTitle: catalogBranchLabel(node),
                     sameNode,
                     source: 'catalog'
                 });

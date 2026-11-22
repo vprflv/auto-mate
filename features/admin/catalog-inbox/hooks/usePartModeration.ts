@@ -17,6 +17,8 @@ import {getPartCategoryWarning} from "@/features/admin/catalog-inbox/hooks/getPa
 import {PartInstallation} from "@/types/partInstallation";
 import type { CatalogBranch, CatalogPartPayload, PartCategory } from '@/types';
 import type { CatalogSection } from '@/types/catalog/catalog';
+import { useCatalogBranchDraft } from '@/features/admin/catalog/hooks/useCatalogBranchDraft';
+import { catalogBranchKey, catalogBranchLabel, catalogBranchReference } from '@/features/admin/lib/system-store/catalogBranches';
 import { getCatalogSection } from '@/features/catalog/lib/catalogSections';
 import {getOemCrosses} from "@/features/admin/lib/system-store/oemCrosses";
 
@@ -99,15 +101,19 @@ export function usePartModeration({
         item.itemType === 'part' || item.itemType === 'Запчасть / Расходник' ? 'parts' : null;
     const section: CatalogSection = sectionOverride ?? detectedSection ??
         (suggestedBranch ? getCatalogSection(suggestedBranch.category) : 'parts');
-    const selectedBranches = branches ?? (suggestedBranch && getCatalogSection(suggestedBranch.category) === section
+    const checkedBranches = branches ?? (suggestedBranch && getCatalogSection(suggestedBranch.category) === section
         ? [suggestedBranch] : []);
+    const branchSelection = useCatalogBranchDraft(section, checkedBranches);
+    const selectedBranches = branchSelection.branches;
 
     function setSection(nextSection: CatalogSection) {
         setSectionOverride(nextSection);
         setBranches([]);
+        branchSelection.setDraft(null);
     }
     const nodeCategory = selectedBranches[0]?.category ?? '';
     const nodeTitle = selectedBranches[0]?.title ?? '';
+    const selectedBranchKey = selectedBranches[0] ? catalogBranchKey(selectedBranches[0]) : '';
 
     const [compatibilityType, setCompatibilityType] =
         React.useState<'all' | 'specific'>('specific');
@@ -175,9 +181,7 @@ export function usePartModeration({
         ): boolean =>
             node.brandSlug === currentBrandSlug &&
             node.modelSlug === currentModelSlug &&
-            node.category === nodeCategory &&
-            node.title.trim().toLowerCase() ===
-            nodeTitle.trim().toLowerCase();
+            catalogBranchKey(node) === selectedBranchKey;
 
         // 1. Собираем OEM-номера, которые уже используются как кроссы.
         for (const node of allNodes) {
@@ -194,7 +198,7 @@ export function usePartModeration({
                             article,
                             brand: '',
                             name: '',
-                            nodeTitle: node.title,
+                            nodeTitle: catalogBranchLabel(node),
                             sameNode,
                             source: 'cross',
                         });
@@ -228,7 +232,7 @@ export function usePartModeration({
                         article: part.article,
                         brand: part.brand,
                         name: part.name,
-                        nodeTitle: node.title,
+                        nodeTitle: catalogBranchLabel(node),
                         sameNode,
                         source: 'catalog'
                     });
@@ -254,8 +258,7 @@ export function usePartModeration({
         isOpen,
         isOem,
         oemCross,
-        nodeCategory,
-        nodeTitle,
+        selectedBranchKey,
         item.carBrand,
         item.carModel
     ]);
@@ -376,12 +379,12 @@ export function usePartModeration({
         if (!source) return;
 
         setNameOverride(source.part.name);
-        setSuggestedBranch({ category: source.node.category, title: source.node.title });
+        setSuggestedBranch(catalogBranchReference(source.node));
     };
 
     const handleApprove = () => {
-        if (!selectedBranches.length) {
-            toast.error('Выберите хотя бы одну ветку каталога.');
+        if (branchSelection.validationMessage) {
+            toast.error(branchSelection.validationMessage);
             return;
         }
 
@@ -485,7 +488,7 @@ export function usePartModeration({
                         ? `${model.brandName} ${model.modelName}`
                         : `${node.brandSlug} ${node.modelSlug}`;
 
-                    return `• ${modelLabel} → ${node.title}`;
+                    return `• ${modelLabel} → ${catalogBranchLabel(node)}`;
                 });
 
             const articleWarning = matchingSections.length > 0
@@ -496,8 +499,7 @@ export function usePartModeration({
             const destinationNode = catalogNodes.find(node =>
                 node.brandSlug === targetCar.brandSlug &&
                 node.modelSlug === targetCar.modelSlug &&
-                selectedBranches.some(branch => node.category === branch.category &&
-                    node.title.trim().toLowerCase() === branch.title.trim().toLowerCase())
+                selectedBranches.some(branch => catalogBranchKey(node) === catalogBranchKey(branch))
             );
 
             const existingPart = destinationNode?.items.find(part =>
@@ -582,6 +584,8 @@ export function usePartModeration({
         section,
         setSection,
         branches: selectedBranches,
+        checkedBranches,
+        branchSelection,
         setBranches,
         categoryWarning,
         articleMatches,

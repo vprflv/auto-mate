@@ -10,6 +10,7 @@ import type {
     StoredPartItem,
     StoredCatalogNode
 } from '@/features/admin/lib/system-store/types';
+import { getCatalogSection } from '@/features/catalog/lib/catalogSections';
 import {resolvePartApplicability} from "@/features/admin/catalog/lib/resolvePartApplicability";
 
 interface Props {
@@ -44,17 +45,19 @@ export function usePartCompatibility({ part, node }: Props) {
             item.modelSlug === node.modelSlug
     );
 
+    const section = getCatalogSection(node.category);
     const modelParts = systemState.catalogNodes
         .filter(
             item =>
                 item.brandSlug === node.brandSlug &&
-                item.modelSlug === node.modelSlug
+                item.modelSlug === node.modelSlug &&
+                getCatalogSection(item.category) === section
         )
         .flatMap(item => item.items);
 
     const { inheritedIds } = resolvePartApplicability(
         part,
-        modelParts
+        section === 'fluids' ? [] : modelParts
     );
 
     const modifications = (model?.modifications ?? []).map(

@@ -1,5 +1,7 @@
 'use client';
 
+import { catalogBranchLabel } from '@/features/admin/lib/system-store/catalogBranches';
+
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { STORAGE_KEY } from '@/features/admin/lib/system-store/defaults';
@@ -85,7 +87,7 @@ export function CatalogPartSearch() {
                 modelName: model
                     ? `${model.brandName} ${model.modelName}`
                     : `${node.brandSlug} ${node.modelSlug}`,
-                nodeTitle: node.title,
+                nodeTitle: catalogBranchLabel(node),
                 applicability: modificationIds.includes('all')
                     ? 'Все модификации'
                     : modificationNames.join(', ') || 'Применимость не уточнена',

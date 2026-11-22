@@ -1,39 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import type { CatalogBranch } from '@/types';
 import type { CatalogSection } from '@/types/catalog/catalog';
 import { FLUID_CATALOG_CATEGORY, getCatalogSection } from '@/features/catalog/lib/catalogSections';
 import { storage } from '@/features/admin/lib/system-store/storage';
-import { catalogBranchKey } from '@/features/admin/lib/system-store/catalogBranches';
-import { getCatalogCategoryKeys, getCatalogCategoryLabel, sortCatalogCategoryKeys } from '@/features/admin/lib/system-store/categoryLabels';
+import { catalogBranchKey, catalogBranchLabel, getCatalogAssemblyNames, getCatalogBranches } from '@/features/admin/lib/system-store/catalogBranches';
+import { getCatalogBranchTitles, getCatalogCategoryKeys, getCatalogCategoryLabel, sortCatalogCategoryKeys } from '@/features/admin/lib/system-store/categoryLabels';
+import { createCatalogBranch } from '@/features/admin/lib/system-store/actions/createCatalogBranch';
 import { NodeEditorBlock } from '@/features/admin/catalog-inbox/components/part-moderation/NodeEditorBlock';
 
 interface Props {
     section: CatalogSection;
     value: CatalogBranch[];
     onChange: (branches: CatalogBranch[]) => void;
+    draft: CatalogBranch | null;
+    setDraft: Dispatch<SetStateAction<CatalogBranch | null>>;
+    pendingBranch?: CatalogBranch;
+    validationMessage?: string;
 }
 
-export function CatalogBranchesPicker({ section, value, onChange }: Props) {
-    const [{ catalogNodes, catalogCategoryLabels: labels, catalogCategoryOrder, hiddenCatalogCategories }] =
-        useState(() => storage.getState());
-    const [creating, setCreating] = useState(false);
-    const [category, setCategory] = useState('');
-    const [title, setTitle] = useState('');
+export function CatalogBranchesPicker({ section, value, onChange, draft, setDraft, pendingBranch, validationMessage }: Props) {
+    const [state, setState] = useState(() => storage.getState());
+    const { catalogCategoryLabels: labels, catalogCategoryOrder, hiddenCatalogCategories } = state;
+    const branches = getCatalogBranches(state);
+    const { category = '', title = '', assembly = '' } = draft ?? {};
+    const [error, setError] = useState('');
 
     const fluid = section === 'fluids';
     const draftCategory = fluid ? FLUID_CATALOG_CATEGORY : category;
     const selected = new Set(value.map(catalogBranchKey));
     const options = new Map<string, CatalogBranch>();
-    for (const branch of [...catalogNodes, ...value]) {
+    for (const branch of [...branches, ...value]) {
         if (getCatalogSection(branch.category) === section && (!hiddenCatalogCategories?.includes(branch.category) || selected.has(catalogBranchKey(branch)))) {
-            options.set(catalogBranchKey(branch), { category: branch.category, title: branch.title });
+            options.set(catalogBranchKey(branch), branch);
         }
     }
 
     const categories = sortCatalogCategoryKeys([...new Set([...options.values()].map(branch => branch.category))], catalogCategoryOrder, labels);
-    const availableCategories = getCatalogCategoryKeys(catalogNodes.map(node => node.category), hiddenCatalogCategories);
+    const availableCategories = getCatalogCategoryKeys(branches, hiddenCatalogCategories);
 
     function toggle(branch: CatalogBranch) {
         const key = catalogBranchKey(branch);
@@ -41,12 +46,20 @@ export function CatalogBranchesPicker({ section, value, onChange }: Props) {
     }
 
     function addBranch() {
-        const branch = { category: draftCategory.trim(), title: title.trim() };
-        if (!branch.category || !branch.title) return;
-        const key = catalogBranchKey(branch);
-        if (!selected.has(key)) onChange([...value, options.get(key) ?? branch]);
-        setCreating(false);
-        setTitle('');
+        try {
+            const branch = createCatalogBranch(section, { category: draftCategory, assembly, title });
+            if (!selected.has(catalogBranchKey(branch))) onChange([...value, branch]);
+            setState(storage.getState());
+            setDraft(null);
+            setError('');
+        } catch (failure) {
+            setError(failure instanceof Error ? failure.message : 'Не удалось сохранить ветку.');
+        }
+    }
+
+    function updateDraft(patch: Partial<CatalogBranch>) {
+        setDraft(current => ({ ...(current ?? { category: '', title: '' }), ...patch }));
+        setError('');
     }
 
     return (
@@ -58,12 +71,12 @@ export function CatalogBranchesPicker({ section, value, onChange }: Props) {
                         <div key={key} role="group" aria-label={getCatalogCategoryLabel(key, labels)} className="space-y-1">
                             {!fluid && <p className="text-xs font-medium text-[var(--text-muted)]">{getCatalogCategoryLabel(key, labels)}</p>}
                             {[...options.values()].filter(branch => branch.category === key)
-                                .sort((a, b) => a.title.localeCompare(b.title, 'ru'))
+                                .sort((a, b) => catalogBranchLabel(a).localeCompare(catalogBranchLabel(b), 'ru'))
                                 .map(branch => (
                                     <label key={catalogBranchKey(branch)} className="flex items-center gap-2 text-sm">
                                         <input type="checkbox" checked={selected.has(catalogBranchKey(branch))}
                                             onChange={() => toggle(branch)} />
-                                        {branch.title}
+                                        {catalogBranchLabel(branch)}
                                     </label>
                                 ))}
                         </div>
@@ -73,22 +86,32 @@ export function CatalogBranchesPicker({ section, value, onChange }: Props) {
                 <p className="text-sm text-[var(--text-muted)]">Пока нет веток. Создайте первую ниже.</p>
             )}
 
-            {creating ? (
+            {draft ? (
                 <div className="space-y-2">
                     <NodeEditorBlock section={section} nodeCategory={draftCategory} nodeTitle={title}
-                        setNodeCategory={setCategory} setNodeTitle={setTitle} existingNodes={[]}
-                        existingCategories={availableCategories} isCustomNode setIsCustomNode={() => {}} />
+                        assembly={assembly} setAssembly={value => updateDraft({ assembly: value })}
+                        setNodeCategory={value => updateDraft({ category: value, assembly: '' })}
+                        setNodeTitle={value => updateDraft({ title: value })}
+                        existingSubcategories={getCatalogBranchTitles(branches, draftCategory)}
+                        existingAssemblies={getCatalogAssemblyNames(branches, { category: draftCategory, title })}
+                        existingCategories={availableCategories} />
+                    {pendingBranch && (
+                        <p className="text-xs text-[var(--text-muted)]">
+                            «{catalogBranchLabel(pendingBranch)}» сохранится вместе с позицией.
+                        </p>
+                    )}
                     <div className="flex gap-3 text-sm">
                         <button type="button" disabled={!draftCategory.trim() || !title.trim()} onClick={addBranch}
-                            className="font-medium text-[var(--link)] disabled:opacity-50">Добавить в список</button>
-                        <button type="button" onClick={() => { setCreating(false); setTitle(''); }}>Отмена</button>
+                            className="font-medium text-[var(--link)] disabled:opacity-50">Сохранить ветку отдельно</button>
+                        <button type="button" onClick={() => { setDraft(null); setError(''); }}>Отмена</button>
                     </div>
                 </div>
             ) : (
-                <button type="button" onClick={() => setCreating(true)} className="text-sm font-medium text-[var(--link)]">
+                <button type="button" onClick={() => setDraft({ category: '', title: '' })} className="text-sm font-medium text-[var(--link)]">
                     + Новая ветка
                 </button>
             )}
+            {(error || validationMessage) && <p role="alert" className="text-sm text-red-500">{error || validationMessage}</p>}
         </fieldset>
     );
 }

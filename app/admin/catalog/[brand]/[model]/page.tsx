@@ -2,13 +2,16 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { AlertCircle, GitBranchPlus, Plus } from 'lucide-react';
 
 import { useModelCatalog } from '@/features/admin/catalog/hooks/useModelCatalog';
 
+import { AddModificationModal } from '@/features/admin/catalog/components/AddModificationModal';
 import { ModelCatalogHeader } from '@/features/admin/catalog/components/ModelCatalogHeader';
 import { ModelCatalogFilters } from '@/features/admin/catalog/components/ModelCatalogFilters';
 import { ModelCatalogNodes } from '@/features/admin/catalog/components/ModelCatalogNodes';
+import { ModelPartsCatalogList } from '@/features/admin/catalog/components/ModelPartsCatalogList';
 
 import { buildModelCatalogHref, type CatalogSearchParams } from '@/features/admin/catalog/lib/catalogFilters';
 import { CatalogSectionLinks } from '@/features/catalog/components/CatalogSectionLinks';
@@ -33,7 +36,9 @@ export default function ModelCatalogDashboard({
     const query = React.use(searchParams);
 
     const catalog = useModelCatalog(brand, model, query);
-    const [isAddPartOpen, setIsAddPartOpen] = React.useState(false);
+    const router = useRouter();
+    const [addDialog, setAddDialog] = React.useState<'part' | 'modification' | null>(null);
+    const addPartLabel = catalog.section === 'fluids' ? 'Добавить жидкость' : 'Добавить запчасть';
     if (!catalog.loaded) {
         return (
             <div className="py-12 text-center text-sm text-[var(--text-muted)]">
@@ -73,12 +78,8 @@ export default function ModelCatalogDashboard({
     }
 
     return (
-        <div className="mx-auto max-w-6xl space-y-8 pb-20">
-            <ModelCatalogHeader
-                model={catalog.masterModel}
-                section={catalog.section}
-                onAddPart={() => setIsAddPartOpen(true)}
-            />
+        <div className="mx-auto max-w-6xl space-y-8 pb-32">
+            <ModelCatalogHeader model={catalog.masterModel} />
 
             <CatalogSectionLinks
                 section={catalog.section}
@@ -86,12 +87,36 @@ export default function ModelCatalogDashboard({
                 fluidsHref={buildModelCatalogHref(catalog.modelPath, catalog.currentQuery, 'fluids')}
             />
 
-            {isAddPartOpen && (
+            <div role="group" aria-label="Добавление в каталог"
+                className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 flex flex-col items-end gap-2 sm:right-6">
+                <button type="button" aria-label={addPartLabel} title={addPartLabel} aria-haspopup="dialog"
+                    onClick={() => setAddDialog('part')}
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full bg-[var(--btn-primary)] text-sm font-semibold text-[var(--btn-primary-text)] shadow-lg transition hover:bg-[var(--btn-primary-hover)] 2xl:px-4">
+                    <Plus className="h-5 w-5" aria-hidden="true" />
+                    <span className="hidden 2xl:inline">{addPartLabel}</span>
+                </button>
+                <button type="button" aria-label="Добавить модификацию" title="Добавить модификацию" aria-haspopup="dialog"
+                    onClick={() => setAddDialog('modification')}
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--card)] text-sm font-semibold text-[var(--text)] shadow-lg transition hover:bg-[var(--bg-elevated)] 2xl:px-4">
+                    <GitBranchPlus className="h-5 w-5 text-[var(--link)]" aria-hidden="true" />
+                    <span className="hidden 2xl:inline">Добавить модификацию</span>
+                </button>
+            </div>
+
+            {addDialog === 'part' && (
                 <AddCatalogPartModal
                     key={catalog.section}
                     model={catalog.masterModel}
                     section={catalog.section}
-                    onClose={() => setIsAddPartOpen(false)}
+                    onClose={() => setAddDialog(null)}
+                />
+            )}
+
+            {addDialog === 'modification' && (
+                <AddModificationModal key={`add-modification:${catalog.modelPath}`}
+                    model={catalog.masterModel}
+                    onClose={() => setAddDialog(null)}
+                    onCreated={modification => router.push(`${catalog.modelPath}?pickPartsFor=${encodeURIComponent(modification.id)}`)}
                 />
             )}
 
@@ -113,15 +138,20 @@ export default function ModelCatalogDashboard({
                 onReset={catalog.resetFilters}
             />
 
-            <ModelCatalogNodes
-                section={catalog.section}
-                nodesByCategory={catalog.nodesByCategory}
-                visiblePartsCount={catalog.visiblePartsCount}
-                hasActiveFilters={catalog.hasActiveFilters}
-                matchingModCount={catalog.matchingModCount}
-                modelPath={catalog.modelPath}
-                currentQuery={catalog.currentQuery}
-            />
+            {catalog.section === 'parts' && Object.keys(catalog.nodesByCategory).length > 0 ? (
+                <ModelPartsCatalogList key={catalog.modelPath} nodesByCategory={catalog.nodesByCategory}
+                    modelPath={catalog.modelPath} currentQuery={catalog.currentQuery} />
+            ) : (
+                <ModelCatalogNodes
+                    section={catalog.section}
+                    nodesByCategory={catalog.nodesByCategory}
+                    visiblePartsCount={catalog.visiblePartsCount}
+                    hasActiveFilters={catalog.hasActiveFilters}
+                    matchingModCount={catalog.matchingModCount}
+                    modelPath={catalog.modelPath}
+                    currentQuery={catalog.currentQuery}
+                />
+            )}
         </div>
     );
 }

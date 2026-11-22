@@ -1,12 +1,14 @@
 'use client';
 
 import { useMemo, useState, type FormEvent } from 'react';
+import { X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { CompatibilityBlock } from '@/features/admin/catalog-inbox/components/part-moderation/CompatibilityBlock';
 import { CatalogBranchesPicker } from './CatalogBranchesPicker';
+import { useCatalogBranchDraft } from '../hooks/useCatalogBranchDraft';
 import { FluidBranchPreview } from './FluidBranchPreview';
-import { catalogBranchKey } from '@/features/admin/lib/system-store/catalogBranches';
+import { catalogBranchKey, catalogBranchLabel, catalogBranchReference } from '@/features/admin/lib/system-store/catalogBranches';
 import type { CatalogBranch } from '@/types';
 import { PartEditorBlock } from '@/features/admin/catalog-inbox/components/part-moderation/PartEditorBlock';
 import type { OemSuggestion } from '@/features/admin/catalog-inbox/components/part-moderation/OemCrossSelect';
@@ -54,7 +56,9 @@ export function AddCatalogPartModal({ model, section, onClose }: Props) {
     const [catalogNodes] = useState(() => storage.getState().catalogNodes.filter(node => getCatalogSection(node.category) === section));
 
     const source = findCatalogOemSource(catalogNodes, isOem ? article : oemCross, !isOem, model);
-    const selectedBranches = branches ?? (source ? [{ category: source.node.category, title: source.node.title }] : []);
+    const checkedBranches = branches ?? (source ? [catalogBranchReference(source.node)] : []);
+    const selection = useCatalogBranchDraft(section, checkedBranches);
+    const selectedBranches = selection.branches;
     const oemNumber = normalizeArticle(isOem ? article : oemCross);
     const oemMatches = useMemo(() => {
         if (!oemNumber) return [];
@@ -175,7 +179,7 @@ export function AddCatalogPartModal({ model, section, onClose }: Props) {
                         article: part.article,
                         brand: part.brand,
                         name: part.name,
-                        nodeTitle: node.title,
+                        nodeTitle: catalogBranchLabel(node),
                         sameNode,
                         source: 'catalog',
                     });
@@ -187,7 +191,7 @@ export function AddCatalogPartModal({ model, section, onClose }: Props) {
                         article: number,
                         brand: '',
                         name: '',
-                        nodeTitle: node.title,
+                        nodeTitle: catalogBranchLabel(node),
                         sameNode,
                         source: 'cross',
                     });
@@ -225,7 +229,7 @@ export function AddCatalogPartModal({ model, section, onClose }: Props) {
                         ? `${model.brandName} ${model.modelName}`
                         : `${node.brandSlug} ${node.modelSlug}`;
 
-                    return `• ${modelLabel} → ${node.title}`;
+                    return `• ${modelLabel} → ${catalogBranchLabel(node)}`;
                 })
         )]
         : [];
@@ -239,7 +243,6 @@ export function AddCatalogPartModal({ model, section, onClose }: Props) {
     const warning = [...categoryWarnings, duplicateWarning].filter(Boolean).join('\n');
 
     const missingFields = [
-        selectedBranches.length === 0 && 'ветки каталога',
         !brand.trim() && 'бренд',
         !normalizeArticle(article) && 'артикул',
         !name.trim() && 'эталонное название',
@@ -251,7 +254,7 @@ export function AddCatalogPartModal({ model, section, onClose }: Props) {
     function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
-        if (missingFields.length > 0) {
+        if (selection.validationMessage || missingFields.length > 0) {
             setShowRequiredFields(true);
             return;
         }
@@ -309,14 +312,26 @@ export function AddCatalogPartModal({ model, section, onClose }: Props) {
                 onSubmit={handleSubmit}
                 className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-3xl bg-[var(--card)] p-6"
             >
-                <div>
-                    <h2 className="text-lg font-bold">{addTitle}</h2>
-                    <p className="text-sm text-[var(--text-muted)]">
-                        {model.brandName} {model.modelName}
-                    </p>
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <h2 className="text-lg font-bold">{addTitle}</h2>
+                        <p className="text-sm text-[var(--text-muted)]">
+                            {model.brandName} {model.modelName}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label="Закрыть"
+                        className="shrink-0 rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--bg-elevated)] hover:text-[var(--text)]"
+                    >
+                        <X className="h-5 w-5" aria-hidden="true" />
+                    </button>
                 </div>
 
-                <CatalogBranchesPicker section={section} value={selectedBranches} onChange={setBranches} />
+                <CatalogBranchesPicker section={section} value={checkedBranches} onChange={setBranches}
+                    draft={selection.draft} setDraft={selection.setDraft} pendingBranch={selection.pendingBranch}
+                    validationMessage={showRequiredFields ? selection.validationMessage : undefined} />
 
                 <PartEditorBlock
                     brand={brand}

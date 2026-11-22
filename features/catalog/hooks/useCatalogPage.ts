@@ -87,12 +87,21 @@ export function useCatalogPage(carId: string, section: CatalogSection) {
         const q = search.trim().toLowerCase();
 
         if (q) {
+            const paths = new Map<string, string>();
+            const matchesPath = (nodeId: string) => {
+                let path = paths.get(nodeId);
+                if (path === undefined) {
+                    path = findNodePath(catalog.nodes, nodeId).join(' ').toLowerCase();
+                    paths.set(nodeId, path);
+                }
+                return path.includes(q);
+            };
             const searchable = section === 'fluids'
                 ? catalog.articles.map(article => ({ ...article, variants: article.variants?.filter(variant => variant.nodeIds?.length !== 0) }))
                 : catalog.articles;
             return searchable.filter(article =>
                 [article, ...(article.variants ?? [])].some(item =>
-                    [
+                    (item.nodeIds ?? [item.nodeId]).some(matchesPath) || [
                         item.name,
                         item.oem,
                         item.brand ?? '',
@@ -181,9 +190,12 @@ export function useCatalogPage(carId: string, section: CatalogSection) {
             return;
         }
 
+        const placements = (article.nodeIds ?? [article.nodeId]).map(id => findNodePath(catalog.nodes, id));
+        const selectedPath = selectedNodeId ? findNodePath(catalog.nodes, selectedNodeId) : [];
+        const path = placements.find(item => selectedPath.every((name, index) => name === item[index])) ?? placements[0] ?? [];
         setPartToSave({
             article,
-            catalogPath: findNodePath(catalog.nodes, article.nodeId),
+            catalogPath: path.slice(0, 2),
         });
     };
 

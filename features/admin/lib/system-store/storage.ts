@@ -8,7 +8,7 @@ import {getOemCrosses, uniqueOemCrosses} from "@/features/admin/lib/system-store
 import {PartInstallationMap} from "@/types/partInstallation";
 import {installationKey, uniqueInstallations} from "@/features/catalog/lib/partInstallations";
 import type { CatalogBranch, CatalogPartPayload } from '@/types';
-import { getCatalogPartPlacements, normalizeCatalogBranches } from './catalogBranches';
+import { catalogBranchKey, getCatalogBranches, getCatalogPartPlacements, normalizeCatalogBranches } from './catalogBranches';
 import { getGarageCars } from '@/features/garage/add/lib/storage';
 import { refreshCatalogRegistrationCounts } from '@/features/catalog/lib/carCatalogIdentity';
 
@@ -161,9 +161,7 @@ function addPartToCatalogBranch(
         item =>
             item.brandSlug === brandSlug &&
             item.modelSlug === modelSlug &&
-            item.category === node.category &&
-            item.title.trim().toLowerCase() ===
-            targetTitle.toLowerCase()
+            catalogBranchKey(item) === catalogBranchKey({ ...node, title: targetTitle })
     );
 
     const newNodes = [...state.catalogNodes];
@@ -184,6 +182,7 @@ function addPartToCatalogBranch(
             modelSlug,
             title: targetTitle,
             category: node.category,
+            assembly: node.assembly,
             compatibleModifications: [],
             items: [],
         };
@@ -362,8 +361,9 @@ export const storage = {
                 parsed.catalogNodes = initialDefaultNodes;
             }
             const catalogNodes = fillFluidAnalogBranches(parsed.catalogNodes);
-            const state = refreshRegistrationCounts({ ...parsed, catalogNodes });
-            if (catalogNodes !== parsed.catalogNodes) {
+            const catalogBranches = getCatalogBranches({ ...parsed, catalogNodes });
+            const state = refreshRegistrationCounts({ ...parsed, catalogNodes, catalogBranches });
+            if (catalogNodes !== parsed.catalogNodes || catalogBranches.length !== parsed.catalogBranches?.length) {
                 try {
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
                 } catch {
@@ -379,7 +379,8 @@ export const storage = {
     saveState(state: SystemState) {
         if (typeof window === 'undefined') return;
         const catalogNodes = fillFluidAnalogBranches(state.catalogNodes);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshRegistrationCounts({ ...state, catalogNodes })));
+        const catalogBranches = getCatalogBranches({ ...state, catalogNodes });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshRegistrationCounts({ ...state, catalogNodes, catalogBranches })));
         window.dispatchEvent(new Event('system-store-updated'));
     },
 
@@ -512,6 +513,7 @@ export const storage = {
         this.saveState({
             ...state,
             catalogNodes,
+            hiddenCatalogCategories: state.hiddenCatalogCategories?.filter(key => !branches.some(branch => branch.category === key)),
             inbox: ticketId === undefined ? state.inbox : state.inbox.filter(item => item.id !== ticketId),
         });
     },

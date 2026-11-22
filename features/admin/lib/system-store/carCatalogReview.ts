@@ -31,6 +31,7 @@ export function getCarReviewSpecs(car: Car): CarSpecs {
 
 export interface CarCatalogReviewInput {
     garageCarId?: string;
+    proposedModificationId?: string;
     userId?: string;
     brand: string;
     model: string;
@@ -68,6 +69,7 @@ export function checkCarReviewModification(
     modification: CatalogModification
 ) {
     const conflicts: string[] = [];
+    const yearConflicts: string[] = [];
     const warnings: string[] = [];
     const attributes = modification.attributes;
     const ticketCode = ticket.carSpecs?.bodyCode;
@@ -88,16 +90,16 @@ export function checkCarReviewModification(
     const end = parseYear(attributes?.yearEnd);
 
     if (year && start && year < start) {
-        conflicts.push(`Год машины ${year} раньше начала выпуска модификации (${start}).`);
+        yearConflicts.push(`Год машины ${year} раньше начала выпуска модификации (${start}).`);
     }
     if (year && end && year > end) {
-        conflicts.push(`Год машины ${year} позже окончания выпуска модификации (${end}).`);
+        yearConflicts.push(`Год машины ${year} позже окончания выпуска модификации (${end}).`);
     }
     if (!year || !start || (!end && year > start)) {
         warnings.push('Не хватает данных, чтобы полностью сверить годы выпуска.');
     }
 
-    return { conflicts, warnings };
+    return { conflicts, yearConflicts, warnings };
 }
 
 function removeCarFromOtherReviews(state: SystemState, carId: string, keepId?: string): boolean {
@@ -172,6 +174,9 @@ export function queueCarCatalogReview(
             normalizeSlug(item.carBrand) === brandSlug &&
             normalizeSlug(item.carModel) === modelSlug &&
             matchesCarReviewBody(item, input.year, specs.bodyCode) &&
+            item.proposedModificationId === input.proposedModificationId &&
+            (!input.proposedModificationId ||
+                (garageCar && item.garageCarVersions?.[garageCar.id] !== undefined)) &&
             isSameCarVariant(
                 variant,
                 getTicketVariant(item)
@@ -199,6 +204,7 @@ export function queueCarCatalogReview(
         id: `inbox_car_${crypto.randomUUID()}`,
         type: 'car_model',
         garageCarVersions,
+        proposedModificationId: input.proposedModificationId,
         source: 'user_manual',
         carBrand: masterModel?.brandName ?? brand,
         carModel: masterModel?.modelName ?? model,

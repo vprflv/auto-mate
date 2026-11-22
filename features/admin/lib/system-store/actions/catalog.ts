@@ -1,7 +1,9 @@
+import type { Car } from '@/types';
+import type { CatalogModification } from '../types';
 import { storage } from '../storage';
 import { assertRequiredModificationAttributes } from './modifications';
 import { getGarageCars, saveGarageCars } from '@/features/garage/add/lib/storage';
-import { carReviewVersion, modificationValues } from '@/features/catalog/lib/carCatalogIdentity';
+import { carCatalogYearApprovalVersion, carReviewVersion, modificationValues, resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIdentity';
 import { normalizeSlug, normalizeOem } from '../utils';
 import { checkCarReviewModification, getCarReviewSpecs, matchesCarReviewBody, queueCarCatalogReview } from '../carCatalogReview';
 
@@ -11,26 +13,16 @@ export function resolveInboxItem(id: string) {
     storage.saveState(state);
 }
 
-export function approveCarModel(
-    id: string,
-    payload?: {
-        brandName: string;
-        modelName: string;
-        years: string;
-        existingModificationId?: string;
-        modification?: {
-            id: string;
-            name: string;
-            attributes: {
-                trim?: string;
-                engine?: string;
-                transmission?: string;
-                drivetrain?: string;
-                [key: string]: string | undefined; // <-- И ДОБАВИТЬ СЮДА
-            };
-        };
-    }
-) {
+export interface ApproveCarModelPayload {
+    brandName: string;
+    modelName: string;
+    years: string;
+    existingModificationId?: string;
+    approveYearMismatch?: boolean;
+    modification?: Pick<CatalogModification, 'id' | 'name' | 'attributes'>;
+}
+
+export function approveCarModel(id: string, payload?: ApproveCarModelPayload) {
     const state = storage.getState();
     const item = state.inbox.find((i) => i.id === id);
     if (!item) return;
@@ -53,9 +45,14 @@ export function approveCarModel(
     if (payload?.existingModificationId && !existingModification) {
         throw new Error('Выбранная модификация больше не найдена. Выберите другую.');
     }
+    let approveYearMismatch = false;
     if (existingModification) {
-        const { conflicts } = checkCarReviewModification(item, existingModification);
+        const { conflicts, yearConflicts } = checkCarReviewModification(item, existingModification);
         if (conflicts.length > 0) throw new Error(conflicts.join(' '));
+        if (yearConflicts.length > 0 && (!payload?.approveYearMismatch || !payload.existingModificationId)) {
+            throw new Error(yearConflicts.join(' '));
+        }
+        approveYearMismatch = yearConflicts.length > 0;
     } else if (payload?.modification) {
         assertRequiredModificationAttributes(payload.modification.attributes);
     }
@@ -105,14 +102,15 @@ export function approveCarModel(
         const versions = item.garageCarVersions ?? {};
         const cars = getGarageCars();
         const separateReviews: typeof cars = [];
-        saveGarageCars(cars.map(car => {
+        let approvedCars = 0;
+        const updatedCars = cars.map(car => {
             const version = versions[car.id];
             if (version !== carReviewVersion(car) && version !== carReviewVersion(car, true)) return car;
             if (!matchesCarReviewBody(item, car.year, car.bodyCode)) {
                 separateReviews.push(car);
                 return car;
             }
-            return {
+            const updatedCar: Car = {
                 ...car,
                 ...modificationValues(approvedModification),
                 make: masterModel!.brandName,
@@ -121,9 +119,22 @@ export function approveCarModel(
                 catalogModelSlug: masterModel!.modelSlug,
                 catalogModificationId: approvedModification.id,
                 modificationName: approvedModification.name,
+                catalogYearApproval: undefined,
                 updatedAt: new Date().toISOString(),
             };
-        }));
+            if (approveYearMismatch) {
+                updatedCar.catalogYearApproval = carCatalogYearApprovalVersion(updatedCar);
+                if (!resolveCarCatalogIdentity(updatedCar, state.masterModels)) {
+                    throw new Error('Не удалось подтвердить привязку к выбранной модификации.');
+                }
+            }
+            approvedCars += 1;
+            return updatedCar;
+        });
+        if (approveYearMismatch && approvedCars === 0) {
+            throw new Error('Автомобиль из заявки больше не найден или его характеристики изменились.');
+        }
+        saveGarageCars(updatedCars);
         for (const car of separateReviews) {
             queueCarCatalogReview(state, {
                 garageCarId: car.id,
@@ -188,7 +199,7 @@ export function approveInboxItem(id: string, payload?: any) {
         (n) =>
             normalizeSlug(n.brandSlug) === brandSlug &&
             normalizeSlug(n.modelSlug) === modelSlug &&
-            n.category === targetCategory &&
+            n.category === targetCategory && !n.assembly &&
             n.title.trim().toLowerCase() === targetTitle.toLowerCase()
     );
 

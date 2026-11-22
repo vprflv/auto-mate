@@ -1,5 +1,3 @@
-import { FLUID_CATEGORY_OPTIONS } from '@/features/garage/lib/config/serviceItemCategories';
-import type { FluidCategory } from '@/types/oil';
 import { storage } from '../storage';
 import { FLUID_CATALOG_CATEGORY } from '@/features/catalog/lib/catalogSections';
 import { getNodeFillCapacity } from '@/features/catalog/lib/fluidFillCapacities';
@@ -7,7 +5,6 @@ import { getNodeFillCapacity } from '@/features/catalog/lib/fluidFillCapacities'
 export function saveFluidFillCapacity(
     nodeId: string,
     modificationId: string,
-    category: FluidCategory | null,
     value: string,
 ): void {
     const state = storage.getState();
@@ -20,9 +17,6 @@ export function saveFluidFillCapacity(
     const modifications = currentModel?.modifications ?? [];
     const modification = modifications.find(item => item.id === modificationId);
     if (!modification) throw new Error('Модификация больше не найдена.');
-    if (category !== null && !FLUID_CATEGORY_OPTIONS.some(option => option.value === category)) {
-        throw new Error('Выберите категорию жидкости.');
-    }
 
     const liters = value ? Number(value.replace(',', '.')) : null;
     if (liters !== null && (!/^\d+(?:[.,]\d{1,3})?$/.test(value) || !Number.isFinite(liters) || liters <= 0)) {
@@ -39,7 +33,6 @@ export function saveFluidFillCapacity(
     if (liters === null) delete capacities[modification.id];
     else capacities[modification.id] = liters;
 
-    node.fluidCategory = category;
     node.fillCapacitiesByModification = capacities;
     storage.saveState(state);
 }

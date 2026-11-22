@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { ManualCarForm } from '@/types';
 import { findMatchingCatalogModifications, matchesVehicleDetails, modificationValues } from '@/features/catalog/lib/carCatalogIdentity';
 import { sortModificationsByTrim } from '@/features/catalog/lib/sortModificationsByTrim';
@@ -8,6 +9,7 @@ import { useCarCatalog } from './useCarCatalog';
 
 interface Props {
     form: ManualCarForm;
+    allowAllModifications?: boolean;
     onChange: (
         field: keyof ManualCarForm,
         value: string
@@ -40,9 +42,11 @@ const emptySpecifications = {
 
 export function useCatalogCarSelection({
                                            form,
-                                           onChange
+                                           onChange,
+                                           allowAllModifications = false
                                        }: Props) {
     const catalog = useCarCatalog();
+    const [showAllModifications, setShowAllModifications] = useState(false);
 
     const brand =
         catalog.brands.find(
@@ -76,6 +80,7 @@ export function useCatalogCarSelection({
         ? model.modifications
         : [];
     const matchingModifications = sortModificationsByTrim(modifications.filter(item =>
+        (!allowAllModifications && item.id === form.catalogModificationId) ||
         matchesVehicleDetails(item, form.year, form.bodyCode ?? '')
     ));
     const exactMatches = form.catalogModificationId ? [] : findMatchingCatalogModifications(
@@ -84,9 +89,21 @@ export function useCatalogCarSelection({
         { includeUnspecifiedBody: true }
     );
     const needsModificationChoice = exactMatches.length > 1;
-    const displayedModifications = needsModificationChoice
+    const showAll = allowAllModifications && showAllModifications && modifications.length > 0;
+    const displayedModifications = showAll ? sortModificationsByTrim(modifications) : needsModificationChoice
         ? sortModificationsByTrim(exactMatches.map(({ modification }) => modification))
         : matchingModifications;
+    const selectedModification = modifications.find(item => item.id === form.catalogModificationId);
+    const selectionNeedsReview = showAll && selectedModification !== undefined &&
+        !matchesVehicleDetails(selectedModification, form.year, form.bodyCode ?? '');
+
+    function toggleAllModifications(value: boolean) {
+        setShowAllModifications(value);
+        if (!value && selectionNeedsReview) {
+            onChange('catalogModificationId', '');
+            onChange('modificationName', '');
+        }
+    }
     const bodyCodes = [...new Set(modifications
         .map(item => item.attributes?.bodyCode?.trim().toUpperCase())
         .filter((code): code is string => Boolean(code)))];
@@ -106,7 +123,7 @@ export function useCatalogCarSelection({
 
     const selectModification = (id: string) => {
         const selected = displayedModifications.find(item => item.id === id);
-        const selectedModel = needsModificationChoice
+        const selectedModel = !showAll && needsModificationChoice
             ? exactMatches.find(({ modification }) => modification === selected)?.model
             : model;
         if (!selected || !selectedModel) {
@@ -167,6 +184,7 @@ export function useCatalogCarSelection({
             normalizeName(value) !== normalizeName(form[field]) ||
             slug !== (previousSlug ?? '');
 
+        if (changed) setShowAllModifications(false);
         patch({
             ...(changed ? emptySpecifications : {}),
             ...(changed ? { bodyCode: '' } : {}),
@@ -234,8 +252,11 @@ export function useCatalogCarSelection({
                 value: item.id,
                 label: [
                     item.name,
-                    ...(needsModificationChoice && item.attributes.bodyCode
+                    ...((showAll || needsModificationChoice) && item.attributes.bodyCode
                         ? [`Кузов ${item.attributes.bodyCode}`]
+                        : []),
+                    ...(showAll && item.attributes.year
+                        ? [`Годы выпуска ${item.attributes.year}${item.attributes.yearEnd && item.attributes.yearEnd !== item.attributes.year ? `–${item.attributes.yearEnd}` : ''}`]
                         : []),
                     item.attributes.engine,
                     item.attributes.transmission,
@@ -243,7 +264,11 @@ export function useCatalogCarSelection({
                 ].filter(Boolean).join(' · '),
             })),
             disabled: !catalog.loaded || (!model && !needsModificationChoice),
-            required: needsModificationChoice,
+            required: !showAll && needsModificationChoice,
+            showAll,
+            selectionNeedsReview,
+            canShowAll: allowAllModifications && modifications.length > 0,
+            onShowAllChange: toggleAllModifications,
             total: modifications.length,
             onChange: selectModification,
         },

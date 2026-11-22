@@ -1,16 +1,14 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { DecodedCar, ManualCarForm } from '@/types';
+import type { ManualCarForm } from '@/types';
 import {
     createEmptyManualForm,
     isManualFormValid,
-    mapDecodedToManualForm,
     mapManualFormToCar
 } from "@/features/garage/add/lib/manualForm";
-import { fetchVinData, mapNhtsaToDecodedCar } from "@/features/garage/add/lib/decodeVin";
+import { findCatalogVinMatches } from '@/features/garage/add/lib/catalogVinRules';
 import { isValidVin, normalizeVin } from "@/features/garage/add/lib/config/vin";
 import { addCarToGarage, getGarageCars, saveGarageCars } from '@/features/garage/add/lib/storage';
 import { captureInitialPartCategories } from '@/features/garage/lib/getCategories';
@@ -18,90 +16,90 @@ import { captureInitialPartCategories } from '@/features/garage/lib/getCategorie
 // Импортируем глобальный стор админки
 import { systemStore } from '@/features/admin/lib/systemStore';
 import { getCarReviewSpecs } from '@/features/admin/lib/system-store/carCatalogReview';
-import { linkMatchingCatalogModification, resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIdentity';
+import { linkMatchingCatalogModification, matchesVehicleDetails, modificationValues, resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIdentity';
 
 export function useAddCar() {
     const router = useRouter();
     const savingManualCar = useRef(false);
 
     const [vin, setVin] = useState('');
-    const [decoded, setDecoded] = useState<DecodedCar | null>(null);
+    const [vinMatches, setVinMatches] = useState<ReturnType<typeof findCatalogVinMatches>>([]);
     const [error, setError] = useState('');
     const [manualMode, setManualMode] = useState(false);
     const [manualForm, setManualForm] = useState<ManualCarForm>(
         createEmptyManualForm()
     );
 
-    const [editingDecoded, setEditingDecoded] = useState(false);
+    const [matchedVin, setMatchedVin] = useState(false);
 
-    const editDecodedCar = () => {
-        if (!decoded) return;
-        setManualForm(mapDecodedToManualForm(decoded));
-        setEditingDecoded(true);
+    const openManualForm = (form: ManualCarForm, fromVinMatch = false) => {
+        setManualForm(form);
+        setVinMatches([]);
+        setMatchedVin(fromVinMatch);
         setManualMode(true);
         setError('');
+    };
+
+    const chooseVinMatch = ({ model, modification }: (typeof vinMatches)[number]) => {
+        const startYear = modification.attributes?.year ?? '';
+        const endYear = modification.attributes?.yearEnd;
+        openManualForm({
+            ...createEmptyManualForm(normalizeVin(vin)),
+            ...modificationValues(modification),
+            make: model.brandName,
+            model: model.modelName,
+            year: startYear === endYear ? startYear : '',
+            bodyCode: modification.attributes?.bodyCode ?? '',
+            catalogBrandSlug: model.brandSlug,
+            catalogModelSlug: model.modelSlug,
+            catalogModificationId: modification.id,
+            modificationName: modification.name,
+        }, true);
     };
 
     const cancelManualMode = () => {
         setManualMode(false);
-        setEditingDecoded(false);
+        setMatchedVin(false);
         setError('');
         setManualForm(createEmptyManualForm());
     };
 
-    const decodeMutation = useMutation({
-        mutationFn: fetchVinData,
-        onSuccess: (data, vinCode) => {
-            const mapped = mapNhtsaToDecodedCar(data, vinCode);
-
-            if (!mapped) {
-                setError('Не удалось расшифровать VIN. Можешь добавить автомобиль вручную.');
-                setDecoded(null);
-                setManualMode(true);
-                setManualForm(createEmptyManualForm(vinCode));
-                return;
-            }
-
-            setError('');
-            setManualMode(false);
-            setDecoded(mapped);
-        },
-        onError: () => {
-            setError('Ошибка при расшифровке. Можешь добавить автомобиль вручную.');
-            setDecoded(null);
-            setManualMode(true);
-            setManualForm(createEmptyManualForm(normalizeVin(vin)));
-        },
-    });
-
-    const decodeVin = (e: React.FormEvent) => {
-        e.preventDefault();
+    const updateVin = (value: string) => {
+        setVin(value);
+        setVinMatches([]);
         setError('');
-        setDecoded(null);
-        setManualMode(false);
+    };
+
+    const decodeVin = (event: React.FormEvent) => {
+        event.preventDefault();
+        setError('');
+        setVinMatches([]);
 
         const cleanVin = normalizeVin(vin);
-
         if (!isValidVin(cleanVin)) {
-            setError('VIN должен состоять из 17 символов');
+            setError('Введите VIN из 17 цифр и латинских букв. Буквы I, O и Q в VIN не используются.');
             return;
         }
 
-        decodeMutation.mutate(cleanVin);
+        const matches = findCatalogVinMatches(cleanVin, systemStore.getState().masterModels);
+        if (matches.length === 1) {
+            chooseVinMatch(matches[0]);
+        } else if (matches.length > 1) {
+            setVinMatches(matches);
+        } else {
+            setError('В нашем каталоге пока нет совпадений по этому VIN. Автомобиль можно добавить вручную.');
+        }
     };
 
     const enableManualMode = () => {
-        setEditingDecoded(false);
-        setManualMode(true);
-        setDecoded(null);
-        setManualForm(createEmptyManualForm(normalizeVin(vin)));
-        setError('');
+        openManualForm(createEmptyManualForm(normalizeVin(vin)));
     };
 
     const updateManualField = (field: keyof ManualCarForm, value: string) => {
+        if (field === 'vin' && normalizeVin(value) !== normalizeVin(manualForm.vin)) setMatchedVin(false);
         setManualForm(prev => ({
             ...prev,
-            ...(['make', 'model', 'year', 'bodyCode', 'engine', 'transmission', 'driveType',
+            ...(['make', 'model', 'vin', 'bodyCode', 'engine', 'transmission', 'driveType',
                 'trim', 'displacementL', 'fuel', 'bodyClass'].includes(field) &&
                 prev[field] !== value
                 ? { catalogModificationId: '', modificationName: '' }
@@ -110,11 +108,6 @@ export function useAddCar() {
         }));
     };
 
-    // Синхронизация расшифрованного авто с админкой
-    // 1. Сохранение декодированного авто
-    const saveDecodedCar = editDecodedCar;
-
-    // 2. Сохранение авто из ручной формы
     const saveManualCar = () => {
         if (savingManualCar.current) return;
         setError('');
@@ -125,7 +118,7 @@ export function useAddCar() {
         }
 
         const state = systemStore.getState();
-        const savedCar = linkMatchingCatalogModification({
+        const enteredCar = {
             ...mapManualFormToCar(manualForm),
 
             id: crypto.randomUUID(),
@@ -141,7 +134,18 @@ export function useAddCar() {
 
             modificationName:
                 manualForm.modificationName || undefined,
-        }, state.masterModels);
+        };
+        const selectedModel = state.masterModels.find(model =>
+            model.brandSlug === enteredCar.catalogBrandSlug && model.modelSlug === enteredCar.catalogModelSlug
+        );
+        const selectedModification = selectedModel?.modifications?.find(item => item.id === enteredCar.catalogModificationId);
+        const needsReview = selectedModification !== undefined &&
+            !matchesVehicleDetails(selectedModification, String(enteredCar.year), enteredCar.bodyCode ?? '');
+        const savedCar = needsReview
+            ? { ...enteredCar, catalogModificationId: undefined, modificationName: undefined }
+            : selectedModification
+                ? enteredCar
+                : linkMatchingCatalogModification(enteredCar, state.masterModels);
 
         // Выбранную готовую модификацию нельзя молча
         // отправлять на проверку как неизвестную.
@@ -170,6 +174,7 @@ export function useAddCar() {
             systemStore.addCar({
                 userId: currentUser?.id ?? '',
                 garageCarId: savedCar.id,
+                proposedModificationId: needsReview ? selectedModification.id : undefined,
                 brand: savedCar.make,
                 model: savedCar.model,
                 year: savedCar.year,
@@ -207,19 +212,17 @@ export function useAddCar() {
 
     return {
         vin,
-        setVin,
-        decoded,
+        updateVin,
+        vinMatches,
+        chooseVinMatch,
         error,
-        isDecoding: decodeMutation.isPending,
-        editingDecoded,
-        editDecodedCar,
+        matchedVin,
         manualMode,
         manualForm,
         decodeVin,
         enableManualMode,
         cancelManualMode,
         updateManualField,
-        saveDecodedCar,
         saveManualCar,
     };
 }

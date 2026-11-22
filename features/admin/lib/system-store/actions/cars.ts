@@ -8,6 +8,7 @@ import { resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIden
 
 export interface AddCarParams {
     garageCarId?: string;
+    proposedModificationId?: string;
     userId: string;
     brand: string;
     model: string;
@@ -128,6 +129,7 @@ export function addCar(params: AddCarParams): AppCar {
     // с ожидающей заявкой, если она была.
     queueCarCatalogReview(state, {
         garageCarId: params.garageCarId,
+        proposedModificationId: params.proposedModificationId,
         userId: params.userId,
         brand,
         model,

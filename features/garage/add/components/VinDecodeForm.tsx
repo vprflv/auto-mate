@@ -1,7 +1,6 @@
 type Props = {
     vin: string;
     error: string;
-    isDecoding: boolean;
     onVinChange: (value: string) => void;
     onSubmit: (e: React.FormEvent) => void;
 };
@@ -9,7 +8,6 @@ type Props = {
 export default function VinDecodeForm({
                                           vin,
                                           error,
-                                          isDecoding,
                                           onVinChange,
                                           onSubmit,
                                       }: Props) {
@@ -46,12 +44,9 @@ export default function VinDecodeForm({
 
             <button
                 type="submit"
-                disabled={isDecoding}
                 className="w-full rounded-2xl bg-[var(--btn-primary)] px-5 py-4 font-medium text-[var(--btn-primary-text)] shadow-sm transition-colors hover:bg-[var(--btn-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50"
             >
-                {isDecoding
-                    ? 'Расшифровываем...'
-                    : 'Расшифровать VIN'}
+                Найти по VIN
             </button>
         </form>
     );

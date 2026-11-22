@@ -6,6 +6,7 @@ import { Database, SearchX } from 'lucide-react';
 
 import { useNodeCatalog } from '@/features/admin/catalog/hooks/useNodeCatalog';
 
+import { FluidBranchApplicability } from '@/features/admin/catalog/components/FluidBranchApplicability';
 import { NodeFluidFillCapacity } from '@/features/admin/catalog/components/NodeFluidFillCapacity';
 import { getCatalogSection } from '@/features/catalog/lib/catalogSections';
 import { NodeCatalogHeader } from '@/features/admin/catalog/components/NodeCatalogHeader';
@@ -79,7 +80,11 @@ export default function NodeCatalogPage({
             />
 
             {catalog.masterModel && getCatalogSection(catalog.node.category) === 'fluids' && (
-                <NodeFluidFillCapacity key={catalog.node.id} node={catalog.node} model={catalog.masterModel} />
+                <>
+                    <FluidBranchApplicability key={JSON.stringify([catalog.node.id, catalog.node.allowedModificationIds])}
+                        node={catalog.node} model={catalog.masterModel} />
+                    <NodeFluidFillCapacity key={catalog.node.id} node={catalog.node} model={catalog.masterModel} />
+                </>
             )}
 
             {catalog.visibleParts.length > 0 ? (

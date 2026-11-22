@@ -75,5 +75,9 @@ export function setCatalogPartBranches(
         nodes.set(updated.id, updated);
     }
 
-    storage.saveState({ ...state, catalogNodes: [...nodes.values()] });
+    storage.saveState({
+        ...state,
+        catalogNodes: [...nodes.values()],
+        hiddenCatalogCategories: state.hiddenCatalogCategories?.filter(key => !selected.some(branch => branch.category === key)),
+    });
 }

@@ -220,7 +220,7 @@ export function useEditCar() {
                 Boolean(resolveCarCatalogIdentity(candidate, masterModels));
             const updatedCar = keepsApprovedLink
                 ? candidate
-                : linkMatchingCatalogModification(candidate, masterModels);
+                : linkMatchingCatalogModification({ ...candidate, catalogYearApproval: undefined }, masterModels);
 
             if (updatedCar.catalogModificationId && !resolveCarCatalogIdentity(updatedCar, masterModels)) {
                 setError('Характеристики не соответствуют выбранной модификации. Выберите её повторно или укажите свой вариант.');

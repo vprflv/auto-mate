@@ -14,7 +14,7 @@ export type CarCatalogSelection = {
     modificationName?: string;
 };
 
-export type CatalogBranch = { category: string; title: string };
+export type CatalogBranch = { category: string; assembly?: string; title: string };
 
 export type CatalogPartPayload = {
     part: {
@@ -35,6 +35,7 @@ export type CatalogPartPayload = {
 
 
 export type Car = CarCatalogSelection & {
+    catalogYearApproval?: string;
     initialPartCategories?: { id: string; label: string }[];
     id: string;
     vin: string;

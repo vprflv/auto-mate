@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { addPartsToModification } from '@/features/admin/lib/system-store/actions/updatePartCompatibility';
+import { catalogBranchLabel } from '@/features/admin/lib/system-store/catalogBranches';
 import { getCatalogCategoryLabel, sortCatalogCategoryKeys } from '@/features/admin/lib/system-store/categoryLabels';
 import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArticle';
 import { getOemCrosses } from '@/features/admin/lib/system-store/oemCrosses';
@@ -110,7 +111,7 @@ export function ModificationPartsPicker({ model, modificationId, modelPath }: {
                     <h2 className="font-bold">{getCatalogCategoryLabel(category, state.catalogCategoryLabels)}</h2>
                     {(categories.get(category) ?? []).map(node => (
                         <section key={node.id} className="space-y-2">
-                            <h3 className="text-sm font-semibold text-[var(--text-muted)]">{node.title}</h3>
+                            <h3 className="text-sm font-semibold text-[var(--text-muted)]">{catalogBranchLabel(node)}</h3>
                             <ul className="divide-y divide-[var(--border)]">
                                 {node.items.map(part => {
                                     const key = JSON.stringify([node.id, part.id]);

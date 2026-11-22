@@ -89,13 +89,24 @@ export function CarCatalogFields({ selection }: Props) {
                     </span>
                 )}
                 <span role="status" className="block text-sm text-[var(--text-muted)]">
-                    {selection.modification.value
-                        ? 'ИИ-каталог будет доступен сразу после сохранения автомобиля.'
+                    {selection.modification.selectionNeedsReview
+                        ? 'Год или код кузова отличаются от данных выбранной модификации. Автомобиль сохранится с указанными вами данными, а привязка к каталогу уйдёт на проверку.'
+                        : selection.modification.value
+                            ? 'ИИ-каталог будет доступен сразу после сохранения автомобиля.'
                         : selection.modification.required
                             ? 'Подходят несколько модификаций. Укажите код кузова или выберите вариант из списка.'
-                            : 'Укажите характеристики. ИИ-каталог откроется после подтверждения модификации администратором.'}
+                            : 'Укажите характеристики. Если найдётся близкая модификация, можно будет открыть предварительный ИИ-каталог.'}
                 </span>
             </label>
+
+            {selection.modification.canShowAll && (
+                <label className="flex items-center gap-2 text-sm text-[var(--text)]">
+                    <input type="checkbox" checked={selection.modification.showAll}
+                        onChange={event => selection.modification.onShowAllChange(event.target.checked)}
+                        className="size-4 accent-[var(--link)]" />
+                    Показать все модификации модели
+                </label>
+            )}
 
             <CatalogAutocompleteField
                 {...selection.engine}
