@@ -31,7 +31,7 @@ export function BrandCard({ catalog }: Props) {
                     return (
                         <Link
                             key={model.slug}
-                            href={`/admin/catalog/${catalog.slug}/${model.slug}`}
+                            href={`/admin/catalog/${encodeURIComponent(catalog.slug)}/${encodeURIComponent(model.slug)}`}
                             className="group flex flex-col justify-between rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 transition-all duration-200 hover:border-[var(--link)] hover:shadow-sm"
                         >
                             <div className="mb-4 flex items-start justify-between gap-2">

@@ -1,5 +1,6 @@
 'use client';
 
+import { sortCatalogModificationIds } from '@/features/catalog/lib/sortCatalogModifications';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -140,7 +141,7 @@ export function ModificationPartsPicker({ model, modificationId, modelPath }: {
                                                     <strong>{part.name}</strong>
                                                     <span className="block">{part.brand} · {part.article}</span>
                                                     <span className="block text-xs text-[var(--text-muted)]">
-                                                        {ids.map(id => names.get(id)).filter(Boolean).join(', ') || 'Применимость не указана'}
+                                                        {sortCatalogModificationIds(ids, modifications).map(id => names.get(id)).filter(Boolean).join(', ') || 'Применимость не указана'}
                                                         {linked && ' · Уже привязана'}
                                                     </span>
                                                 </span>

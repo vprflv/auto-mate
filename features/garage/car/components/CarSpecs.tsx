@@ -1,18 +1,32 @@
-import { Car } from '@/types';
+'use client';
+
+import { formatTransmission } from '@/features/garage/add/lib/config/robotTransmission';
+import { getConfirmedVinMatch } from '@/features/garage/add/lib/catalogVinRules';
+import { resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIdentity';
+import { formatFacelift, knownFacelift } from '@/features/catalog/lib/facelift';
+import { useCarCatalog } from '@/features/garage/add/hooks/useCarCatalog';
+import type { Car } from '@/types';
 
 type Props = {
     car: Car;
 };
 
 export default function CarSpecs({ car }: Props) {
+    const { models } = useCarCatalog();
+    const modelYear = getConfirmedVinMatch(car.vin, models)?.modelYear;
+    const facelift = knownFacelift(car.facelift) ??
+        knownFacelift(resolveCarCatalogIdentity(car, models)?.modification.attributes.facelift);
     const rows = [
+        { label: 'Версия кузова', value: facelift ? formatFacelift(facelift) : undefined },
+        { label: 'Год выпуска по документам', value: modelYear !== undefined ? car.year : undefined },
+        { label: 'Модельный год по VIN', value: modelYear },
         { label: 'Кузов', value: car.bodyClass },
         { label: 'Объём двигателя', value: car.displacementL ? `${car.displacementL} л` : undefined },
         { label: 'Цилиндры', value: car.cylinders },
         { label: 'Двигатель', value: car.engine },
         { label: 'Топливо', value: car.fuel },
         { label: 'Привод', value: car.driveType },
-        { label: 'КПП', value: car.transmission },
+        { label: 'КПП', value: formatTransmission(car.transmission) },
         { label: 'Двери', value: car.doors },
         { label: 'Страна сборки', value: car.plantCountry },
     ].filter((row) => row.value);

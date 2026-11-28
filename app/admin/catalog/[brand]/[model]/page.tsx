@@ -35,7 +35,7 @@ export default function ModelCatalogDashboard({
     const { brand, model } = React.use(params);
     const query = React.use(searchParams);
 
-    const catalog = useModelCatalog(brand, model, query);
+    const catalog = useModelCatalog(decodeURIComponent(brand), decodeURIComponent(model), query);
     const router = useRouter();
     const [addDialog, setAddDialog] = React.useState<'part' | 'modification' | null>(null);
     const addPartLabel = catalog.section === 'fluids' ? 'Добавить жидкость' : 'Добавить запчасть';
@@ -77,6 +77,10 @@ export default function ModelCatalogDashboard({
         );
     }
 
+    const editModification = typeof query.editModification === 'string'
+        ? catalog.masterModel.modifications?.find(modification => modification.id === query.editModification)
+        : undefined;
+
     return (
         <div className="mx-auto max-w-6xl space-y-8 pb-32">
             <ModelCatalogHeader model={catalog.masterModel} />
@@ -117,6 +121,15 @@ export default function ModelCatalogDashboard({
                     model={catalog.masterModel}
                     onClose={() => setAddDialog(null)}
                     onCreated={modification => router.push(`${catalog.modelPath}?pickPartsFor=${encodeURIComponent(modification.id)}`)}
+                />
+            )}
+
+            {editModification && (
+                <AddModificationModal
+                    key={editModification.id}
+                    model={catalog.masterModel}
+                    modification={editModification}
+                    onClose={() => router.replace(catalog.modelPath)}
                 />
             )}
 

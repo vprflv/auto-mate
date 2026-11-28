@@ -14,12 +14,14 @@ import type {
     VehicleCatalog,
 } from '@/types/catalog/catalog';
 
+import { formatTransmission } from '@/features/garage/add/lib/config/robotTransmission';
 import { catalogBranchKey, catalogSubcategoryKey } from '@/features/admin/lib/system-store/catalogBranches';
 import { catalogBranchAllowsModification } from './catalogBranchApplicability';
 import { normalizeArticle } from '@/features/admin/lib/system-store/normalizeArticle';
 import { getOemCrosses } from '@/features/admin/lib/system-store/oemCrosses';
 import { getCatalogCategoryLabel, sortCatalogCategoryKeys } from '@/features/admin/lib/system-store/categoryLabels';
-import { findCatalogPreviewModification, resolveCarCatalogIdentity } from './carCatalogIdentity';
+import { resolveCarCatalogIdentity } from './carCatalogIdentity';
+import { catalogPreferenceFor, getCatalogCandidates, getCatalogChoiceDifferences } from './catalogVehicleSelection';
 import { getCatalogSection } from './catalogSections';
 import { getNodeFillCapacity } from './fluidFillCapacities';
 import {uniqueInstallations} from "@/features/catalog/lib/partInstallations";
@@ -99,21 +101,27 @@ export function buildOemCatalog(
     state: SystemState,
     params: CatalogProviderParams,
     car?: Car,
-    { allowPreview = false } = {}
+    { allowSelection = false } = {}
 ): VehicleCatalog {
-    const confirmed = car ? resolveCarCatalogIdentity(car, state.masterModels) : null;
-    const preview = car && allowPreview && !confirmed
-        ? findCatalogPreviewModification(car, state.masterModels)
-        : null;
-    const identity = confirmed ?? preview;
+    const candidates = car && allowSelection ? getCatalogCandidates(car, state.masterModels) : undefined;
+    const confirmed = candidates ? candidates.confirmed : car ? resolveCarCatalogIdentity(car, state.masterModels) : undefined;
+    const selected = candidates?.preferred;
+    const options = candidates?.options ?? [];
+    const identity = selected ?? confirmed;
 
     const catalog: VehicleCatalog = {
         ...params,
-        source: preview ? 'master-preview' : confirmed ? 'master' : 'master-pending',
-        previewModification: preview ? {
-            name: preview.modification.name,
-            year: preview.modification.attributes?.year,
-            yearEnd: preview.modification.attributes?.yearEnd,
+        source: selected ? 'master-selected' : confirmed ? 'master' : options.length ? 'master-choice' : 'master-pending',
+        modificationOptions: options.map(({ value, model, modification }) => {
+            const { year, yearEnd, bodyCode, engine, transmission } = modification.attributes ?? {};
+            return { value, preference: catalogPreferenceFor({ model, modification }), modelName: `${model.brandName} ${model.modelName}`,
+                name: modification.name, year, yearEnd, bodyCode, engine, transmission: formatTransmission(transmission) || undefined };
+        }),
+        selectedModification: selected && car ? {
+            name: `${selected.model.brandName} ${selected.model.modelName} · ${selected.modification.name}`,
+            year: selected.modification.attributes?.year,
+            yearEnd: selected.modification.attributes?.yearEnd,
+            differences: getCatalogChoiceDifferences(car, selected, state.masterModels),
         } : undefined,
         fetchedAt: new Date().toISOString(),
         nodes: [],
@@ -263,12 +271,15 @@ export function buildOemCatalog(
                     make: model.brandName,
                     model: model.modelName,
                     modification: modification.name,
+                    year: modification.attributes.year,
+                    yearEnd: modification.attributes.yearEnd,
+                    trim: modification.attributes.trim,
                     installations: part.installation
                         ? [part.installation]
                         : part.installationsByModification?.[modification.id] ?? [],
                     description: [
                         modification.attributes.engine,
-                        modification.attributes.transmission,
+                        formatTransmission(modification.attributes.transmission),
                         modification.attributes.drivetrain,
                     ]
                         .filter(Boolean)
@@ -351,7 +362,7 @@ export function buildOemCatalog(
 
         const fitments = effectiveFitments(group);
 
-        const installationOptions = preview ? undefined : uniqueInstallations(
+        const installationOptions = selected ? undefined : uniqueInstallations(
             directFitments(group)
                 .filter(fitment =>
                     fitment.brandSlug ===
@@ -389,7 +400,7 @@ export function buildOemCatalog(
             fitments,
             installationOptions,
 
-            appliesToCurrentCar: preview ? undefined : matchesCatalogModification(fitments),
+            appliesToCurrentCar: selected ? undefined : matchesCatalogModification(fitments),
         };
     }
 
@@ -451,7 +462,7 @@ export function buildOemCatalog(
         return id;
     }
 
-    if (params.section === 'fluids' && !preview) {
+    if (params.section === 'fluids' && (confirmed || selected)) {
         for (const node of state.catalogNodes) {
             if (getCatalogSection(node.category) !== 'fluids' ||
                 node.brandSlug !== identity.model.brandSlug || node.modelSlug !== identity.model.modelSlug) continue;
@@ -570,7 +581,7 @@ export function buildOemCatalog(
             originalNumbers: [bucket.display],
             name: entry.part.name,
             canSave: false,
-            note: preview
+            note: selected
                 ? 'OEM-номер из одобренных связей с аналогами для справочной модификации.'
                 : 'OEM-номер из одобренных связей с аналогами для вашей модификации.',
             fitments: [],

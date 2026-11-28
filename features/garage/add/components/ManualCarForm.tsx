@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { AlertDialog } from 'radix-ui';
 import type { ManualCarForm as ManualCarFormValues } from '@/types';
 
@@ -14,8 +14,11 @@ import { CarSpecificationFields } from './CarSpecificationFields';
 
 interface Props {
     form: ManualCarFormValues;
+    correctedVin?: string;
     error: string;
     fromVinMatch?: boolean;
+    isDecoding: boolean;
+    vinMatchOptions: ReactNode;
 
     onChange: (
         field: keyof ManualCarFormValues,
@@ -27,7 +30,6 @@ interface Props {
 }
 
 const optionalFields = [
-    ['vin', 'VIN'],
     ['bodyCode', 'Код кузова'],
     ['engine', 'Двигатель'],
     ['bodyClass', 'Тип кузова'],
@@ -42,8 +44,11 @@ const optionalFields = [
 
 export default function ManualCarForm({
                                           form,
+                                          correctedVin,
                                           error,
                                           fromVinMatch = false,
+                                          isDecoding,
+                                          vinMatchOptions,
                                           onChange,
                                           onSubmit,
                                           onCancel
@@ -57,14 +62,17 @@ export default function ManualCarForm({
     const missingFields = optionalFields
         .filter(([key]) => !form[key]?.trim())
         .map(([, label]) => label);
+    const hasVin = Boolean(form.vin.trim());
+    const hasFrame = Boolean(form.frameNumber.trim());
+    const missing = hasVin || hasFrame ? missingFields : ['VIN или номер кузова', ...missingFields];
 
     const handleSubmit = (
         event: FormEvent<HTMLFormElement>
     ) => {
         event.preventDefault();
-        if (!selection.loaded) return;
+        if (!selection.loaded || isDecoding) return;
 
-        if (isManualFormValid(form) && missingFields.length > 0) {
+        if (isManualFormValid(form) && missing.length > 0) {
             setConfirmOpen(true);
             return;
         }
@@ -82,7 +90,7 @@ export default function ManualCarForm({
                             Сохранить автомобиль без этих данных?
                         </AlertDialog.Title>
                         <AlertDialog.Description className="text-sm text-[var(--text-muted)]">
-                            Не заполнены: {missingFields.join(', ')}.
+                            Не заполнены: {missing.join(', ')}.
                         </AlertDialog.Description>
                         <div className="flex flex-wrap justify-end gap-2">
                             <AlertDialog.Cancel type="button" className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium">
@@ -96,26 +104,40 @@ export default function ManualCarForm({
                 </AlertDialog.Portal>
             </AlertDialog.Root>
 
-            <CarVinField
-                value={form.vin}
-                onChange={value => onChange('vin', value)}
-            />
+            {(hasVin || !hasFrame) && (
+                <CarVinField value={form.vin} onChange={value => onChange('vin', value)} />
+            )}
+            {(hasFrame || !hasVin) && (
+                <CarVinField frame value={form.frameNumber} onChange={value => onChange('frameNumber', value)} />
+            )}
+
+            {hasVin && correctedVin === form.vin && (
+                <p role="status" className="text-sm text-[var(--text-muted)]">Проверьте исправленный VIN · {correctedVin}</p>
+            )}
+
+            {isDecoding && (
+                <p role="status" className="text-sm text-[var(--text-muted)]">Проверяем VIN…</p>
+            )}
+
+            {vinMatchOptions}
 
             {fromVinMatch && (
                 <p className="rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4 text-sm leading-relaxed text-[var(--text-muted)]">
-                    Подставили данные найденной модификации. Проверьте их и укажите год автомобиля, если поле пустое.
+                    Проверьте данные и укажите год автомобиля, если поле пустое.
                 </p>
             )}
 
-            <CarCatalogFields selection={selection} />
+            <fieldset disabled={isDecoding} className="min-w-0 space-y-6">
+                <CarCatalogFields selection={selection} fromVinMatch={fromVinMatch} />
 
-            <CarBasicsFields
-                form={form}
-                onChange={onChange}
-            />
+                <CarBasicsFields
+                    form={form}
+                    onChange={onChange}
+                />
 
-            <fieldset disabled={!!form.catalogModificationId} className="min-w-0">
-                <CarSpecificationFields form={form} onChange={onChange} />
+                <fieldset disabled={!!form.catalogModificationId} className="min-w-0">
+                    <CarSpecificationFields form={form} onChange={onChange} />
+                </fieldset>
             </fieldset>
 
             {error && (
@@ -132,7 +154,7 @@ export default function ManualCarForm({
             <div className="flex gap-4">
                 <button
                     type="submit"
-                    disabled={!selection.loaded}
+                    disabled={!selection.loaded || isDecoding}
                     className="flex-1 rounded-2xl bg-[var(--btn-primary)] py-4 font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] disabled:cursor-wait disabled:opacity-50"
                 >
                     Сохранить в гараж

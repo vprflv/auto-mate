@@ -1,10 +1,13 @@
 import {
+    carCatalogYearApprovalVersion,
     modificationValues,
     resolveCarCatalogIdentity,
 } from '@/features/catalog/lib/carCatalogIdentity';
 import { getGarageCars, saveGarageCars } from '@/features/garage/add/lib/storage';
-import { isValidCatalogVinRule } from '@/features/garage/add/lib/catalogVinRules';
-import { isValidVinPrefix, normalizeVin } from '@/features/garage/add/lib/config/vin';
+import { frameRuleSchema, uniqueFrameRules } from '@/features/garage/add/lib/catalogFrameRules';
+import { assertConsistentVinModelYears, assertNoVinRuleConflicts, hasValidCatalogVinRuleShape, isValidCatalogVinRule, vinRuleKey } from '@/features/garage/add/lib/catalogVinRules';
+import { formatTransmission } from '@/features/garage/add/lib/config/robotTransmission';
+import { normalizeVin } from '@/features/garage/add/lib/config/vin';
 import { uniqueInstallations } from '@/features/catalog/lib/partInstallations';
 import { storage } from '../storage';
 import type { CatalogModification, StoredMasterModel } from '../types';
@@ -15,6 +18,7 @@ export interface CreateModificationInput {
     name: string;
     attributes: CatalogModification['attributes'];
     vinRules?: CatalogModification['vinRules'];
+    frameRules?: CatalogModification['frameRules'];
 }
 
 export interface UpdateModificationInput extends CreateModificationInput {
@@ -28,7 +32,7 @@ function cleanAttributes(
 
     for (const [key, value] of Object.entries(attributes)) {
         const cleanKey = key.trim();
-        const cleanValue = value?.trim().replace(/\s+/g, ' ');
+        const cleanValue = cleanKey === 'transmission' ? formatTransmission(value) : value?.trim().replace(/\s+/g, ' ');
 
         if (cleanKey && cleanValue) {
             Object.defineProperty(result, cleanKey, {
@@ -227,21 +231,40 @@ function saveCatalogModification(
     }
 
     const vinRules = input.vinRules?.map((rule, index) => {
-        if (!isValidCatalogVinRule(rule)) {
+        if (!hasValidCatalogVinRuleShape(rule)) {
             throw new Error(`Образец VIN ${index + 1}. Введите первые 11 символов или полный VIN из 17 символов и отметьте позиции для сверки.`);
         }
+        if (!isValidCatalogVinRule(rule)) {
+            const unchanged = existing?.vinRules?.some(previous =>
+                hasValidCatalogVinRuleShape(previous) &&
+                previous.modelYear === rule.modelYear && vinRuleKey(previous) === vinRuleKey(rule)
+            );
+            if (!unchanged) throw new Error(`Образец VIN ${index + 1}. Для маски отметьте позиции 1–3 и минимум три позиции из 4–8.`);
+        }
         const sample = normalizeVin(rule.sample);
-        const positions = isValidVinPrefix(sample) ? [] : [...new Set(rule.positions)].sort((a, b) => a - b);
-        return { sample, positions };
+        const positions = [...new Set(rule.positions)].sort((a, b) => a - b);
+        return { sample, positions, source: rule.source, modelYear: rule.modelYear };
     });
 
+    if (vinRules) {
+        assertConsistentVinModelYears(vinRules);
+        assertNoVinRuleConflicts(vinRules, state.masterModels, existing);
+    }
+
+    const frameRules = input.frameRules && uniqueFrameRules(input.frameRules.map((rule, index) => {
+        const parsed = frameRuleSchema.safeParse(rule);
+        if (!parsed.success) throw new Error(`Правило Frame №${index + 1}. ${parsed.error.issues[0].message}`);
+        return parsed.data;
+    }));
+
     const modification: CatalogModification = existing
-        ? { ...existing, name, attributes, vinRules: vinRules ?? existing.vinRules }
+        ? { ...existing, name, attributes, vinRules: vinRules ?? existing.vinRules, frameRules: frameRules ?? existing.frameRules }
         : {
             id: `mod_${crypto.randomUUID()}`,
             name,
             attributes,
             vinRules,
+            frameRules,
             registeredCount: 0,
         };
 
@@ -252,12 +275,16 @@ function saveCatalogModification(
             return car;
         }
 
-        return {
+        const updatedCar = {
             ...car,
-            ...modificationValues(modification),
+            ...modificationValues(modification, car.facelift),
             modificationName: modification.name,
             updatedAt: new Date().toISOString(),
         };
+        if (car.catalogYearApproval === carCatalogYearApprovalVersion(car)) {
+            updatedCar.catalogYearApproval = carCatalogYearApprovalVersion(updatedCar);
+        }
+        return updatedCar;
     });
 
     storage.saveState({

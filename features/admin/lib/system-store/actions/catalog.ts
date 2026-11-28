@@ -3,12 +3,17 @@ import type { CatalogModification } from '../types';
 import { storage } from '../storage';
 import { assertRequiredModificationAttributes } from './modifications';
 import { getGarageCars, saveGarageCars } from '@/features/garage/add/lib/storage';
-import { carCatalogYearApprovalVersion, carReviewVersion, modificationValues, resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIdentity';
+import { carCatalogYearApprovalVersion, modificationValues, resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIdentity';
+import { catalogReviewVersion } from '@/features/catalog/lib/catalogVehicleSelection';
 import { normalizeSlug, normalizeOem } from '../utils';
-import { checkCarReviewModification, getCarReviewSpecs, matchesCarReviewBody, queueCarCatalogReview } from '../carCatalogReview';
+import { isValidVin, normalizeVin } from '@/features/garage/add/lib/config/vin';
+import { hasCatalogVinException } from '@/features/garage/add/lib/catalogVinRules';
+import { checkCarReviewModification, getCarReviewSpecs, isCurrentCatalogReview, matchesCarReviewBody, queueCarCatalogReview, recordCatalogReviewHandled } from '../carCatalogReview';
 
 export function resolveInboxItem(id: string) {
     const state = storage.getState();
+    const item = state.inbox.find(ticket => ticket.id === id);
+    if (item?.type === 'car_model') recordCatalogReviewHandled(state, item);
     state.inbox = state.inbox.filter((item) => item.id !== id);
     storage.saveState(state);
 }
@@ -26,6 +31,44 @@ export function approveCarModel(id: string, payload?: ApproveCarModelPayload) {
     const state = storage.getState();
     const item = state.inbox.find((i) => i.id === id);
     if (!item) return;
+    const garageCars = getGarageCars();
+    if (Object.keys(item.garageCarVersions ?? {}).length && !garageCars.some(car => isCurrentCatalogReview(item, car))) {
+        throw new Error('Данные автомобиля изменились. Откройте актуальную заявку.');
+    }
+    if (item.catalogCheck) {
+        recordCatalogReviewHandled(state, item, garageCars);
+        state.inbox = state.inbox.filter(ticket => ticket.id !== id);
+        storage.saveState(state);
+        return;
+    }
+    if (item.vinMismatch?.catalogOpen) {
+        const vin = normalizeVin(item.carVin ?? '');
+        if (!isValidVin(vin)) throw new Error('Для исключения нужен полный VIN из 17 символов.');
+        const car = getGarageCars().find(candidate =>
+            normalizeVin(candidate.vin) === vin &&
+            isCurrentCatalogReview(item, candidate)
+        );
+        const selected = car && resolveCarCatalogIdentity(car, state.masterModels);
+        if (!selected || (item.vinMismatch.selectedModificationId
+            ? selected.modification.id !== item.vinMismatch.selectedModificationId
+            : selected.modification.name !== item.vinMismatch.selected.name)) {
+            throw new Error('Автомобиль или выбранная модификация изменились. Откройте актуальную заявку.');
+        }
+
+        if (state.masterModels.some(model => model.modifications?.some(modification =>
+            modification !== selected.modification && hasCatalogVinException(modification, vin)
+        ))) {
+            throw new Error('Этот VIN уже сохранён как исключение для другой модификации.');
+        }
+
+        recordCatalogReviewHandled(state, item, garageCars);
+        if (!hasCatalogVinException(selected.modification, vin)) {
+            selected.modification.vinExceptions = [...(selected.modification.vinExceptions ?? []), vin];
+        }
+        state.inbox = state.inbox.filter(ticket => ticket.id !== id);
+        storage.saveState(state);
+        return;
+    }
 
     // Берем данные из payload (от админа) или фоллбек из тикета
     const finalBrand = payload?.brandName || item.carBrand;
@@ -96,23 +139,22 @@ export function approveCarModel(id: string, payload?: ApproveCarModelPayload) {
         modification => modification.id === requestedModification?.id
     );
 
+    recordCatalogReviewHandled(state, item, garageCars);
     state.inbox = state.inbox.filter(i => i.id !== id);
 
     if (approvedModification) {
-        const versions = item.garageCarVersions ?? {};
-        const cars = getGarageCars();
+        const cars = garageCars;
         const separateReviews: typeof cars = [];
         let approvedCars = 0;
         const updatedCars = cars.map(car => {
-            const version = versions[car.id];
-            if (version !== carReviewVersion(car) && version !== carReviewVersion(car, true)) return car;
+            if (!isCurrentCatalogReview(item, car)) return car;
             if (!matchesCarReviewBody(item, car.year, car.bodyCode)) {
                 separateReviews.push(car);
                 return car;
             }
             const updatedCar: Car = {
                 ...car,
-                ...modificationValues(approvedModification),
+                ...modificationValues(approvedModification, car.facelift),
                 make: masterModel!.brandName,
                 model: masterModel!.modelName,
                 catalogBrandSlug: masterModel!.brandSlug,
@@ -129,6 +171,8 @@ export function approveCarModel(id: string, payload?: ApproveCarModelPayload) {
                 }
             }
             approvedCars += 1;
+            if (item.vinMismatch) separateReviews.push(updatedCar);
+            else state.reviewedCatalogVersions = { ...state.reviewedCatalogVersions, [updatedCar.id]: catalogReviewVersion(updatedCar) };
             return updatedCar;
         });
         if (approveYearMismatch && approvedCars === 0) {

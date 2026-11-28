@@ -1,5 +1,6 @@
 'use client';
 
+import { compareCatalogModificationAttributes } from '@/features/catalog/lib/sortCatalogModifications';
 import { Dialog } from 'radix-ui';
 import type { CatalogFitment } from '@/types/catalog/catalog';
 import { PartInstallationBadge } from '@/features/garage/components/PartInstallationBadge';
@@ -53,6 +54,7 @@ export function CatalogFitmentList({ items }: { items: CatalogFitment[] }) {
         byModel.set(id, model);
     }
     const models = [...byModel.values()];
+    for (const model of models) model.modifications.sort(compareCatalogModificationAttributes);
 
     if (models.length === 0) {
         return <p className="text-xs text-[var(--text-muted)]">Подтверждённая применимость не указана.</p>;

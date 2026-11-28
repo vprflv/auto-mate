@@ -1,11 +1,16 @@
 'use client';
 
+import { sortCatalogModifications } from '@/features/catalog/lib/sortCatalogModifications';
 import * as React from 'react';
 import { X, Copy, Check, CarFront, GitBranchPlus, ShieldCheck, ChevronDown, Plus } from 'lucide-react';
 import { InboxItem, normalizeSlug } from '@/features/admin/lib/systemStore';
+import { formatFacelift, knownFacelift } from '@/features/catalog/lib/facelift';
+import { FaceliftEditor } from '@/features/catalog/components/FaceliftEditor';
 import { useCarCatalog } from '@/features/garage/add/hooks/useCarCatalog';
-import { ROBOT_TRANSMISSION } from '@/features/garage/add/lib/config/robotTransmission';
+import { buildModificationName } from '@/features/catalog/lib/buildModificationName';
+import { formatTransmission, transmissionOptions } from '@/features/garage/add/lib/config/robotTransmission';
 import { checkCarReviewModification } from '@/features/admin/lib/system-store/carCatalogReview';
+import { getSharedSs11CarReviewVin } from '@/features/admin/lib/system-store/belgeeCarReview';
 import type { ApproveCarModelPayload } from '@/features/admin/lib/system-store/actions/catalog';
 import { assertRequiredModificationAttributes } from '@/features/admin/lib/system-store/actions/modifications';
 
@@ -13,11 +18,13 @@ interface Props {
     item: InboxItem;
     isOpen: boolean;
     onClose: () => void;
-    onApprove: (id: string, payload: ApproveCarModelPayload) => void;
+    onApprove: (id: string, payload?: ApproveCarModelPayload) => void;
     onReject: (id: string) => void;
 }
 
 export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject }: Props) {
+    const vinMismatch = item.vinMismatch;
+    const catalogOpen = vinMismatch?.catalogOpen ?? false;
     const specs = item.carSpecs || (item as any).specs || {};
     const rawVin = specs.vin || item.carVin;
     const vin = rawVin === 'UNKNOWN' ? '' : rawVin;
@@ -25,13 +32,15 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
         ['Марка и модель', `${item.carBrand} ${item.carModel}`],
         ['Год автомобиля', item.carYear || specs.year],
         ['Код кузова', specs.bodyCode],
+        ['Номер кузова (Frame)', specs.frameNumber],
         ['Тип кузова', specs.bodyClass],
+        ['Версия кузова', formatFacelift(specs.facelift)],
         ['Двигатель', item.engine || specs.engineCode || item.engineCode],
         ['Объём двигателя, л', specs.displacementL],
         ['Количество цилиндров', specs.cylinders],
         ['Тип топлива', specs.fuel],
         ['Комплектация (Trim)', specs.trim],
-        ['КПП', specs.transmission || item.transmission],
+        ['КПП', formatTransmission(specs.transmission || item.transmission)],
         ['Привод', specs.driveType || item.drivetrain],
         ['Количество дверей', specs.doors],
         ['Страна сборки', specs.plantCountry],
@@ -70,10 +79,11 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
     const [modEngine, setModEngine] = React.useState<string>(
         item.engine || item.engineCode || specs.engineCode || ''
     );
-    const [modTrans, setModTrans] = React.useState<string>((specs.transmission as string) || (item.transmission as string) || '');
+    const [modTrans, setModTrans] = React.useState<string>(formatTransmission(specs.transmission || item.transmission));
     const transmissionOptionsId = React.useId();
     const [modDrive, setModDrive] = React.useState<string>((specs.driveType as string) || (item.drivetrain as string) || '');
     const [modFuel, setModFuel] = React.useState(typeof specs.fuel === 'string' ? specs.fuel : '');
+    const [modFacelift, setModFacelift] = React.useState<string>(knownFacelift(specs.facelift) ?? '');
     const [modBodyClass, setModBodyClass] = React.useState(typeof specs.bodyClass === 'string' ? specs.bodyClass : '');
 
     // Стейт для кастомных полей (спасательный люк)
@@ -83,24 +93,22 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
     React.useEffect(() => {
         if (isModNameEdited) return;
 
-        const parts = [];
-        if (modTrim.trim()) parts.push(modTrim.trim());
-        if (modEngine.trim()) parts.push(`(${modEngine.trim()})`);
-        if (modTrans.trim()) parts.push(modTrans.trim());
-        if (modDrive.trim()) parts.push(modDrive.trim());
-        if (modFuel.trim()) parts.push(modFuel.trim());
-        if (modBodyClass.trim()) parts.push(modBodyClass.trim());
-
-        // Добавляем значения кастомных полей в автоназвание
-        customAttributes.forEach(attr => {
-            if (attr.value.trim()) parts.push(attr.value.trim());
-        });
-
-        const generatedName = parts.join(' ');
+        const generatedName = buildModificationName({
+            year: item.carYear ? String(item.carYear) : undefined,
+            bodyCode: typeof specs.bodyCode === 'string' ? specs.bodyCode : undefined,
+            displacementL: typeof specs.displacementL === 'string' ? specs.displacementL : undefined,
+            engine: modEngine,
+            transmission: modTrans,
+            drivetrain: modDrive,
+            fuel: modFuel,
+            bodyClass: modBodyClass,
+            facelift: modFacelift,
+            trim: modTrim,
+        }, customAttributes.map(attr => attr.value));
         if (generatedName !== modName) {
             setModName(generatedName);
         }
-    }, [modTrim, modEngine, modTrans, modDrive, modFuel, modBodyClass, customAttributes, isModNameEdited]);
+    }, [item.carYear, specs.bodyCode, specs.displacementL, modTrim, modEngine, modTrans, modDrive, modFuel, modBodyClass, modFacelift, customAttributes, isModNameEdited]);
 
     React.useEffect(() => {
         if (isOpen) {
@@ -122,6 +130,14 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
 
     const handleApprove = () => {
         setApprovalError('');
+        if (catalogOpen) {
+            try {
+                onApprove(item.id);
+            } catch (error: unknown) {
+                setApprovalError(error instanceof Error ? error.message : 'Не удалось сохранить VIN-исключение.');
+            }
+            return;
+        }
         if (modificationCheck?.conflicts.length) return;
         // Упаковываем кастомные атрибуты в один объект
         const customObj = customAttributes.reduce((acc, curr) => {
@@ -150,7 +166,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                         typeof specs.engineCode === 'string'
                             ? specs.engineCode.trim() || undefined
                             : item.engineCode?.trim() || undefined,
-                    transmission: modTrans.trim() || undefined,
+                    transmission: formatTransmission(modTrans) || undefined,
                     drivetrain: modDrive.trim() || undefined,
                     displacementL:
                         typeof specs.displacementL === 'string'
@@ -158,6 +174,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                             : undefined,
                     fuel: modFuel.trim(),
                     bodyClass: modBodyClass.trim(),
+                    facelift: knownFacelift(modFacelift),
                 }
             } : undefined,
         };
@@ -187,7 +204,9 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                             <CarFront className="h-5 w-5" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-[var(--text)]">Модерация автомобиля</h2>
+                            <h2 className="text-lg font-bold text-[var(--text)]">
+                                {vinMismatch ? 'Расхождение по VIN' : 'Модерация автомобиля'}
+                            </h2>
                             <p className="text-xs text-[var(--text-dim)]">Тикет от пользователя {item.submittedBy}</p>
                         </div>
                     </div>
@@ -198,7 +217,34 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
 
                 {/* Основной контент */}
                 <div className="flex-1 overflow-y-auto p-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {!vinMismatch && getSharedSs11CarReviewVin(item) && (
+                        <p className="mb-5 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4 text-sm text-[var(--text-muted)]">
+                            Сверьте модель и коробку передач по данным автомобиля.
+                        </p>
+                    )}
+                    {vinMismatch && (
+                        <section className="mb-5 space-y-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
+                            <h3 className="font-semibold">По VIN найдена другая модификация</h3>
+                            <dl className="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <dt className="text-[var(--text-muted)]">Выбрал пользователь</dt>
+                                    <dd className="font-medium">{vinMismatch.selected.name}</dd>
+                                    {vinMismatch.selected.transmission && <dd>КПП · {vinMismatch.selected.transmission}</dd>}
+                                </div>
+                                <div>
+                                    <dt className="text-[var(--text-muted)]">Совпадения по VIN</dt>
+                                    {vinMismatch.matches.map((match, index) => (
+                                        <dd key={index} className="mt-1">
+                                            <span className="font-medium">{match.name}</span>
+                                            {match.transmission && <span className="block">КПП · {match.transmission}</span>}
+                                        </dd>
+                                    ))}
+                                </div>
+                            </dl>
+                            {catalogOpen && <p>Каталог уже открыт по модификации, которую выбрал пользователь.</p>}
+                        </section>
+                    )}
+                    <div className={catalogOpen ? "grid gap-8" : "grid grid-cols-1 gap-8 lg:grid-cols-2"}>
 
                         {/* ЛЕВАЯ КОЛОНКА */}
                         <div className="space-y-5">
@@ -231,7 +277,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                         </div>
 
                         {/* ПРАВАЯ КОЛОНКА */}
-                        <div className="space-y-6">
+                        {!catalogOpen && <div className="space-y-6">
                             <div>
                                 <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--link)] mb-3 flex items-center gap-2">
                                     <ShieldCheck className="h-4 w-4" />
@@ -264,10 +310,10 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                                         className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] p-3"
                                     >
                                         <option value="">Создать новую / одобрить только модель</option>
-                                        {(existingModel?.modifications ?? []).map(modification => {
+                                        {sortCatalogModifications(existingModel?.modifications ?? []).map(modification => {
                                             const { year, yearEnd, bodyCode } = modification.attributes;
                                             const years = yearEnd && yearEnd !== year ? `${year ?? '…'}–${yearEnd}` : year;
-                                            const label = [modification.name, years, bodyCode,
+                                            const label = [modification.name, years, bodyCode, formatTransmission(modification.attributes.transmission),
                                                 modification.id === item.proposedModificationId ? 'выбрано пользователем' : '',
                                             ].filter(Boolean).join(' · ');
                                             return <option key={modification.id} value={modification.id}>{label}</option>;
@@ -356,15 +402,17 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                                                 </div>
                                                 <div>
                                                     <label className="mb-1 block text-xs text-[var(--text-muted)]">КПП</label>
-                                                    <input value={modTrans} list={transmissionOptionsId} onChange={(e) => setModTrans(e.target.value)} placeholder="AT, MT, CVT..." className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
+                                                    <input value={modTrans} list={transmissionOptionsId} onChange={(e) => setModTrans(e.target.value)} placeholder="Автомат (5AT), Механика (6MT)…" className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
                                                     <datalist id={transmissionOptionsId}>
-                                                        <option value={ROBOT_TRANSMISSION} />
+                                                        {transmissionOptions.map(value => <option key={value} value={value} />)}
                                                     </datalist>
                                                 </div>
                                                 <div>
                                                     <label className="mb-1 block text-xs text-[var(--text-muted)]">Привод</label>
                                                     <input value={modDrive} onChange={(e) => setModDrive(e.target.value)} placeholder="FWD, 4WD..." className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--link)]" />
                                                 </div>
+                                                <FaceliftEditor value={modFacelift} onChange={setModFacelift}
+                                                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)]" />
                                                 {[
                                                     { label: 'Тип топлива', placeholder: 'Бензин', value: modFuel, setValue: setModFuel },
                                                     { label: 'Тип кузова', placeholder: 'Седан', value: modBodyClass, setValue: setModBodyClass },
@@ -439,7 +487,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                                     )}
                                 </div>}
                             </div>
-                        </div>
+                        </div>}
                     </div>
                 </div>
 
@@ -451,7 +499,7 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                         onClick={handleReject}
                         className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-5 py-2.5 text-sm font-semibold text-rose-500 transition hover:bg-rose-500 hover:text-white"
                     >
-                        Отклонить мусор
+                        {catalogOpen ? 'Отклонить заявку' : 'Отклонить мусор'}
                     </button>
                     <button
                         type="button"
@@ -463,10 +511,10 @@ export function CarModerationModal({ item, isOpen, onClose, onApprove, onReject 
                     <button
                         type="button"
                         onClick={handleApprove}
-                        disabled={!catalog.loaded || Boolean(modificationCheck?.conflicts.length)}
+                        disabled={!catalogOpen && (!catalog.loaded || Boolean(modificationCheck?.conflicts.length))}
                         className="rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-50"
                     >
-                        {existingModification ? 'Одобрить каталог для модификации' : 'Одобрить в эталон'}
+                        {catalogOpen ? 'Сохранить VIN как исключение' : existingModification ? 'Одобрить каталог для модификации' : 'Одобрить в эталон'}
                     </button>
                 </div>
             </div>

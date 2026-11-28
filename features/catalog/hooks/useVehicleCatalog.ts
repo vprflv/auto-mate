@@ -7,13 +7,13 @@ import { STORAGE_KEY } from '@/features/admin/lib/system-store/defaults';
 import { STORAGE_KEYS } from '@/features/garage/add/lib/config/storage';
 import type { CatalogProviderParams, VehicleCatalog } from '@/types/catalog/catalog';
 
-type Params = CatalogProviderParams & { enabled?: boolean };
+type Params = CatalogProviderParams & { enabled?: boolean; catalogRevision?: string };
 
-export function useVehicleCatalog({ enabled = true, ...params }: Params) {
+export function useVehicleCatalog({ enabled = true, catalogRevision, ...params }: Params) {
     const queryClient = useQueryClient();
     const query = useQuery<VehicleCatalog>({
-        queryKey: ['vehicle-catalog', params.carId, params.vin, params.make, params.model, params.year, params.section],
-        enabled: enabled && !!params.carId && !!params.make && !!params.model,
+        queryKey: ['vehicle-catalog', params.carId, params.vin, params.make, params.model, params.year, params.section, catalogRevision],
+        enabled: enabled && !!params.carId,
         queryFn: () => catalogProvider.getCatalog(params),
         staleTime: 0,
         refetchOnMount: 'always',

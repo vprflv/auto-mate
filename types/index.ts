@@ -34,17 +34,23 @@ export type CatalogPartPayload = {
 
 
 
+export type CarCatalogPreference = { brandSlug: string; modelSlug: string; modificationId: string };
+
 export type Car = CarCatalogSelection & {
+    catalogPreference?: CarCatalogPreference;
+    catalogAwaitingReview?: string;
     catalogYearApproval?: string;
     initialPartCategories?: { id: string; label: string }[];
     id: string;
     vin: string;
+    frameNumber?: string;
     make: string;
     model: string;
     year: number;
     trim?: string; // <-- ДОБАВЛЕНО (Комплектация)
     fluids?: CarFluids;
     bodyClass?: string;
+    facelift?: string;
     engine?: string;
     partsCatalog?: CarParts;
     displacementL?: string;
@@ -67,11 +73,13 @@ export type Car = CarCatalogSelection & {
 export type DecodedCar = {
     bodyCode?: string;
     vin: string;
+    frameNumber?: string;
     make: string;
     model: string;
     year: number;
     trim?: string; // <-- ДОБАВЛЕНО
     bodyClass?: string;
+    facelift?: string;
     engine?: string;
     displacementL?: string;
     cylinders?: string;
@@ -84,11 +92,13 @@ export type DecodedCar = {
 
 export type ManualCarForm = CarCatalogSelection & {
     vin: string;
+    frameNumber: string;
     make: string;
     model: string;
     year: string;
     trim: string;
     bodyClass: string;
+    facelift: string;
     displacementL: string;
     cylinders: string;
     engine: string;

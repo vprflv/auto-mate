@@ -1,5 +1,6 @@
 'use client';
 
+import { sortCatalogModifications, sortCatalogModificationIds } from '@/features/catalog/lib/sortCatalogModifications';
 import * as React from 'react';
 import { AlertTriangle, ShieldCheck, Wrench, X } from 'lucide-react';
 
@@ -60,7 +61,7 @@ export function PartModerationModal(props: Props) {
     if (!isOpen) return null;
 
     const targetModifications = Array.isArray(state.targetCar?.modifications)
-        ? state.targetCar.modifications
+        ? sortCatalogModifications(state.targetCar.modifications)
         : [];
 
     const selectedModificationNames = targetModifications
@@ -202,7 +203,7 @@ export function PartModerationModal(props: Props) {
 
                                                     const applicability = modificationIds.includes('all')
                                                         ? 'Все модификации'
-                                                        : modificationIds.map(getModificationName).join(', ') ||
+                                                        : sortCatalogModificationIds(modificationIds, modifications).map(getModificationName).join(', ') ||
                                                         'Применимость не уточнена';
 
                                                     const commonPosition = part.installation;
@@ -233,12 +234,12 @@ export function PartModerationModal(props: Props) {
                                                             {commonPosition?.axle || commonPosition?.side ? (
                                                                 <PartInstallationBadge value={commonPosition} />
                                                             ) : !commonPosition && positionsByModification.length > 0 ? (
-                                                                positionsByModification.map(([id, positions]) => (
+                                                                sortCatalogModificationIds(positionsByModification.map(([id]) => id), modifications).map(id => (
                                                                     <div key={id} className="space-y-1">
                                                                         <p className="text-[var(--text-muted)]">
                                                                             {getModificationName(id)}
                                                                         </p>
-                                                                        {positions.map(position => (
+                                                                        {(part.installationsByModification?.[id] ?? []).map(position => (
                                                                             <PartInstallationBadge
                                                                                 key={`${position.axle ?? ''}:${position.side ?? ''}`}
                                                                                 value={position}

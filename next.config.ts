@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  outputFileTracingIncludes: {
+    "/api/vin/decode": [
+      "./scripts/decode_vin.py",
+      "./scripts/vin_version_lookup.py",
+      "./features/garage/add/lib/bmwTypeCodes.json",
+    ],
+  },
 };
 
 export default nextConfig;

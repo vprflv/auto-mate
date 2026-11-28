@@ -34,9 +34,9 @@ export default function NodeCatalogPage({
     const query = React.use(searchParams);
 
     const catalog = useNodeCatalog(
-        brand,
-        model,
-        nodeId,
+        decodeURIComponent(brand),
+        decodeURIComponent(model),
+        decodeURIComponent(nodeId),
         query
     );
 

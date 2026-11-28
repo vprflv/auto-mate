@@ -1,18 +1,22 @@
 'use client';
 
 import * as React from 'react';
-import { systemStore, InboxItem } from '@/features/admin/lib/systemStore';
+import { systemStore, InboxItem, StoredMasterModel } from '@/features/admin/lib/systemStore';
 import { InboxHeader } from './InboxHeader';
 import { CarInboxCard } from './CarInboxCard';
+import { VinTrainingInboxCard } from './VinTrainingInboxCard';
 import { PartInboxCard } from './PartInboxCard';
 import { InboxEmptyState } from './InboxEmptyState';
 
 export function CatalogInboxScreen() {
     const [items, setItems] = React.useState<InboxItem[]>([]);
+    const [models, setModels] = React.useState<StoredMasterModel[]>([]);
     const [activeTab, setActiveTab] = React.useState<'all' | 'cars' | 'parts'>('all');
 
     const loadInbox = React.useCallback(() => {
-        setItems(systemStore.getState().inbox);
+        const state = systemStore.getState();
+        setItems(state.inbox);
+        setModels(state.masterModels);
     }, []);
 
     React.useEffect(() => {
@@ -65,7 +69,14 @@ export function CatalogInboxScreen() {
                 {filteredItems.length > 0 ? (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {filteredItems.map((item) =>
-                            item.type === 'car_model' ? (
+                            item.vinTraining ? (
+                                <VinTrainingInboxCard
+                                    key={item.id}
+                                    item={item}
+                                    models={models}
+                                    onReject={handleReject}
+                                />
+                            ) : item.type === 'car_model' ? (
                                 <CarInboxCard
                                     key={item.id}
                                     item={item}

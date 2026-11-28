@@ -17,8 +17,9 @@ export type CatalogSnapshot = {
     hiddenCatalogCategories?: string[];
 };
 
-export function createCatalogSnapshot(): CatalogSnapshot {
-    const state = storage.getState();
+const RESET_BACKUP_KEY = 'bm_catalog_before_reset_v1';
+
+export function createCatalogSnapshot(state = storage.getState()): CatalogSnapshot {
     const { masterModels, catalogNodes, catalogCategoryLabels, catalogCategoryOrder, hiddenCatalogCategories } = state;
 
     return {
@@ -33,8 +34,32 @@ export function createCatalogSnapshot(): CatalogSnapshot {
     };
 }
 
-export function downloadCatalogSnapshot(): void {
-    const snapshot = createCatalogSnapshot();
+export function resetReferenceCatalog(): void {
+    const state = storage.getState();
+    const snapshot = createCatalogSnapshot(state);
+    if (!snapshot.masterModels.length && !snapshot.catalogNodes.length && !snapshot.catalogBranches?.length) return;
+
+    localStorage.setItem(RESET_BACKUP_KEY, JSON.stringify(snapshot));
+    storage.saveState({ ...state, masterModels: [], catalogNodes: [], catalogBranches: [] });
+}
+
+export function hasCatalogResetBackup(): boolean {
+    return localStorage.getItem(RESET_BACKUP_KEY) !== null;
+}
+
+export function restoreCatalogResetBackup(): void {
+    const state = storage.getState();
+    if (state.masterModels.length || state.catalogNodes.length || getCatalogBranches(state).length) {
+        throw new Error('Резервную копию можно восстановить только в пустой каталог.');
+    }
+
+    const backup = localStorage.getItem(RESET_BACKUP_KEY);
+    if (!backup) throw new Error('Резервная копия не найдена.');
+    const { masterModels, catalogNodes, catalogBranches } = JSON.parse(backup) as CatalogSnapshot;
+    storage.saveState({ ...state, masterModels, catalogNodes, catalogBranches });
+}
+
+export function downloadCatalogSnapshot(snapshot = createCatalogSnapshot()): void {
     const json = JSON.stringify(snapshot, null, 2);
     const file = new Blob([json], {
         type: 'application/json;charset=utf-8',

@@ -1,5 +1,6 @@
 'use client';
 
+import { sortCatalogModificationIds } from '@/features/catalog/lib/sortCatalogModifications';
 import { catalogBranchLabel } from '@/features/admin/lib/system-store/catalogBranches';
 
 import { useEffect, useState, type FormEvent } from 'react';
@@ -71,7 +72,7 @@ export function CatalogPartSearch() {
                 }
             }
 
-            const modificationNames = modificationIds.map(
+            const modificationNames = sortCatalogModificationIds(modificationIds, modifications ?? []).map(
                 id => namesById.get(id) ?? id
             );
 

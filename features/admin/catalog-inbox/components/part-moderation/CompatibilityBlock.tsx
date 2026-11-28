@@ -1,5 +1,6 @@
 'use client';
 
+import { sortCatalogModifications } from '@/features/catalog/lib/sortCatalogModifications';
 import * as React from 'react';
 import { GitBranch, AlertTriangle } from 'lucide-react';
 
@@ -26,7 +27,7 @@ export function CompatibilityBlock({
                                        selectedModIds,
                                        setSelectedModIds
                                    }: CompatibilityBlockProps) {
-    const modifications = targetCar?.modifications ?? [];
+    const modifications = sortCatalogModifications(targetCar?.modifications ?? []);
 
     const selectedCount = modifications.filter(
         mod => selectedModIds.includes(mod.id)

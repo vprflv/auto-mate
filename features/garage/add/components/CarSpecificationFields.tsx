@@ -6,7 +6,7 @@ import type { ManualCarForm } from '@/types';
 import { useCarSpecificationOptions } from '../hooks/useCarSpecificationOptions';
 import { CatalogChoiceField } from './CatalogChoiceField';
 import { CatalogAutocompleteField } from './CatalogAutocompleteField';
-import { normalizeRobotTransmission } from '../lib/config/robotTransmission';
+import { formatTransmission } from '../lib/config/robotTransmission';
 
 interface Props {
     form: ManualCarForm;
@@ -73,7 +73,7 @@ export function CarSpecificationFields({
                 {choiceFields.map(field => {
                     const value = form[field.key];
                     const optionValue = field.key === 'transmission'
-                        ? normalizeRobotTransmission(value)
+                        ? formatTransmission(value)
                         : value;
                     const values = options[field.key];
 

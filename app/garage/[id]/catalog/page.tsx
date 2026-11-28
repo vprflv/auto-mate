@@ -1,13 +1,10 @@
-'use client';
-
-import { use } from 'react';
 import CatalogPageView from '@/features/catalog/components/CatalogPageView';
 
-export default function CatalogPage({
-                                        params,
-                                    }: {
+export default async function CatalogPage({
+    params,
+}: {
     params: Promise<{ id: string }>;
 }) {
-    const { id } = use(params);
+    const { id } = await params;
     return <CatalogPageView carId={id} />;
 }

@@ -78,7 +78,7 @@ export function addUserPart(params: AddUserPartParams) {
         car => car.id === params.carId
     );
 
-    const identity = garageCar
+    const identity = garageCar && !garageCar.catalogPreference
         ? resolveCarCatalogIdentity(
             garageCar,
             state.masterModels

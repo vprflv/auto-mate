@@ -1,5 +1,6 @@
 'use client';
 
+import { sortCatalogModifications } from '@/features/catalog/lib/sortCatalogModifications';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import type { StoredCatalogNode, StoredMasterModel } from '@/features/admin/lib/system-store/types';
@@ -8,7 +9,7 @@ import { setFluidBranchApplicability } from '@/features/admin/lib/system-store/a
 export function FluidBranchApplicability({ node, model }: { node: StoredCatalogNode; model: StoredMasterModel }) {
     const [all, setAll] = useState(node.allowedModificationIds === undefined);
     const [selected, setSelected] = useState(() => new Set(node.allowedModificationIds));
-    const modifications = model.modifications ?? [];
+    const modifications = sortCatalogModifications(model.modifications ?? []);
     const original = node.allowedModificationIds;
     const dirty = all ? original !== undefined :
         original === undefined || original.length !== selected.size || original.some(id => !selected.has(id));

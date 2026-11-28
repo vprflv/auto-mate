@@ -124,9 +124,6 @@ export function addCar(params: AddCarParams): AppCar {
         user.carsCount = (user.carsCount || 0) + 1;
     }
 
-    // Для готовой модификации существующий обработчик
-    // пропустит создание заявки и уберёт старую связь
-    // с ожидающей заявкой, если она была.
     queueCarCatalogReview(state, {
         garageCarId: params.garageCarId,
         proposedModificationId: params.proposedModificationId,

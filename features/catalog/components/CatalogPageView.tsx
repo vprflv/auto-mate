@@ -1,6 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
+import type { CarCatalogPreference } from '@/types';
+import { requestCarCatalogReview, saveCarCatalogPreference } from '@/features/admin/lib/system-store/carCatalogReview';
+import { CatalogModificationPicker } from '@/features/garage/add/components/CatalogModificationPicker';
+import { useCarCatalog } from '@/features/garage/add/hooks/useCarCatalog';
+import { catalogPreferenceFor, catalogReviewVersion } from '../lib/catalogVehicleSelection';
 import type { CatalogArticle, CatalogSection } from '@/types/catalog/catalog';
 import { FLUID_FILL_CAPACITY_NOTICE, formatFillCapacity } from '../lib/fluidFillCapacities';
 import { CatalogSectionLinks } from './CatalogSectionLinks';
@@ -45,6 +51,39 @@ export default function CatalogPageView({
         closeSaveModal,
         finishSavingPart,
     } = useCatalogPage(carId, section);
+    const [choiceMode, setChoiceMode] = useState<'list' | 'all' | 'waiting' | null>(null);
+    const [choiceError, setChoiceError] = useState('');
+    const { models, loaded: catalogLoaded } = useCarCatalog();
+    const readyModels = models.filter(model => model.verified && model.modifications?.length);
+
+    function openChoice(mode: 'list' | 'all' | null) {
+        setChoiceError('');
+        setChoiceMode(mode);
+    }
+
+    function choose(preference: CarCatalogPreference) {
+        try {
+            if (!saveCarCatalogPreference(carId, preference)) {
+                toast.warning('Модификация сохранена. Отправить заявку на проверку не удалось. Повторите выбор этой карточки, чтобы отправить её снова.');
+            }
+            setSearch('');
+            setSelectedNodeId(null);
+            openChoice(null);
+        } catch (error) {
+            setChoiceError(error instanceof Error ? error.message : 'Не удалось сохранить выбор.');
+        }
+    }
+
+    function waitForReview() {
+        if (!car) return;
+        try {
+            requestCarCatalogReview(car.id);
+            setChoiceError('');
+            setChoiceMode('waiting');
+        } catch (error) {
+            setChoiceError(error instanceof Error ? error.message : 'Не удалось отправить данные на модерацию.');
+        }
+    }
     const [analogArticle, setAnalogArticle] = useState<CatalogArticle | null>(null);
     const analogDialog = useCatalogArticleDialog();
 
@@ -53,8 +92,10 @@ export default function CatalogPageView({
         analogDialog.open();
     }
 
-    const preview = catalog?.previewModification;
-    const previewYears = [...new Set([preview?.year, preview?.yearEnd].filter(Boolean))].join('–');
+    const selectedModification = catalog?.selectedModification;
+    const options = catalog?.modificationOptions ?? [];
+    const waiting = choiceMode === 'waiting' || Boolean(car?.catalogAwaitingReview && car.catalogAwaitingReview === catalogReviewVersion(car));
+    const selectedYears = [...new Set([selectedModification?.year, selectedModification?.yearEnd].filter(Boolean))].join('–');
     const oemCards = filteredArticles.filter(article =>
         article.isOem || article.canSave === false
     );
@@ -75,7 +116,7 @@ export default function CatalogPageView({
         );
     }
 
-    if (isLoading) {
+    if (isLoading || !catalogLoaded) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-[var(--bg)] text-[var(--text-muted)]">
                 Загружаем каталог...
@@ -83,25 +124,61 @@ export default function CatalogPageView({
         );
     }
 
-    if (catalog?.source === 'master-pending') {
+    if (choiceMode === 'all') {
+        return (
+            <div className="p-6">
+                {choiceError && <p role="alert" className="mx-auto mb-4 max-w-3xl text-sm text-[var(--danger)]">{choiceError}</p>}
+                <CatalogModificationPicker models={readyModels} reason="skip" backLabel="Вернуться к ИИ-каталогу"
+                    onBack={() => openChoice(null)} onChoose={match => choose(catalogPreferenceFor(match))}
+                    onNoMatch={catalog?.source === 'master' || catalog?.source === 'master-selected' ? undefined : waitForReview} />
+            </div>
+        );
+    }
+
+    if (choiceMode === 'list' || (!waiting && catalog?.source === 'master-choice')) {
+        return (
+            <div className="mx-auto max-w-2xl space-y-5 p-6 text-[var(--text)]">
+                <h1 className="text-2xl font-semibold">Выберите модификацию для ИИ-каталога</h1>
+                <p className="text-sm text-[var(--text-muted)]">Выбор сохранится для этого автомобиля. Сверьте двигатель, КПП и годы выпуска.</p>
+                {choiceError && <p role="alert" className="text-sm text-[var(--danger)]">{choiceError}</p>}
+                <ul className="space-y-2">
+                    {options.map(option => {
+                        const years = [...new Set([option.year, option.yearEnd].filter(Boolean))].join('–');
+                        const details = [years, option.bodyCode, option.engine, option.transmission].filter(Boolean).join(' · ');
+                        return (
+                            <li key={option.value}>
+                                <button type="button" onClick={() => choose(option.preference)}
+                                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 text-left hover:border-[var(--link)]">
+                                    <span className="block font-medium">{option.modelName} · {option.name}</span>
+                                    {details && <span className="text-sm text-[var(--text-muted)]">{details}</span>}
+                                </button>
+                            </li>
+                        );
+                    })}
+                </ul>
+                <div className="flex flex-wrap items-center gap-4">
+                    <button type="button" onClick={() => openChoice('all')} className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium hover:border-[var(--link)]">
+                        Выбрать из всего каталога
+                    </button>
+                    {choiceMode === 'list' && <button type="button" onClick={() => openChoice(null)} className="text-sm text-[var(--link)]">Отмена</button>}
+                    <Link href={`/garage/${carId}`} className="text-sm text-[var(--link)]">Вернуться к автомобилю</Link>
+                </div>
+            </div>
+        );
+    }
+
+    if (catalog?.source === 'master-pending' || (waiting && catalog?.source === 'master-choice')) {
         return (
             <div className="mx-auto max-w-xl space-y-4 p-6 text-[var(--text)]">
-                <h1 className="text-2xl font-semibold">
-                    ИИ-каталог пока недоступен
-                </h1>
-
+                <h1 className="text-2xl font-semibold">{waiting || !readyModels.length ? 'Подходящей модификации пока нет' : 'Выберите модификацию для ИИ-каталога'}</h1>
                 <p className="text-[var(--text-muted)]">
-                    Подходящей модификации для предварительного просмотра пока нет.
-                    После подтверждения модификации здесь появится каталог
-                    {isFluids ? ' подходящих масел и жидкостей.' : ' подходящих запчастей.'}
+                    {waiting || !readyModels.length
+                        ? 'Подбор совместимых деталей появится, когда модератор добавит подходящую карточку или свяжет автомобиль с существующей.'
+                        : 'Для данных автомобиля нет подходящих вариантов. Проверьте, есть ли нужная карточка в общем каталоге.'}
                 </p>
-
-                <a
-                    href={`/garage/${carId}`}
-                    className="block text-[var(--link)]"
-                >
-                    Вернуться к автомобилю
-                </a>
+                {choiceError && <p role="alert" className="text-sm text-[var(--danger)]">{choiceError}</p>}
+                {readyModels.length > 0 && <button type="button" onClick={() => openChoice('all')} className="block rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium hover:border-[var(--link)]">Выбрать из всего каталога</button>}
+                <Link href={`/garage/${carId}`} className="block text-[var(--link)]">Вернуться к автомобилю</Link>
             </div>
         );
     }
@@ -157,19 +234,23 @@ export default function CatalogPageView({
                 }
             />
 
-            {preview && (
-                <div role="status" className="space-y-1 border-b border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm md:px-6">
-                    <p className="font-semibold">Предварительный ИИ-каталог</p>
-                    <p>Показаны позиции для модификации {preview.name}{previewYears ? ` · ${previewYears}` : ''}.</p>
-                    <p className="text-[var(--text-muted)]">
-                        Проверьте совместимость перед покупкой или использованием.
-                        Каталог для вашего автомобиля откроется после модерации.
-                    </p>
+            {selectedModification && (
+                <div role="status" className="space-y-1 border-b border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-3 text-sm md:px-6">
+                    <p className="font-semibold">Выбрано вами · {selectedModification.name}{selectedYears ? ` · ${selectedYears}` : ''}</p>
+                    {selectedModification.differences.length > 0 && (
+                        <ul className="list-disc space-y-1 pl-5 text-[var(--text-muted)]">
+                            {selectedModification.differences.map(difference => <li key={difference}>{difference}</li>)}
+                        </ul>
+                    )}
                 </div>
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 md:px-6">
                 <CatalogSectionLinks section={section} partsHref={catalogPath} fluidsHref={`${catalogPath}/fluids`} />
+                <button type="button" onClick={() => openChoice(options.length ? 'list' : 'all')}
+                    className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium hover:border-[var(--link)]">
+                    Сменить модификацию
+                </button>
                 <Link
                     href={`/garage/${carId}?section=catalog`}
                     className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[var(--link)] transition-colors hover:bg-[var(--bg-elevated)]"

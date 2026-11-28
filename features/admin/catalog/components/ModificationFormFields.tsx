@@ -1,8 +1,10 @@
 'use client';
 
 import { useId } from 'react';
+import { FaceliftEditor } from '@/features/catalog/components/FaceliftEditor';
 import { Plus, RotateCcw, Trash2 } from 'lucide-react';
-import { isValidVin, isValidVinPrefix, VIN_LENGTH, normalizeVin } from '@/features/garage/add/lib/config/vin';
+import { isVinMaskSpecific } from '@/features/garage/add/lib/catalogVinRules';
+import { isValidVin, isValidVinPrefix, MAX_MODEL_YEAR, MIN_MODEL_YEAR, VIN_LENGTH, normalizeVin } from '@/features/garage/add/lib/config/vin';
 
 import type { useModificationForm } from '../hooks/useModificationForm';
 
@@ -54,7 +56,7 @@ const mainFields = [
     {
         key: 'transmission',
         label: 'КПП',
-        placeholder: 'Введите тип КПП',
+        placeholder: 'Автомат (5AT), Механика (6MT)',
     },
     {
         key: 'drivetrain',
@@ -80,6 +82,7 @@ export function ModificationFormFields({ form }: Props) {
     return (
         <div className="space-y-5">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FaceliftEditor value={form.fields.facelift} onChange={value => form.setField('facelift', value)} className={inputClassName} />
                 {mainFields.map(field => {
                     const inputId = `${idPrefix}-${field.key}`;
                     const optionsId = `${inputId}-options`;
@@ -163,11 +166,21 @@ export function ModificationFormFields({ form }: Props) {
                     Введите первые 11 символов VIN для сверки по префиксу. Для полного VIN из 17 символов отметьте нужные позиции или выберите сверку по всему номеру.
                 </p>
 
+                {form.vinExceptions.length > 0 && (
+                    <div className="space-y-2 rounded-xl border border-[var(--border)] p-3">
+                        <h3 className="text-xs font-semibold">Подтверждённые VIN-исключения</h3>
+                        <ul className="space-y-1 font-mono text-xs">
+                            {form.vinExceptions.map(vin => <li key={vin} className="break-all">{vin}</li>)}
+                        </ul>
+                    </div>
+                )}
                 {form.vinRules.map((rule, index) => {
                     const sampleId = `${idPrefix}-vin-${index}`;
                     const isPrefix = isValidVinPrefix(rule.sample);
-                    const updateRule = (updated: typeof rule) => form.setVinRules(rules =>
-                        rules.map((item, itemIndex) => itemIndex === index ? updated : item)
+                    const updateRule = (updated: typeof rule, resetConfirmation = true) => form.setVinRules(rules =>
+                        rules.map((item, itemIndex) => itemIndex === index
+                            ? resetConfirmation ? { ...updated, source: undefined, modelYear: undefined } : updated
+                            : item)
                     );
 
                     return (
@@ -199,11 +212,30 @@ export function ModificationFormFields({ form }: Props) {
                                 </button>
                             </div>
 
+                            {rule.source && <p className="break-words text-xs text-[var(--text-muted)]">Источник — {rule.source}</p>}
+                            <label className="block space-y-1 text-xs text-[var(--text-muted)]">
+                                <span>Подтверждённый модельный год</span>
+                                <input
+                                    type="number" min={MIN_MODEL_YEAR} max={MAX_MODEL_YEAR} step={1}
+                                    value={rule.modelYear ?? ''}
+                                    onChange={event => updateRule({
+                                        ...rule,
+                                        modelYear: event.target.value === '' ? undefined : Number(event.target.value),
+                                    }, false)}
+                                    className={inputClassName}
+                                    placeholder="Укажите, если подтверждён источником"
+                                />
+                            </label>
                             {isPrefix && (
                                 <p className="text-xs text-[var(--text-muted)]">Сверяем все 11 символов префикса.</p>
                             )}
                             {isValidVin(rule.sample) && (
                                 <div className="space-y-2">
+                                    {!isVinMaskSpecific(rule.positions) && (
+                                        <p className="text-xs text-[var(--danger)]">
+                                            Маска не используется при подборе. Отметьте позиции 1–3 и минимум три из позиций 4–8.
+                                        </p>
+                                    )}
                                     <div className="flex flex-wrap gap-1.5">
                                         {Array.from({ length: VIN_LENGTH }, (_, position) => {
                                             const selected = rule.positions.includes(position);
@@ -252,6 +284,16 @@ export function ModificationFormFields({ form }: Props) {
                     Добавить образец VIN
                 </button>
             </fieldset>
+
+            <label className="block space-y-2 border-t border-[var(--border)]/40 pt-4">
+                <span className="block text-xs font-bold text-[var(--text)]">Поиск по номеру кузова (Frame)</span>
+                <textarea value={form.frameRulesText} onChange={event => form.setFrameRulesText(event.target.value)}
+                    rows={2} placeholder={'{"sample":"GD1-1234567","positions":[0]}'} spellCheck={false} autoComplete="off"
+                    className={`${inputClassName} font-mono uppercase`} />
+                <span className="block text-xs text-[var(--text-muted)]">
+                    Один JSON-объект с sample и positions на строку. Отсчёт начинается с нуля после дефиса. Пустой массив проверяет только код кузова.
+                </span>
+            </label>
 
             <div className="space-y-3 border-t border-[var(--border)]/40 pt-4">
                 <div>

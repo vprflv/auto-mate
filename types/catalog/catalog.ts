@@ -21,6 +21,9 @@ export type CatalogFitment = {
     make: string;
     model: string;
     modification: string;
+    year?: string;
+    yearEnd?: string;
+    trim?: string;
     description: string;
 };
 
@@ -50,6 +53,18 @@ export type CatalogArticle = {
     variants?: CatalogArticle[];
 };
 
+export type CatalogModificationOption = {
+    preference: import('@/types').CarCatalogPreference;
+    modelName: string;
+    value: string;
+    name: string;
+    year?: string;
+    yearEnd?: string;
+    bodyCode?: string;
+    engine?: string;
+    transmission?: string;
+};
+
 export type VehicleCatalog = {
     carId: string;
     vin?: string;
@@ -57,7 +72,8 @@ export type VehicleCatalog = {
     model: string;
     year: number;
     source: 'mock' | 'ai' | 'laximo' | 'partsapi' | 'tecdoc' | string;
-    previewModification?: { name: string; year?: string; yearEnd?: string };
+    modificationOptions?: CatalogModificationOption[];
+    selectedModification?: { name: string; year?: string; yearEnd?: string; differences: string[] };
     fetchedAt: string;
     nodes: CatalogNode[];          // дерево верхнего уровня
     articles: CatalogArticle[];    // плоский список для поиска

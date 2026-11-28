@@ -99,6 +99,7 @@ export default function EditCarForm() {
                             updateField('vin', value)
                         }
                     />
+                    <CarVinField frame value={form.frameNumber} onChange={value => updateField('frameNumber', value)} />
 
                     <CarCatalogFields selection={selection} />
 

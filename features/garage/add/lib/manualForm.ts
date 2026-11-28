@@ -1,14 +1,19 @@
 import {ManualCarForm, Car, DecodedCar} from '@/types';
 
-export function createEmptyManualForm(vin = ''): ManualCarForm {
+import { knownFacelift } from '@/features/catalog/lib/facelift';
+import { getFrameCode, normalizeFrameNumber } from './catalogFrameRules';
+
+export function createEmptyManualForm(vin = '', frameNumber = ''): ManualCarForm {
     return {
         vin,
+        frameNumber,
         make: '',
         trim: '',
         model: '',
         year: '',
         bodyCode: '',
         bodyClass: '',
+        facelift: '',
         displacementL: '',
         cylinders: '',
         engine: '',
@@ -26,12 +31,14 @@ export function mapManualFormToCar(form: ManualCarForm): Car {
     return {
         id: Date.now().toString(),
         vin: form.vin.trim().toUpperCase() || 'UNKNOWN',
+        frameNumber: normalizeFrameNumber(form.frameNumber) || undefined,
         make: form.make.trim(),
         model: form.model.trim(),
         year: Number(form.year.trim()),
         bodyCode: form.bodyCode?.trim().toUpperCase() || undefined,
         trim: form.trim.trim() || undefined,
         bodyClass: form.bodyClass.trim() || undefined,
+        facelift: knownFacelift(form.facelift),
         displacementL: form.displacementL.trim() || undefined,
         cylinders: form.cylinders.trim() || undefined,
         engine: form.engine.trim() || undefined,
@@ -53,13 +60,14 @@ export function mapManualFormToCar(form: ManualCarForm): Car {
 
 export function mapDecodedToManualForm(car: DecodedCar): ManualCarForm {
     return {
-        ...createEmptyManualForm(car.vin),
+        ...createEmptyManualForm(car.vin === 'UNKNOWN' ? '' : car.vin, car.frameNumber),
         make: car.make || '',
         model: car.model || '',
         year: car.year ? String(car.year) : '',
         bodyCode: car.bodyCode ?? '',
         trim: car.trim || '',
         bodyClass: car.bodyClass || '',
+        facelift: knownFacelift(car.facelift) ?? '',
         displacementL: car.displacementL || '',
         cylinders: car.cylinders || '',
         engine: car.engine || '',
@@ -74,6 +82,10 @@ export function mapDecodedToManualForm(car: DecodedCar): ManualCarForm {
 export function getManualFormError(
     form: ManualCarForm
 ): string | null {
+    if (form.frameNumber.trim() && !getFrameCode(form.frameNumber)) {
+        return 'Проверьте номер кузова. Пример формата — NZE141-1234567.';
+    }
+
     if (!form.make.trim()) {
         return 'Укажите марку автомобиля.';
     }

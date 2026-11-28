@@ -2,7 +2,7 @@
 
 import type { ManualCarForm } from '@/types';
 import { useCarCatalog } from './useCarCatalog';
-import { normalizeRobotTransmission, ROBOT_TRANSMISSION } from '../lib/config/robotTransmission';
+import { formatTransmission, transmissionOptions } from '../lib/config/robotTransmission';
 
 type SpecificationField =
     | 'bodyClass'
@@ -33,7 +33,7 @@ const defaultOptions: Record<SpecificationField, string[]> = {
         'Гибрид',
         'Электро',
     ],
-    transmission: ['MT', 'AT', 'CVT', ROBOT_TRANSMISSION],
+    transmission: transmissionOptions,
     trim: [],
     driveType: ['FWD', 'RWD', 'AWD', '4WD'],
 };
@@ -105,7 +105,7 @@ export function useCarSpecificationOptions(form: ManualCarForm) {
             const value = modification.attributes?.[attributeKey];
 
             if (typeof value === 'string' && value.trim()) {
-                catalogValues.push(field === 'transmission' ? normalizeRobotTransmission(value) : value);
+                catalogValues.push(field === 'transmission' ? formatTransmission(value) : value);
             }
         }
 

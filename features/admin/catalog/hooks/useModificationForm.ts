@@ -1,5 +1,6 @@
 'use client';
 
+import { formatFrameRuleLines, readFrameRuleLines, frameRuleSchema } from '@/features/garage/add/lib/catalogFrameRules';
 import * as React from 'react';
 import { toast } from 'sonner';
 
@@ -9,8 +10,11 @@ import {
 } from '@/features/admin/lib/system-store/actions/modifications';
 
 import type { CatalogModification } from '@/features/admin/lib/system-store/types';
+import { buildModificationName } from '@/features/catalog/lib/buildModificationName';
 import {useCarCatalog} from "@/features/garage/add/hooks/useCarCatalog";
-import { normalizeRobotTransmission, ROBOT_TRANSMISSION } from '@/features/garage/add/lib/config/robotTransmission';
+import { formatTransmission, transmissionOptions } from '@/features/garage/add/lib/config/robotTransmission';
+
+import { knownFacelift } from '@/features/catalog/lib/facelift';
 
 interface ModificationFields {
     trim: string;
@@ -20,6 +24,7 @@ interface ModificationFields {
     yearEnd: string;
     bodyCode: string;
     bodyClass: string;
+    facelift: string;
     fuel: string;
     displacementL: string;
     drivetrain: string;
@@ -36,6 +41,7 @@ const emptyFields: ModificationFields = {
     yearEnd: '',
     bodyCode: '',
     bodyClass: '',
+    facelift: '',
     fuel: '',
     displacementL: '',
     trim: '',
@@ -94,12 +100,10 @@ export function useModificationForm({
         trim: getSuggestions('trim'),
         engine: getSuggestions('engine'),
         displacementL: getSuggestions('displacementL'),
-        transmission: [
-            ...getSuggestions('transmission').filter(value =>
-                normalizeRobotTransmission(value) !== ROBOT_TRANSMISSION
-            ),
-            ROBOT_TRANSMISSION,
-        ],
+        transmission: [...new Set([
+            ...getSuggestions('transmission').map(formatTransmission),
+            ...transmissionOptions,
+        ])],
     };
 
 
@@ -107,12 +111,14 @@ export function useModificationForm({
     const [fields, setFields] = React.useState<ModificationFields>(() => {
         const initialFields = { ...emptyFields };
         for (const key of mainFieldKeys) {
-            initialFields[key] = initialModification?.attributes?.[key] ?? '';
+            const value = initialModification?.attributes?.[key];
+            initialFields[key] = key === 'transmission' ? formatTransmission(value) : value ?? '';
         }
         return initialFields;
     });
 
     const [vinRules, setVinRules] = React.useState(initialModification?.vinRules ?? []);
+    const [frameRulesText, setFrameRulesText] = React.useState(formatFrameRuleLines(initialModification?.frameRules));
 
     const [customAttributes, setCustomAttributes] =
         React.useState<CustomAttribute[]>(() =>
@@ -132,25 +138,7 @@ export function useModificationForm({
 
     // Название обновляется автоматически,
     // пока пользователь не начнёт редактировать его вручную.
-    const startYear = fields.year.trim();
-    const endYear = fields.yearEnd.trim();
-    const volume = fields.displacementL.trim().replace(',', '.');
-    const engine = fields.engine.trim();
-
-    const generatedName = [
-        startYear && endYear ? `${startYear}–${endYear}` : startYear,
-        fields.bodyCode?.trim(),
-        volume ? `${volume} л` : '',
-        engine ? `(${engine})` : '',
-        fields.transmission.trim(),
-        fields.drivetrain.trim(),
-        fields.fuel?.trim(),
-        fields.bodyClass?.trim(),
-        ...customAttributes.map(item => item.value.trim()),
-        fields.trim.trim(),
-    ]
-        .filter(Boolean)
-        .join(' / ');
+    const generatedName = buildModificationName(fields, customAttributes.map(item => item.value));
 
     const name = customName ??
         (preserveSavedName ? initialModification?.name ?? generatedName : generatedName);
@@ -298,6 +286,11 @@ export function useModificationForm({
                 modelSlug,
                 name,
                 vinRules,
+                frameRules: readFrameRuleLines(frameRulesText).map((rule, index) => {
+                    const parsed = frameRuleSchema.safeParse(rule);
+                    if (!parsed.success) throw new Error(`Правило Frame №${index + 1}. ${parsed.error.issues[0].message}`);
+                    return parsed.data;
+                }),
 
                 attributes: {
                     trim: fields.trim,
@@ -308,6 +301,7 @@ export function useModificationForm({
                     ...(yearEnd ? { yearEnd } : {}),
                     bodyCode: fields.bodyCode,
                     bodyClass: fields.bodyClass,
+                    facelift: knownFacelift(fields.facelift),
                     fuel: fields.fuel,
                     ...(displacementL ? { displacementL } : {}),
 
@@ -346,7 +340,10 @@ export function useModificationForm({
         isNameEdited: customName !== null,
 
         vinRules,
+        vinExceptions: initialModification?.vinExceptions ?? [],
         setVinRules,
+        frameRulesText,
+        setFrameRulesText,
         customAttributes,
         addAttribute,
         updateAttribute,

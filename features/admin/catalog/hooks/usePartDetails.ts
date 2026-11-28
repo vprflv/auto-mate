@@ -1,5 +1,6 @@
 'use client';
 
+import { sortCatalogModificationIds } from '@/features/catalog/lib/sortCatalogModifications';
 import * as React from 'react';
 
 import { storage } from '@/features/admin/lib/system-store/storage';
@@ -94,7 +95,7 @@ export function usePartDetails({
                     model.modelSlug === node.modelSlug
             )?.modifications ?? [];
 
-        const compatibleModifications = compatibilityIds
+        const compatibleModifications = sortCatalogModificationIds(compatibilityIds, modelModifications)
             .filter(id => id !== 'all')
             .map(id => {
                 const modification = modelModifications.find(

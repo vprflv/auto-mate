@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import { isValidCatalogVinRule } from '@/features/garage/add/lib/catalogVinRules';
-import { normalizeVin, VIN_LENGTH } from '@/features/garage/add/lib/config/vin';
+import { hasValidCatalogVinRuleShape } from '@/features/garage/add/lib/catalogVinRules';
+import { storedFrameRuleSchema } from '@/features/garage/add/lib/catalogFrameRules';
+import { isValidVin, MAX_MODEL_YEAR, MIN_MODEL_YEAR, normalizeVin, VIN_LENGTH } from '@/features/garage/add/lib/config/vin';
 import type { CatalogSnapshot } from './catalogSnapshot';
 
 const id = z.string().trim().min(1);
@@ -16,10 +17,14 @@ const modificationSchema = z.object({
     name: z.string(),
     registeredCount: count,
     attributes: z.record(z.string(), z.string()),
+    vinExceptions: z.array(z.string().transform(normalizeVin).refine(isValidVin)).optional(),
+    frameRules: z.array(storedFrameRuleSchema).optional(),
     vinRules: z.array(z.object({
         sample: z.string().transform(normalizeVin),
-        positions: z.array(z.number().int().min(0).max(VIN_LENGTH - 1)),
-    }).refine(isValidCatalogVinRule)).optional(),
+        modelYear: z.number().int().min(MIN_MODEL_YEAR).max(MAX_MODEL_YEAR).nullish().transform(year => year ?? undefined),
+        source: z.string().trim().min(1).optional(),
+        positions: z.array(z.number().int().min(0).max(VIN_LENGTH - 1)).default([]),
+    }).refine(hasValidCatalogVinRuleShape)).optional(),
 }).passthrough();
 
 const modelSchema = z.object({

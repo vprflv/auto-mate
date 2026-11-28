@@ -19,9 +19,14 @@ export default function CarTitle({ car }: Props) {
                 {car.color ? ` • ${car.color}` : ''}
             </p>
 
-            <p className="mt-3 inline-block rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-2.5 py-1 font-mono text-sm tracking-wide text-[var(--text-muted)]">
-                {car.vin || 'НЕТ VIN'}
-            </p>
+            <div className="mt-3 flex flex-wrap gap-2 font-mono text-sm tracking-wide text-[var(--text-muted)]">
+                {car.vin && car.vin !== 'UNKNOWN' && (
+                    <span className="rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-2.5 py-1">VIN {car.vin}</span>
+                )}
+                {car.frameNumber && (
+                    <span className="rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-2.5 py-1">Frame {car.frameNumber}</span>
+                )}
+            </div>
         </div>
     );
 }

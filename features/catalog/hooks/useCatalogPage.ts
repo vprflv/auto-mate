@@ -10,6 +10,7 @@ import {
     removeFluidFromPersonalCatalog,
     saveFluidToPersonalCatalog,
 } from '@/features/catalog/lib/saveToPersonalCatalog';
+import { catalogReviewVersion } from '@/features/catalog/lib/catalogVehicleSelection';
 import { getGarageCars } from '@/features/garage/add/lib/storage';
 import { CarPartItem,  } from '@/types';
 import type { CatalogArticle, CatalogSection } from '@/types/catalog/catalog';
@@ -49,6 +50,7 @@ export function useCatalogPage(carId: string, section: CatalogSection) {
     const { catalog, isLoading, isFetching, error, refresh } = useVehicleCatalog({
         carId,
         section,
+        catalogRevision: car ? catalogReviewVersion(car) : undefined,
         vin: car?.vin,
         make: car?.make || '',
         model: car?.model || '',

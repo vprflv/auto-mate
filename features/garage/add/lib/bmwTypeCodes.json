@@ -1,0 +1,8 @@
+{
+  "X4X3B194": { "version": "320i", "bodyCode": "F30", "facelift": "pre_facelift", "engineFamily": "N20", "drivetrain": "RWD", "displacementL": "2.0", "fuel": "Бензин" },
+  "X4X3C394": { "version": "320i xDrive", "bodyCode": "F30", "facelift": "pre_facelift", "engineFamily": "N20", "drivetrain": "AWD", "displacementL": "2.0", "fuel": "Бензин" },
+  "X4X8A594": { "version": "320i xDrive", "bodyCode": "F30", "facelift": "facelift", "engineFamily": "B48", "drivetrain": "AWD", "displacementL": "2.0", "fuel": "Бензин" },
+  "WBA8A510": { "version": "320i xDrive", "bodyCode": "F30", "facelift": "facelift", "engineFamily": "B48", "drivetrain": "AWD", "displacementL": "2.0", "fuel": "Бензин" },
+  "WBA8E310": { "version": "318i", "bodyCode": "F30", "facelift": "facelift", "engineFamily": "B38", "drivetrain": "RWD", "displacementL": "1.5", "fuel": "Бензин" },
+  "WBA5V780": { "version": "320d xDrive", "bodyCode": "G20", "facelift": "pre_facelift", "engineFamily": "B47", "drivetrain": "AWD", "displacementL": "2.0", "fuel": "Дизель" }
+}

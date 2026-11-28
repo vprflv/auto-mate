@@ -1,11 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ManualCarForm } from '@/types';
-import { findMatchingCatalogModifications, matchesVehicleDetails, modificationValues } from '@/features/catalog/lib/carCatalogIdentity';
-import { sortModificationsByTrim } from '@/features/catalog/lib/sortModificationsByTrim';
+import { findMatchingCatalogModifications, getCatalogProductionYears, matchesVehicleDetails, modificationValues } from '@/features/catalog/lib/carCatalogIdentity';
+import { formatTransmission } from '../lib/config/robotTransmission';
+import { sortCatalogModifications } from '@/features/catalog/lib/sortCatalogModifications';
 
 import { useCarCatalog } from './useCarCatalog';
+import type { CatalogModification } from '@/features/admin/lib/system-store/types';
+import { getCatalogVinModelYear, getConfirmedVinMatch } from '../lib/catalogVinRules';
+
+import { formatFacelift, getCatalogFaceliftOptions, knownFacelift, matchesFacelift } from '@/features/catalog/lib/facelift';
 
 interface Props {
     form: ManualCarForm;
@@ -37,7 +42,8 @@ const emptySpecifications = {
     trim: '',
     displacementL: '',
     fuel: '',
-    bodyClass: ''
+    bodyClass: '',
+    facelift: ''
 };
 
 export function useCatalogCarSelection({
@@ -77,12 +83,20 @@ export function useCatalogCarSelection({
         );
 
     const modifications = model?.verified && Array.isArray(model.modifications)
-        ? model.modifications
+        ? sortCatalogModifications(model.modifications)
         : [];
-    const matchingModifications = sortModificationsByTrim(modifications.filter(item =>
+    const faceliftOptions = getCatalogFaceliftOptions(modifications.map(item => item.attributes ?? {}));
+    const currentFacelift = knownFacelift(form.facelift);
+    const vinMatch = useMemo(() => getConfirmedVinMatch(form.vin, catalog.models), [form.vin, catalog.models]);
+    const matchesDetails = (modification: CatalogModification, year: string, bodyCode: string) =>
+        matchesVehicleDetails(modification, year, bodyCode, {
+            modelYear: !allowAllModifications && vinMatch?.modification === modification ? vinMatch.modelYear : undefined,
+            yearTolerance: allowAllModifications && modification.id === form.catalogModificationId ? 1 : 0,
+        });
+    const matchingModifications = modifications.filter(item =>
         (!allowAllModifications && item.id === form.catalogModificationId) ||
-        matchesVehicleDetails(item, form.year, form.bodyCode ?? '')
-    ));
+        (matchesDetails(item, form.year, form.bodyCode ?? '') && matchesFacelift(form.facelift, item.attributes?.facelift))
+    );
     const exactMatches = form.catalogModificationId ? [] : findMatchingCatalogModifications(
         { ...form, year: Number(form.year) },
         catalog.models,
@@ -90,12 +104,13 @@ export function useCatalogCarSelection({
     );
     const needsModificationChoice = exactMatches.length > 1;
     const showAll = allowAllModifications && showAllModifications && modifications.length > 0;
-    const displayedModifications = showAll ? sortModificationsByTrim(modifications) : needsModificationChoice
-        ? sortModificationsByTrim(exactMatches.map(({ modification }) => modification))
+    const displayedModifications = showAll ? modifications : needsModificationChoice
+        ? sortCatalogModifications(exactMatches.map(({ modification }) => modification))
         : matchingModifications;
     const selectedModification = modifications.find(item => item.id === form.catalogModificationId);
     const selectionNeedsReview = showAll && selectedModification !== undefined &&
-        !matchesVehicleDetails(selectedModification, form.year, form.bodyCode ?? '');
+        (!matchesDetails(selectedModification, form.year, form.bodyCode ?? '') ||
+            !matchesFacelift(form.facelift, selectedModification.attributes?.facelift));
 
     function toggleAllModifications(value: boolean) {
         setShowAllModifications(value);
@@ -111,11 +126,19 @@ export function useCatalogCarSelection({
     function changeVehicleDetail(field: 'year' | 'bodyCode', value: string) {
         onChange(field, value);
         const selected = modifications.find(item => item.id === form.catalogModificationId);
-        if (selected && !matchesVehicleDetails(
+        if (selected && !matchesDetails(
             selected,
             field === 'year' ? value : form.year,
             field === 'bodyCode' ? value : form.bodyCode ?? ''
         )) {
+            onChange('catalogModificationId', '');
+            onChange('modificationName', '');
+        }
+    }
+
+    function changeFacelift(value: string) {
+        onChange('facelift', value);
+        if (selectedModification && !matchesFacelift(value, selectedModification.attributes?.facelift)) {
             onChange('catalogModificationId', '');
             onChange('modificationName', '');
         }
@@ -132,9 +155,9 @@ export function useCatalogCarSelection({
             return;
         }
 
-        const values = modificationValues(selected);
+        const values = modificationValues(selected, form.facelift);
         for (const field of Object.keys(values) as (keyof typeof values)[]) {
-            onChange(field, values[field]);
+            if (!allowAllModifications || !form[field]?.trim()) onChange(field, values[field]);
         }
         if (!form.bodyCode?.trim() && selected.attributes?.bodyCode) {
             onChange('bodyCode', selected.attributes.bodyCode);
@@ -234,6 +257,17 @@ export function useCatalogCarSelection({
 
     return {
         loaded: catalog.loaded,
+        modelYear: allowAllModifications && selectedModification
+            ? getCatalogVinModelYear(selectedModification, form.vin)
+            : vinMatch?.modification === selectedModification ? vinMatch?.modelYear : undefined,
+        productionYears: selectedModification ? getCatalogProductionYears(selectedModification) : undefined,
+        facelift: {
+            value: currentFacelift ?? '',
+            options: faceliftOptions,
+            legacyValue: !allowAllModifications && currentFacelift && !faceliftOptions.some(option => option.value === currentFacelift)
+                ? { value: currentFacelift, label: formatFacelift(currentFacelift) } : undefined,
+            onChange: changeFacelift,
+        },
         year: {
             value: form.year,
             onChange: (value: string) => {
@@ -248,21 +282,25 @@ export function useCatalogCarSelection({
         },
         modification: {
             value: form.catalogModificationId ?? '',
-            options: displayedModifications.map(item => ({
-                value: item.id,
-                label: [
-                    item.name,
-                    ...((showAll || needsModificationChoice) && item.attributes.bodyCode
-                        ? [`Кузов ${item.attributes.bodyCode}`]
-                        : []),
-                    ...(showAll && item.attributes.year
-                        ? [`Годы выпуска ${item.attributes.year}${item.attributes.yearEnd && item.attributes.yearEnd !== item.attributes.year ? `–${item.attributes.yearEnd}` : ''}`]
-                        : []),
-                    item.attributes.engine,
-                    item.attributes.transmission,
-                    item.attributes.drivetrain,
-                ].filter(Boolean).join(' · '),
-            })),
+            options: displayedModifications.map(item => {
+                const facelift = knownFacelift(item.attributes.facelift);
+                return {
+                    value: item.id,
+                    label: [
+                        item.name,
+                        ...((showAll || needsModificationChoice) && item.attributes.bodyCode
+                            ? [`Кузов ${item.attributes.bodyCode}`]
+                            : []),
+                        ...(showAll && item.attributes.year
+                            ? [`Годы выпуска ${item.attributes.year}${item.attributes.yearEnd && item.attributes.yearEnd !== item.attributes.year ? `–${item.attributes.yearEnd}` : ''}`]
+                            : []),
+                        facelift ? formatFacelift(facelift) : '',
+                        item.attributes.engine,
+                        formatTransmission(item.attributes.transmission),
+                        item.attributes.drivetrain,
+                    ].filter(Boolean).join(' · '),
+                };
+            }),
             disabled: !catalog.loaded || (!model && !needsModificationChoice),
             required: !showAll && needsModificationChoice,
             showAll,

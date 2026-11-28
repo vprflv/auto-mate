@@ -12,7 +12,9 @@ import { CatalogEmptyState } from './components/CatalogEmptyState';
 import {CatalogPartSearch} from "@/features/admin/catalog/components/CatalogPartSearch";
 import {useRouter} from "next/navigation";
 import {AddCatalogModelForm} from "@/features/admin/catalog/components/AddCatalogModelForm";
-import {downloadCatalogSnapshot} from "@/features/admin/catalog/lib/catalogSnapshot";
+import { downloadCatalogSnapshot, hasCatalogResetBackup, resetReferenceCatalog, restoreCatalogResetBackup } from '@/features/admin/catalog/lib/catalogSnapshot';
+import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
+import { VinTrainingImport } from '@/features/admin/catalog/components/VinTrainingImport';
 
 export default function AdminCatalogIndexPage() {
     const router = useRouter();
@@ -21,11 +23,16 @@ export default function AdminCatalogIndexPage() {
     const [selectedLetter, setSelectedLetter] = React.useState<string>('all');
     const [inboxCount, setInboxCount] = React.useState(0);
     const [catalogs, setCatalogs] = React.useState<BrandCatalog[]>(defaultBaseCatalogs);
+    const [canReset, setCanReset] = React.useState(false);
+    const [hasBackup, setHasBackup] = React.useState(false);
+    const [catalogMessage, setCatalogMessage] = React.useState('');
 
     const [isAddModelOpen, setIsAddModelOpen] = React.useState(false);
 
     const loadData = React.useCallback(() => {
         const state = systemStore.getState();
+        setCanReset(Boolean(state.masterModels.length || state.catalogNodes.length || state.catalogBranches?.length));
+        setHasBackup(hasCatalogResetBackup());
         setInboxCount(state.inbox.length);
         setInboxCount(state.inbox.length);
 
@@ -174,15 +181,59 @@ export default function AdminCatalogIndexPage() {
                 </button>
             )}
 
+            <VinTrainingImport />
+
             <CatalogSearch value={searchQuery} onChange={setSearchQuery} />
 
-            <button
-                type="button"
-                onClick={downloadCatalogSnapshot}
-                className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--link)] hover:text-[var(--link)]"
-            >
-                Скачать базу каталога
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+                <button
+                    type="button"
+                    onClick={() => downloadCatalogSnapshot()}
+                    className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--link)] hover:text-[var(--link)]"
+                >
+                    Скачать базу каталога
+                </button>
+                {canReset && (
+                    <ConfirmDeleteDialog
+                        title="Очистить эталонный каталог?"
+                        description="Будут удалены модели, модификации, VIN-правила, ветки, запчасти и жидкости эталонного каталога. Резервная копия сохранится в этом браузере."
+                        confirmLabel="Очистить каталог"
+                        onOpen={() => setCatalogMessage('')}
+                        content={catalogMessage && <p role="alert" className="mt-3 text-sm text-red-500">{catalogMessage}</p>}
+                        onConfirm={() => {
+                            try {
+                                resetReferenceCatalog();
+                                setCatalogMessage('Эталонный каталог очищен. Резервная копия сохранена.');
+                                return true;
+                            } catch {
+                                setCatalogMessage('Не удалось очистить каталог. Проверьте доступ к хранилищу браузера.');
+                                return false;
+                            }
+                        }}
+                    >
+                        <button type="button" className="rounded-xl border border-red-500/30 px-4 py-2 text-sm font-semibold text-red-500">
+                            Очистить эталонный каталог
+                        </button>
+                    </ConfirmDeleteDialog>
+                )}
+                {!canReset && hasBackup && (
+                    <button
+                        type="button"
+                        className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)]"
+                        onClick={() => {
+                            try {
+                                restoreCatalogResetBackup();
+                                setCatalogMessage('Эталонный каталог восстановлен.');
+                            } catch {
+                                setCatalogMessage('Не удалось восстановить эталонный каталог.');
+                            }
+                        }}
+                    >
+                        Восстановить последний каталог
+                    </button>
+                )}
+            </div>
+            {catalogMessage && <p role="status" className="text-sm text-[var(--text-muted)]">{catalogMessage}</p>}
 
             <CatalogPartSearch />
             <AlphabetFilter

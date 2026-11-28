@@ -11,15 +11,22 @@ import type { CatalogBranch, CatalogPartPayload } from '@/types';
 import { catalogBranchKey, getCatalogBranches, getCatalogPartPlacements, normalizeCatalogBranches } from './catalogBranches';
 import { getGarageCars } from '@/features/garage/add/lib/storage';
 import { refreshCatalogRegistrationCounts } from '@/features/catalog/lib/carCatalogIdentity';
+import { reconcileSharedSs11CarReviews } from './belgeeCarReview';
 
-function refreshRegistrationCounts(state: SystemState): SystemState {
+function refreshRegistrationCounts(state: SystemState, reconcileInbox = false): SystemState {
     let cars;
     try {
         cars = getGarageCars();
     } catch {
         return state;
     }
-    if (Array.isArray(cars)) refreshCatalogRegistrationCounts(state.masterModels, cars);
+    if (Array.isArray(cars)) {
+        refreshCatalogRegistrationCounts(state.masterModels, cars);
+        if (reconcileInbox && Array.isArray(state.inbox)) {
+            const inbox = reconcileSharedSs11CarReviews(state.inbox, state.masterModels, cars);
+            if (inbox !== state.inbox) return { ...state, inbox };
+        }
+    }
     return state;
 }
 
@@ -362,12 +369,12 @@ export const storage = {
             }
             const catalogNodes = fillFluidAnalogBranches(parsed.catalogNodes);
             const catalogBranches = getCatalogBranches({ ...parsed, catalogNodes });
-            const state = refreshRegistrationCounts({ ...parsed, catalogNodes, catalogBranches });
-            if (catalogNodes !== parsed.catalogNodes || catalogBranches.length !== parsed.catalogBranches?.length) {
+            const state = refreshRegistrationCounts({ ...parsed, catalogNodes, catalogBranches }, true);
+            if (state.inbox !== parsed.inbox || catalogNodes !== parsed.catalogNodes || catalogBranches.length !== parsed.catalogBranches?.length) {
                 try {
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
                 } catch {
-                    return refreshRegistrationCounts(parsed);
+                    return state;
                 }
             }
             return state;

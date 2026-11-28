@@ -9,6 +9,7 @@ export interface CarVariant {
     transmission?: string;
     driveType?: string;
     bodyClass?: string;
+    facelift?: string;
     trim?: string;
 }
 
@@ -20,6 +21,7 @@ const variantFields: (keyof CarVariant)[] = [
     'transmission',
     'driveType',
     'bodyClass',
+    'facelift',
     'trim',
 ];
 
@@ -66,6 +68,7 @@ export function getModificationVariant(
         transmission: attributes.transmission,
         driveType: attributes.drivetrain,
         bodyClass: attributes.bodyClass,
+        facelift: attributes.facelift,
         trim: attributes.trim,
     };
 }

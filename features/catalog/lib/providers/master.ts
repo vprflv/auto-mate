@@ -12,6 +12,6 @@ export const masterCatalogProvider: CatalogProvider = {
             item => item.id === params.carId
         );
 
-        return buildOemCatalog(state, params, car, { allowPreview: true });
+        return buildOemCatalog(state, params, car, { allowSelection: true });
     },
 };

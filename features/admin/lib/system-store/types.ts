@@ -14,8 +14,10 @@ export interface AppUser {
 
 export interface CarSpecs {
     vin?: string;
+    frameNumber?: string;
     bodyCode?: string;
     bodyClass?: string;
+    facelift?: string;
     cylinders?: string;
     doors?: string;
     plantCountry?: string;
@@ -65,10 +67,23 @@ export interface AppServiceRecord {
     items: AppServiceItem[];
 }
 
+interface VinReviewModification {
+    name: string;
+    transmission?: string;
+}
+
 export interface InboxItem {
     /** Личные машины, ожидающие это решение; значение — снимок характеристик. */
     garageCarVersions?: Record<string, string>;
     proposedModificationId?: string;
+    catalogCheck?: { name: string; differences: string[] };
+    vinMismatch?: {
+        selected: VinReviewModification;
+        matches: VinReviewModification[];
+        catalogOpen: boolean;
+        selectedModificationId?: string;
+    };
+    vinTraining?: VinTrainingDraft;
     id: string;
     type: 'part' | 'car_model';
     source?: 'user_manual' | 'user_service';
@@ -116,6 +131,23 @@ export interface InboxItem {
 export interface CatalogVinRule {
     sample: string;
     positions: number[];
+    modelYear?: number;
+    source?: string;
+}
+
+export interface CatalogFrameRule {
+    sample: string;
+    positionBasis?: 'serial' | 'sample';
+    positions: number[];
+    modelYear?: number;
+}
+
+export interface VinTrainingDraft {
+    source?: string;
+    name?: string;
+    attributes: CatalogModification['attributes'] & { year: string; yearEnd: string; bodyCode: string };
+    vinRules: CatalogVinRule[];
+    frameRules?: (CatalogFrameRule | string)[];
 }
 
 export interface CatalogModification {
@@ -124,6 +156,8 @@ export interface CatalogModification {
     registeredCount: number;
     fluidFillCapacities?: FluidFillCapacities;
     vinRules?: CatalogVinRule[];
+    vinExceptions?: string[];
+    frameRules?: (CatalogFrameRule | string)[];
     attributes: {
         trim?: string;
         engine?: string;
@@ -197,6 +231,7 @@ export interface SystemState {
     inbox: InboxItem[];
     catalogNodes: StoredCatalogNode[];
     masterModels: StoredMasterModel[];
+    reviewedCatalogVersions?: Record<string, string>;
     catalogBranches?: CatalogBranch[];
     catalogCategoryLabels?: Record<string, string>;
     catalogCategoryOrder?: string[];

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { GitBranch, Pencil, Trash2 } from 'lucide-react';
+import { GitBranch, GitMerge, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { deleteCatalogModification, getModificationPartLinks } from '@/features/admin/lib/system-store/actions/modifications';
@@ -10,7 +10,10 @@ import { deleteCatalogModification, getModificationPartLinks } from '@/features/
 import type { CatalogModification, StoredMasterModel } from '@/features/admin/lib/system-store/types';
 
 import { AddModificationModal } from './AddModificationModal';
-import { sortModificationsByTrim } from '@/features/catalog/lib/sortModificationsByTrim';
+import { MergeModificationModal } from './MergeModificationModal';
+import { formatTransmission } from '@/features/garage/add/lib/config/robotTransmission';
+import { formatFacelift } from '@/features/catalog/lib/facelift';
+import { sortCatalogModifications } from '@/features/catalog/lib/sortCatalogModifications';
 
 interface Props {
     model: StoredMasterModel;
@@ -25,6 +28,7 @@ const attributeLabels: Record<string, string> = {
     yearEnd: 'Год окончания выпуска',
     bodyCode: 'Номер кузова',
     bodyClass: 'Тип кузова',
+    facelift: 'Версия кузова',
     fuel: 'Тип топлива',
     displacementL: 'Объём двигателя, л',
     trim: 'Комплектация',
@@ -37,10 +41,11 @@ export function ModelModifications({ model, selectedModificationIds, isPending, 
     const modelPath = `/admin/catalog/${encodeURIComponent(model.brandSlug)}/${encodeURIComponent(model.modelSlug)}`;
     const partsPath = (id: string) => `${modelPath}?pickPartsFor=${encodeURIComponent(id)}`;
     const [editingModification, setEditingModification] = React.useState<CatalogModification | null>(null);
+    const [mergeSource, setMergeSource] = React.useState<CatalogModification | null>(null);
     const [links, setLinks] = React.useState<ReturnType<typeof getModificationPartLinks>>([]);
     const [destinations, setDestinations] = React.useState(new Map<string, string | null>());
 
-    const modifications = sortModificationsByTrim(model.modifications ?? []);
+    const modifications = sortCatalogModifications(model.modifications ?? []);
 
     function handleDelete(modificationId: string): boolean {
         try {
@@ -132,6 +137,14 @@ export function ModelModifications({ model, selectedModificationIds, isPending, 
                                         <Pencil className="h-3.5 w-3.5" />
                                         Редактировать
                                     </button>
+                                    {modifications.length > 1 && (
+                                        <button type="button" onClick={() => setMergeSource(modification)}
+                                            aria-label={`Объединить модификацию ${modification.name}`}
+                                            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[var(--link)] hover:bg-[var(--bg-elevated)]">
+                                            <GitMerge className="h-3.5 w-3.5" aria-hidden="true" />
+                                            Объединить
+                                        </button>
+                                    )}
                                     <ConfirmDeleteDialog
                                         title={`Удалить модификацию «${modification.name}»?`}
                                         description="Выберите, куда перенести запчасти, или снимите привязку к удаляемой модификации. Изменения сохранятся при удалении."
@@ -209,7 +222,7 @@ export function ModelModifications({ model, selectedModificationIds, isPending, 
                                                     </dt>
 
                                                     <dd className="min-w-0 break-words font-medium text-[var(--text)]">
-                                                        {value}
+                                                        {key === 'facelift' ? formatFacelift(value) : key === 'transmission' ? formatTransmission(value) : value}
                                                     </dd>
                                                 </div>
                                             )
@@ -231,6 +244,18 @@ export function ModelModifications({ model, selectedModificationIds, isPending, 
                         );
                     })}
                 </div>
+            )}
+
+            {mergeSource && (
+                <MergeModificationModal
+                    model={model}
+                    source={mergeSource}
+                    onClose={() => setMergeSource(null)}
+                    onMerged={() => {
+                        if (selectedModificationIds.includes(mergeSource.id)) onReset();
+                        setMergeSource(null);
+                    }}
+                />
             )}
 
             {editingModification && (

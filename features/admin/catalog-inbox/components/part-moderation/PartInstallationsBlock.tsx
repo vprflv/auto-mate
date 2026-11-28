@@ -1,3 +1,4 @@
+import { sortCatalogModifications } from '@/features/catalog/lib/sortCatalogModifications';
 import type {
     CatalogModification,
 } from '@/features/admin/lib/system-store/types';
@@ -54,7 +55,7 @@ export function PartInstallationsBlock({
                 </p>
             )}
 
-            {modifications.map(modification => {
+            {sortCatalogModifications(modifications).map(modification => {
                 const positions = value[modification.id] ?? [];
 
                 const changePositions = (

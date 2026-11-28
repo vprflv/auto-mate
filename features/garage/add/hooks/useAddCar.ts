@@ -1,105 +1,331 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ManualCarForm } from '@/types';
 import {
     createEmptyManualForm,
-    isManualFormValid,
+    getManualFormError,
     mapManualFormToCar
 } from "@/features/garage/add/lib/manualForm";
-import { findCatalogVinMatches } from '@/features/garage/add/lib/catalogVinRules';
-import { isValidVin, normalizeVin } from "@/features/garage/add/lib/config/vin";
+import { findCatalogVinMatches, findCatalogVinSuggestions, hasCatalogVinException, type CatalogVinMatch } from '@/features/garage/add/lib/catalogVinRules';
+import { isValidVin, normalizeIdentifierLetters, normalizeVin } from "@/features/garage/add/lib/config/vin";
+import { getBelgeeS50TransmissionChoices, getGeelyEmgrandSs11VinMatches, isBelgeeS50SharedVin, isGeelyEmgrandSs11Model } from '@/features/garage/add/lib/belgeeS50Vin';
 import { addCarToGarage, getGarageCars, saveGarageCars } from '@/features/garage/add/lib/storage';
 import { captureInitialPartCategories } from '@/features/garage/lib/getCategories';
+import { findCatalogFrameMatches, getFrameCode, splitVehicleIdentifier } from '../lib/catalogFrameRules';
+import { getLocalVinVersionHint, type VinVersionHint } from '../lib/vinVersionHint';
 
 // Импортируем глобальный стор админки
 import { systemStore } from '@/features/admin/lib/systemStore';
+import type { StoredMasterModel } from '@/features/admin/lib/system-store/types';
 import { getCarReviewSpecs } from '@/features/admin/lib/system-store/carCatalogReview';
-import { linkMatchingCatalogModification, matchesVehicleDetails, modificationValues, resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIdentity';
+import { catalogPreferenceFor } from '@/features/catalog/lib/catalogVehicleSelection';
+import { carCatalogYearApprovalVersion, findVinMatchFacelift, getCatalogProductionYears, linkMatchingCatalogModification, matchesVehicleDetails, modificationValues, resolveCarCatalogIdentity } from '@/features/catalog/lib/carCatalogIdentity';
+
+async function requestVinMatches(vin: string, models: StoredMasterModel[], signal: AbortSignal): Promise<{
+    matches: CatalogVinMatch[];
+    hint?: VinVersionHint;
+}> {
+    const masterModels = models.filter(model => model.verified).map(model => ({
+        brandSlug: model.brandSlug,
+        brandName: model.brandName,
+        modelSlug: model.modelSlug,
+        modelName: model.modelName,
+        verified: model.verified,
+        modifications: (Array.isArray(model.modifications) ? model.modifications : [])
+            .map(modification => ({
+                id: modification.id,
+                name: modification.name,
+                attributes: modification.attributes,
+                vinRules: modification.vinRules,
+                vinExceptions: hasCatalogVinException(modification, vin) ? [vin] : undefined,
+            }))
+            .filter(modification => modification.vinRules?.length || modification.vinExceptions?.length),
+    })).filter(model => model.modifications.length > 0);
+
+    try {
+        const response = await fetch('/api/vin/decode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vin, masterModels }),
+            signal,
+        });
+        if (!response.ok) throw new Error('VIN decoder unavailable');
+
+        const result: {
+            matches: Array<{ brandSlug: string; modelSlug: string; modificationId: string; modelYear?: number; specificity: number }>;
+            hint?: VinVersionHint;
+        } =
+            await response.json();
+        const matches = models.flatMap(model =>
+            (Array.isArray(model.modifications) ? model.modifications : []).flatMap(modification => {
+                const match = result.matches.find(candidate =>
+                    candidate.brandSlug === model.brandSlug &&
+                    candidate.modelSlug === model.modelSlug &&
+                    candidate.modificationId === modification.id
+                );
+                return match ? [{ model, modification, modelYear: match.modelYear, specificity: match.specificity }] : [];
+            })
+        );
+        matches.sort((first, second) => second.specificity - first.specificity);
+        return { matches, hint: matches.length ? undefined : result.hint ?? getLocalVinVersionHint(vin) };
+    } catch (error) {
+        if (signal.aborted) throw error;
+        const matches = findCatalogVinMatches(vin, models);
+        return { matches, hint: matches.length ? undefined : getLocalVinVersionHint(vin) };
+    }
+}
 
 export function useAddCar() {
     const router = useRouter();
     const savingManualCar = useRef(false);
+    const vinRequest = useRef<AbortController | null>(null);
+    const [isDecoding, setIsDecoding] = useState(false);
+
+    useEffect(() => () => vinRequest.current?.abort(), []);
 
     const [vin, setVin] = useState('');
+    const [correctedVin, setCorrectedVin] = useState<string>();
     const [vinMatches, setVinMatches] = useState<ReturnType<typeof findCatalogVinMatches>>([]);
+    const [sharedSs11Options, setSharedSs11Options] = useState<{
+        belgee: ReturnType<typeof getBelgeeS50TransmissionChoices>;
+        geely: CatalogVinMatch[];
+    } | null>(null);
     const [error, setError] = useState('');
+    const [catalogPicker, setCatalogPicker] = useState<{
+        models: StoredMasterModel[];
+        reason: 'no-match' | 'unavailable' | 'skip';
+        identifier?: 'frame' | 'vin';
+        hint?: VinVersionHint;
+    } | null>(null);
     const [manualMode, setManualMode] = useState(false);
     const [manualForm, setManualForm] = useState<ManualCarForm>(
         createEmptyManualForm()
     );
 
     const [matchedVin, setMatchedVin] = useState(false);
+    const [explicitSelection, setExplicitSelection] = useState('');
+
+    const cancelVinRequest = () => {
+        vinRequest.current?.abort();
+        vinRequest.current = null;
+        setIsDecoding(false);
+    };
 
     const openManualForm = (form: ManualCarForm, fromVinMatch = false) => {
+        cancelVinRequest();
         setManualForm(form);
+        setExplicitSelection('');
         setVinMatches([]);
+        setSharedSs11Options(null);
         setMatchedVin(fromVinMatch);
         setManualMode(true);
         setError('');
     };
 
-    const chooseVinMatch = ({ model, modification }: (typeof vinMatches)[number]) => {
-        const startYear = modification.attributes?.year ?? '';
-        const endYear = modification.attributes?.yearEnd;
+    const openCatalogModification = (
+        { model, modification, modelYear }: CatalogVinMatch,
+        checkedVin: string,
+        fromVinMatch: boolean,
+        frameNumber = manualMode ? manualForm.frameNumber : '',
+        frameCode = '',
+        userSelected = false,
+    ) => {
+        const { start, end } = getCatalogProductionYears(modification);
+        const suggestedYear = modelYear ?? (start === end ? start : undefined);
+        const values = modificationValues(modification, findVinMatchFacelift(model, modification, modelYear));
+        const reported = userSelected && manualMode ? Object.fromEntries(
+            (Object.keys(values) as (keyof typeof values)[]).flatMap(field => manualForm[field]?.trim() ? [[field, manualForm[field]]] : [])
+        ) : {};
         openManualForm({
-            ...createEmptyManualForm(normalizeVin(vin)),
-            ...modificationValues(modification),
-            make: model.brandName,
-            model: model.modelName,
-            year: startYear === endYear ? startYear : '',
-            bodyCode: modification.attributes?.bodyCode ?? '',
+            ...createEmptyManualForm(checkedVin, frameNumber),
+            ...values,
+            ...reported,
+            year: userSelected && manualMode && manualForm.year ? manualForm.year : suggestedYear?.toString() ?? '',
+            make: userSelected && manualMode && manualForm.make ? manualForm.make : model.brandName,
+            model: userSelected && manualMode && manualForm.model ? manualForm.model : model.modelName,
+            bodyCode: (userSelected && manualMode ? manualForm.bodyCode : '') || modification.attributes?.bodyCode || frameCode,
             catalogBrandSlug: model.brandSlug,
             catalogModelSlug: model.modelSlug,
             catalogModificationId: modification.id,
             modificationName: modification.name,
-        }, true);
+        }, fromVinMatch);
+        if (userSelected) setExplicitSelection(modification.id);
+    };
+
+    const chooseVinMatch = (match: CatalogVinMatch, checkedVin = normalizeVin(vin), userSelected = false) =>
+        openCatalogModification(match, checkedVin, true, undefined, undefined, userSelected);
+
+    const chooseCatalogModification = (match: CatalogVinMatch) => {
+        const identifier = splitVehicleIdentifier(vin, systemStore.getState().masterModels);
+        openCatalogModification(match, identifier.vin, false, identifier.frameNumber, identifier.frameCode ?? getFrameCode(identifier.frameNumber), true);
+    };
+
+    const chooseLookupMatch = (match: CatalogVinMatch) => {
+        if (isValidVin(vin)) chooseVinMatch(match, normalizeVin(vin), true);
+        else chooseCatalogModification(match);
+    };
+
+    const openCatalogPicker = (
+        reason: NonNullable<typeof catalogPicker>['reason'] = 'skip',
+        models = systemStore.getState().masterModels,
+        hint?: VinVersionHint,
+        identifier?: 'frame' | 'vin',
+    ) => {
+        cancelVinRequest();
+        setError('');
+        setCatalogPicker({ reason, models: models.filter(model => model.verified && model.modifications?.length), hint, identifier });
     };
 
     const cancelManualMode = () => {
+        cancelVinRequest();
+        setVinMatches([]);
+        setSharedSs11Options(null);
         setManualMode(false);
         setMatchedVin(false);
         setError('');
+        setExplicitSelection('');
         setManualForm(createEmptyManualForm());
     };
 
     const updateVin = (value: string) => {
+        cancelVinRequest();
         setVin(value);
+        setCorrectedVin(undefined);
+        setCatalogPicker(null);
         setVinMatches([]);
+        setSharedSs11Options(null);
         setError('');
     };
 
-    const decodeVin = (event: React.FormEvent) => {
-        event.preventDefault();
-        setError('');
-        setVinMatches([]);
-
-        const cleanVin = normalizeVin(vin);
+    const lookupVin = async (cleanVin: string) => {
         if (!isValidVin(cleanVin)) {
             setError('Введите VIN из 17 цифр и латинских букв. Буквы I, O и Q в VIN не используются.');
             return;
         }
 
-        const matches = findCatalogVinMatches(cleanVin, systemStore.getState().masterModels);
-        if (matches.length === 1) {
-            chooseVinMatch(matches[0]);
-        } else if (matches.length > 1) {
-            setVinMatches(matches);
-        } else {
-            setError('В нашем каталоге пока нет совпадений по этому VIN. Автомобиль можно добавить вручную.');
+        const request = new AbortController();
+        vinRequest.current = request;
+        setIsDecoding(true);
+
+        try {
+            const models = systemStore.getState().masterModels;
+            const isBelgee = isBelgeeS50SharedVin(cleanVin);
+            const { matches, hint } = isBelgee
+                ? { matches: findCatalogVinMatches(cleanVin, models), hint: undefined }
+                : await requestVinMatches(cleanVin, models, request.signal);
+            if (request.signal.aborted) return;
+            if (matches.length === 1) {
+                chooseVinMatch(matches[0], cleanVin);
+            } else if (matches.length > 1) {
+                setVinMatches(matches);
+            } else if (isBelgee) {
+                setSharedSs11Options({
+                    belgee: getBelgeeS50TransmissionChoices(models),
+                    geely: getGeelyEmgrandSs11VinMatches(models),
+                });
+            } else {
+                const suggestions = hint ? [] : findCatalogVinSuggestions(cleanVin, models);
+                if (suggestions.length) setVinMatches(suggestions);
+                else if (manualMode) setError('VIN не распознан. Выберите модификацию или продолжите заполнение.');
+                else openCatalogPicker('no-match', models, hint);
+            }
+        } catch {
+            if (!request.signal.aborted) {
+                if (manualMode) setError('Не удалось проверить VIN. Можно продолжить заполнение.');
+                else openCatalogPicker('unavailable', []);
+            }
+        } finally {
+            if (vinRequest.current === request) {
+                vinRequest.current = null;
+                setIsDecoding(false);
+            }
         }
     };
 
-    const enableManualMode = () => {
-        openManualForm(createEmptyManualForm(normalizeVin(vin)));
+    const decodeIdentifier = (event: React.FormEvent) => {
+        event.preventDefault();
+        cancelVinRequest();
+        setError('');
+        setVinMatches([]);
+        setSharedSs11Options(null);
+        if (isValidVin(vin)) {
+            const normalized = normalizeVin(vin);
+            setCorrectedVin(normalizeIdentifierLetters(vin).replace(/\s+/g, '') !== normalized ? normalized : undefined);
+            return lookupVin(normalized);
+        }
+        setCorrectedVin(undefined);
+
+        try {
+            const models = systemStore.getState().masterModels;
+            const identifier = splitVehicleIdentifier(vin, models);
+            if (!identifier.frameNumber && !identifier.frameCode) {
+                setError('Введите VIN из 17 символов, номер кузова с дефисом (GD1-1234567) или код кузова (GD1).');
+                return;
+            }
+            const matches = findCatalogFrameMatches(identifier.frameNumber || identifier.frameCode || '', models);
+            const specific = matches.filter(match => !match.requiresConfirmation);
+            if (specific.length === 1) openCatalogModification(specific[0], '', false, identifier.frameNumber, getFrameCode(identifier.frameNumber));
+            else if (matches.length) setVinMatches(matches);
+            else openCatalogPicker('no-match', models, undefined, 'frame');
+        } catch {
+            openCatalogPicker('unavailable', [], undefined, 'frame');
+        }
+    };
+
+    const enableManualMode = (model?: StoredMasterModel) => {
+        const identifier = splitVehicleIdentifier(vin, systemStore.getState().masterModels);
+        openManualForm({
+            ...createEmptyManualForm(identifier.vin, identifier.frameNumber),
+            bodyCode: identifier.frameCode ?? getFrameCode(identifier.frameNumber) ?? '',
+            make: model?.brandName ?? '',
+            model: model?.modelName ?? '',
+        });
+    };
+
+    const enterBelgeeManually = (transmission = '') => {
+        openManualForm({
+            ...createEmptyManualForm(normalizeVin(vin)),
+            make: 'Belgee',
+            model: 'S50',
+            displacementL: '1.5',
+            transmission,
+        });
+    };
+
+    const enterGeelyManually = () => {
+        const knownModels = systemStore.getState().masterModels.filter(model =>
+            model.verified && isGeelyEmgrandSs11Model(model.brandName, model.modelName)
+        );
+        const model = knownModels.length === 1 ? knownModels[0] : undefined;
+        openManualForm({
+            ...createEmptyManualForm(normalizeVin(vin)),
+            make: model?.brandName ?? 'Geely',
+            model: model?.modelName ?? 'Emgrand IV (SS11)',
+            displacementL: '1.5',
+        });
     };
 
     const updateManualField = (field: keyof ManualCarForm, value: string) => {
-        if (field === 'vin' && normalizeVin(value) !== normalizeVin(manualForm.vin)) setMatchedVin(false);
+        if (field === 'catalogModificationId') setExplicitSelection(value);
+        if (field === 'vin') {
+            const cleanVin = normalizeVin(value);
+            if (cleanVin === normalizeVin(manualForm.vin)) return;
+
+            updateVin(value);
+            if (isValidVin(cleanVin) && cleanVin !== normalizeIdentifierLetters(value).replace(/\s+/g, '')) setCorrectedVin(cleanVin);
+            setManualForm(previous => isValidVin(normalizeVin(previous.vin))
+                ? createEmptyManualForm(cleanVin, previous.frameNumber)
+                : { ...previous, vin: cleanVin });
+            setMatchedVin(false);
+            if (isValidVin(cleanVin)) void lookupVin(cleanVin);
+            return;
+        }
+
         setManualForm(prev => ({
             ...prev,
-            ...(['make', 'model', 'vin', 'bodyCode', 'engine', 'transmission', 'driveType',
+            ...(['make', 'model', 'bodyCode', 'engine', 'transmission', 'driveType',
                 'trim', 'displacementL', 'fuel', 'bodyClass'].includes(field) &&
                 prev[field] !== value
                 ? { catalogModificationId: '', modificationName: '' }
@@ -109,11 +335,12 @@ export function useAddCar() {
     };
 
     const saveManualCar = () => {
-        if (savingManualCar.current) return;
+        if (savingManualCar.current || vinRequest.current) return;
         setError('');
 
-        if (!isManualFormValid(manualForm)) {
-            setError('Укажи хотя бы марку, модель и год');
+        const validationError = getManualFormError(manualForm);
+        if (validationError) {
+            setError(validationError);
             return;
         }
 
@@ -139,12 +366,27 @@ export function useAddCar() {
             model.brandSlug === enteredCar.catalogBrandSlug && model.modelSlug === enteredCar.catalogModelSlug
         );
         const selectedModification = selectedModel?.modifications?.find(item => item.id === enteredCar.catalogModificationId);
-        const needsReview = selectedModification !== undefined &&
-            !matchesVehicleDetails(selectedModification, String(enteredCar.year), enteredCar.bodyCode ?? '');
-        const savedCar = needsReview
+        const usualYearMatch = selectedModification && matchesVehicleDetails(
+            selectedModification, String(enteredCar.year), enteredCar.bodyCode ?? '',
+        );
+        const relaxedYearMatch = selectedModification && matchesVehicleDetails(
+            selectedModification, String(enteredCar.year), enteredCar.bodyCode ?? '', { yearTolerance: 1 },
+        );
+        const needsReview = selectedModification !== undefined && !relaxedYearMatch;
+        const selectedCar = relaxedYearMatch && !usualYearMatch
+            ? { ...enteredCar, catalogYearApproval: carCatalogYearApprovalVersion(enteredCar) }
+            : enteredCar;
+        const preference = selectedModel?.verified && selectedModification && explicitSelection === selectedModification.id
+            ? catalogPreferenceFor({ model: selectedModel, modification: selectedModification }) : undefined;
+        const canLink = selectedModification && !needsReview && resolveCarCatalogIdentity(selectedCar, state.masterModels);
+        const savedCar = preference ? {
+            ...(!canLink ? { ...enteredCar, catalogBrandSlug: undefined, catalogModelSlug: undefined,
+                catalogModificationId: undefined, modificationName: undefined } : selectedCar),
+            catalogPreference: preference,
+        } : needsReview
             ? { ...enteredCar, catalogModificationId: undefined, modificationName: undefined }
-            : selectedModification
-                ? enteredCar
+            : selectedModification || isBelgeeS50SharedVin(enteredCar.vin)
+                ? selectedCar
                 : linkMatchingCatalogModification(enteredCar, state.masterModels);
 
         // Выбранную готовую модификацию нельзя молча
@@ -174,7 +416,7 @@ export function useAddCar() {
             systemStore.addCar({
                 userId: currentUser?.id ?? '',
                 garageCarId: savedCar.id,
-                proposedModificationId: needsReview ? selectedModification.id : undefined,
+                proposedModificationId: needsReview && !preference ? selectedModification.id : undefined,
                 brand: savedCar.make,
                 model: savedCar.model,
                 year: savedCar.year,
@@ -212,14 +454,23 @@ export function useAddCar() {
 
     return {
         vin,
+        correctedVin,
         updateVin,
+        isDecoding,
         vinMatches,
-        chooseVinMatch,
+        sharedSs11Options,
+        enterGeelyManually,
+        enterBelgeeManually,
+        chooseLookupMatch,
+        chooseCatalogModification,
+        catalogPicker,
+        openCatalogPicker,
+        closeCatalogPicker: () => setCatalogPicker(null),
         error,
         matchedVin,
         manualMode,
         manualForm,
-        decodeVin,
+        decodeIdentifier,
         enableManualMode,
         cancelManualMode,
         updateManualField,

@@ -1,5 +1,6 @@
 'use client';
 
+import { sortCatalogModifications } from '@/features/catalog/lib/sortCatalogModifications';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import type { StoredCatalogNode, StoredMasterModel } from '@/features/admin/lib/system-store/types';
@@ -11,7 +12,7 @@ const fieldClass = 'rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3
 
 export function NodeFluidFillCapacity({ node, model }: { node: StoredCatalogNode; model: StoredMasterModel }) {
     const [selectedId, setSelectedId] = useState('');
-    const modifications = (model.modifications ?? []).filter(item => catalogBranchAllowsModification(node, item.id));
+    const modifications = sortCatalogModifications(model.modifications ?? []).filter(item => catalogBranchAllowsModification(node, item.id));
     const modification = modifications.length === 1
         ? modifications[0]
         : modifications.find(item => item.id === selectedId);

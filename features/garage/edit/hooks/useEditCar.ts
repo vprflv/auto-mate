@@ -1,5 +1,6 @@
 'use client';
 
+import { catalogReviewVersion } from '@/features/catalog/lib/catalogVehicleSelection';
 import { useEffect, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -238,17 +239,7 @@ export function useEditCar() {
             setCar(updatedCar);
 
             try {
-                const modificationChanged =
-                    carReviewVersion(existingCar) !==
-                    carReviewVersion(updatedCar) ||
-                    existingCar.catalogBrandSlug !==
-                    updatedCar.catalogBrandSlug ||
-                    existingCar.catalogModelSlug !==
-                    updatedCar.catalogModelSlug ||
-                    existingCar.catalogModificationId !==
-                    updatedCar.catalogModificationId;
-
-                if (modificationChanged) {
+                if (catalogReviewVersion(existingCar) !== catalogReviewVersion(updatedCar)) {
                     submitCarCatalogReview({
                         garageCarId: updatedCar.id,
                         brand: updatedCar.make,

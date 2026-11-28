@@ -1,5 +1,6 @@
 'use client';
 
+import { sortCatalogModifications } from '@/features/catalog/lib/sortCatalogModifications';
 import * as React from 'react';
 import { toast } from 'sonner';
 
@@ -60,7 +61,7 @@ export function usePartCompatibility({ part, node }: Props) {
         section === 'fluids' ? [] : modelParts
     );
 
-    const modifications = (model?.modifications ?? []).map(
+    const modifications = sortCatalogModifications(model?.modifications ?? []).map(
         mod => ({
             id: mod.id,
             name: mod.name,

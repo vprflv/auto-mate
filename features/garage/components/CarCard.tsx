@@ -74,10 +74,9 @@ export default function CarCard({ car, onRemove }: Props) {
                 </button>
             </div>
 
-            {/* VIN-код в виде моноширинного тега */}
             <div className="mb-5">
                 <span className="inline-block font-mono text-[10px] uppercase font-medium bg-[var(--bg-elevated)] text-[var(--text-muted)] px-2.5 py-1 rounded-md tracking-wider border border-[var(--border)]/20">
-                    {car.vin || 'НЕТ VIN'}
+                    {car.vin && car.vin !== 'UNKNOWN' ? car.vin : car.frameNumber ? `Frame ${car.frameNumber}` : 'НЕТ VIN / FRAME'}
                 </span>
             </div>
 
