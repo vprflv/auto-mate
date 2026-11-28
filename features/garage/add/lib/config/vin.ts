@@ -29,7 +29,16 @@ export function normalizeIdentifierLetters(value: string): string {
     return value.toUpperCase().replace(/[АВЕКМНОРСТУХ]/g, character => lookalikes[character]);
 }
 
+export function getIdentifierCyrillicWarning(value: string): string | undefined {
+    const letters = [...new Set(normalizeIdentifierLetters(value).match(/\p{Script=Cyrillic}/gu) ?? [])];
+    return letters.length ? 'Содержит кириллицу: ' + letters.join(', ') + '. Проверьте данные и замените эти символы латинскими буквами или цифрами.' : undefined;
+}
+
+export function normalizeVinInput(value: string): string {
+    return normalizeIdentifierLetters(value).replace(/[\s‐‑–—−-]+/g, '');
+}
+
 export function normalizeVin(vin: string): string {
-    const value = normalizeIdentifierLetters(vin).replace(/\s+/g, '');
+    const value = normalizeVinInput(vin);
     return /^[A-Z0-9]{17}$/.test(value) ? value.replace(/[OIQ]/g, character => character === 'I' ? '1' : '0') : value;
 }

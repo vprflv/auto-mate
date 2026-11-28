@@ -1,10 +1,8 @@
-import { normalizeIdentifierLetters, VIN_LENGTH } from '../lib/config/vin';
-import { normalizeFrameNumber } from '../lib/catalogFrameRules';
+import { getIdentifierCyrillicWarning, normalizeVinInput, VIN_LENGTH } from '../lib/config/vin';
+import { normalizeVehicleIdentifierInput } from '../lib/catalogFrameRules';
 
 function canEnterIdentifier(value: string): boolean {
-    return value.length <= VIN_LENGTH && (
-        /^[A-Z0-9]*$/.test(value) || /^[A-Z](?=[A-Z0-9]*[0-9])[A-Z0-9]{1,7}-[0-9]{0,8}$/.test(value)
-    );
+    return value.length <= VIN_LENGTH * 2 && normalizeVinInput(value).length <= VIN_LENGTH && /^[A-Z0-9\p{Script=Cyrillic}-]*$/u.test(value);
 }
 
 type Props = {
@@ -24,6 +22,8 @@ export default function VinDecodeForm({
                                           onVinChange,
                                           onSubmit,
                                       }: Props) {
+    const cyrillicWarning = getIdentifierCyrillicWarning(vin);
+
     return (
         <form onSubmit={onSubmit} className="mb-8 space-y-6">
             <div>
@@ -35,24 +35,24 @@ export default function VinDecodeForm({
                     id="vehicle-identifier"
                     type="text"
                     value={vin}
-                    maxLength={VIN_LENGTH}
                     onChange={event => {
-                        const value = normalizeIdentifierLetters(event.target.value).replace(/\s+/g, '').replace(/[‐‑–—−]/g, '-');
+                        const value = normalizeVehicleIdentifierInput(event.target.value);
                         if (canEnterIdentifier(value)) onVinChange(value);
                     }}
                     onPaste={event => {
                         event.preventDefault();
                         const { value, selectionStart, selectionEnd } = event.currentTarget;
-                        const pasted = normalizeFrameNumber(event.clipboardData.getData('text'));
+                        const pasted = event.clipboardData.getData('text');
                         if (!pasted) return;
-                        const next = value.slice(0, selectionStart ?? value.length) + pasted +
-                            value.slice(selectionEnd ?? value.length);
+                        const next = normalizeVehicleIdentifierInput(value.slice(0, selectionStart ?? value.length) + pasted +
+                            value.slice(selectionEnd ?? value.length));
                         if (canEnterIdentifier(next)) onVinChange(next);
                     }}
                     autoComplete="off"
                     spellCheck={false}
                     placeholder="Например, NZE141-1234567"
-                    aria-describedby="vehicle-identifier-help"
+                    aria-invalid={Boolean(cyrillicWarning)}
+                    aria-describedby={cyrillicWarning ? "vehicle-identifier-help vehicle-identifier-warning" : "vehicle-identifier-help"}
                     className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] px-5 py-4 font-mono text-lg tracking-wider text-[var(--text)] placeholder:text-[var(--text-dim)] transition-colors focus:border-[var(--link)] focus:outline-none focus:ring-2 focus:ring-[var(--link)]/10"
                 />
 
@@ -60,6 +60,8 @@ export default function VinDecodeForm({
                     VIN — 17 латинских букв и цифр. Для поиска по кузову введите полный номер с дефисом или код, например GD1.
                 </p>
             </div>
+
+            {cyrillicWarning && <p id="vehicle-identifier-warning" role="alert" className="text-sm text-[var(--danger)]">{cyrillicWarning}</p>}
 
             {correctedVin && <p role="status" className="text-sm text-[var(--text-muted)]">Проверьте исправленный VIN · {correctedVin}</p>}
 
@@ -73,7 +75,7 @@ export default function VinDecodeForm({
 
             <button
                 type="submit"
-                disabled={isDecoding}
+                disabled={isDecoding || Boolean(cyrillicWarning)}
                 className="w-full rounded-2xl bg-[var(--btn-primary)] px-5 py-4 font-medium text-[var(--btn-primary-text)] shadow-sm transition-colors hover:bg-[var(--btn-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50"
             >
                 {isDecoding ? 'Ищем автомобиль…' : 'Найти автомобиль'}

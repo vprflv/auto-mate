@@ -1,8 +1,10 @@
+import { isUsableCatalogModel, isUsableCatalogModification } from './catalogDecoderRecords';
+import { getVinRuleExclusion } from './vinDecodingPolicy';
 import type { StoredMasterModel } from '@/features/admin/lib/system-store/types';
 import { formatTransmission } from './config/robotTransmission';
 import { isValidVin, isValidVinPrefix, normalizeVin } from './config/vin';
 
-export const BELGEE_S50_SHARED_PREFIX = 'Y4K8824Z';
+export const BELGEE_S50_SHARED_PREFIX = getVinRuleExclusion('sharedSs11')?.prefix;
 const transmissions = ['Механика (5MT)', 'Автомат (6AT)'] as const;
 
 export function isBelgeeS50Model(brand: string, model: string): boolean {
@@ -20,21 +22,19 @@ export function isSharedSs11Model(brand: string, model: string): boolean {
 
 export function isBelgeeS50SharedVin(input: string): boolean {
     const vin = normalizeVin(input);
-    return isValidVin(vin) && vin.startsWith(BELGEE_S50_SHARED_PREFIX);
+    return Boolean(BELGEE_S50_SHARED_PREFIX && isValidVin(vin) && vin.startsWith(BELGEE_S50_SHARED_PREFIX));
 }
 
 export function isBelgeeS50SharedVinSample(input: string): boolean {
     const sample = normalizeVin(input);
-    return sample === BELGEE_S50_SHARED_PREFIX || isBelgeeS50SharedVin(sample) ||
-        (isValidVinPrefix(sample) && sample.startsWith(BELGEE_S50_SHARED_PREFIX));
+    return Boolean(BELGEE_S50_SHARED_PREFIX && (sample === BELGEE_S50_SHARED_PREFIX || isBelgeeS50SharedVin(sample) ||
+        (isValidVinPrefix(sample) && sample.startsWith(BELGEE_S50_SHARED_PREFIX))));
 }
 
 export function getBelgeeS50TransmissionChoices(models: StoredMasterModel[]) {
-    const matches = models.filter(model => model.verified && model.modelSlug === 's50' &&
+    const matches = models.filter(isUsableCatalogModel).filter(model => model.modelSlug === 's50' &&
         (model.brandSlug === 'belgee' || isBelgeeS50Model(model.brandName, model.modelSlug))
-    ).flatMap(model => Array.isArray(model.modifications)
-        ? model.modifications.map(modification => ({ model, modification }))
-        : []);
+    ).flatMap(model => model.modifications.filter(isUsableCatalogModification).map(modification => ({ model, modification })));
 
     return transmissions.map(transmission => ({
         transmission,
@@ -47,8 +47,8 @@ export function getBelgeeS50TransmissionChoices(models: StoredMasterModel[]) {
 }
 
 export function getGeelyEmgrandSs11VinMatches(models: StoredMasterModel[]) {
-    return models.filter(model => model.verified && isGeelyEmgrandSs11Model(model.brandName, model.modelName))
-        .flatMap(model => (model.modifications ?? []).filter(({ attributes }) => {
+    return models.filter(isUsableCatalogModel).filter(model => isGeelyEmgrandSs11Model(model.brandName, model.modelName))
+        .flatMap(model => model.modifications.filter(isUsableCatalogModification).filter(({ attributes }) => {
             const bodyCode = attributes?.bodyCode?.replace(/[\s-]/g, '').toUpperCase();
             const displacement = attributes?.displacementL?.trim();
             return (!bodyCode || /^SS11(?:A1)?$/.test(bodyCode)) &&

@@ -1,5 +1,6 @@
 import {ManualCarForm, Car, DecodedCar} from '@/types';
 
+import { getIdentifierCyrillicWarning, isValidVin, normalizeVin } from './config/vin';
 import { knownFacelift } from '@/features/catalog/lib/facelift';
 import { getFrameCode, normalizeFrameNumber } from './catalogFrameRules';
 
@@ -30,7 +31,7 @@ export function createEmptyManualForm(vin = '', frameNumber = ''): ManualCarForm
 export function mapManualFormToCar(form: ManualCarForm): Car {
     return {
         id: Date.now().toString(),
-        vin: form.vin.trim().toUpperCase() || 'UNKNOWN',
+        vin: normalizeVin(form.vin) || 'UNKNOWN',
         frameNumber: normalizeFrameNumber(form.frameNumber) || undefined,
         make: form.make.trim(),
         model: form.model.trim(),
@@ -82,6 +83,14 @@ export function mapDecodedToManualForm(car: DecodedCar): ManualCarForm {
 export function getManualFormError(
     form: ManualCarForm
 ): string | null {
+    const cyrillicWarning = getIdentifierCyrillicWarning(form.vin) || getIdentifierCyrillicWarning(form.frameNumber);
+    if (cyrillicWarning) return cyrillicWarning;
+
+    const vin = normalizeVin(form.vin);
+    if (vin && !isValidVin(vin)) {
+        return 'Введите VIN из 17 латинских букв и цифр или оставьте поле пустым.';
+    }
+
     if (form.frameNumber.trim() && !getFrameCode(form.frameNumber)) {
         return 'Проверьте номер кузова. Пример формата — NZE141-1234567.';
     }

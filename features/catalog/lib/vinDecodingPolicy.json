@@ -1,0 +1,8 @@
+{
+  "ruleExclusions": {
+    "sharedSs11": {
+      "prefix": "Y4K8824Z",
+      "reason": "Общий префикс Belgee S50 и Geely Emgrand SS11 не определяет модель и модификацию. Требуется ручной выбор или точное исключение vinExceptions."
+    }
+  }
+}

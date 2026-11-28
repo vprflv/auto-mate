@@ -30,6 +30,7 @@ export default function AddCarForm() {
         enableManualMode,
         cancelManualMode,
         updateManualField,
+        commitManualFrame,
         saveManualCar,
         matchedVin,
     } = useAddCar();
@@ -82,7 +83,7 @@ export default function AddCarForm() {
         </section>
     );
 
-    if (catalogPicker && !manualMode) {
+    if (catalogPicker) {
         return (
             <CatalogModificationPicker
                 correctedVin={correctedVin}
@@ -91,6 +92,8 @@ export default function AddCarForm() {
                 identifier={catalogPicker.identifier}
                 hint={catalogPicker.hint}
                 onBack={closeCatalogPicker}
+                backLabel={manualMode ? 'К заполнению автомобиля' : undefined}
+                onNoMatch={manualMode ? closeCatalogPicker : undefined}
                 onChoose={chooseCatalogModification}
                 onManual={enableManualMode}
             />
@@ -140,6 +143,7 @@ export default function AddCarForm() {
                     isDecoding={isDecoding}
                     vinMatchOptions={vinMatchOptions}
                     onChange={updateManualField}
+                    onFrameCommit={commitManualFrame}
                     onSubmit={saveManualCar}
                     onCancel={cancelManualMode}
                 />

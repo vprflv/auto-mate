@@ -25,6 +25,7 @@ interface Props {
         value: string
     ) => void;
 
+    onFrameCommit: () => boolean;
     onSubmit: () => void;
     onCancel: () => void;
 }
@@ -50,6 +51,7 @@ export default function ManualCarForm({
                                           isDecoding,
                                           vinMatchOptions,
                                           onChange,
+                                          onFrameCommit,
                                           onSubmit,
                                           onCancel
                                       }: Props) {
@@ -71,6 +73,7 @@ export default function ManualCarForm({
     ) => {
         event.preventDefault();
         if (!selection.loaded || isDecoding) return;
+        if (onFrameCommit()) return;
 
         if (isManualFormValid(form) && missing.length > 0) {
             setConfirmOpen(true);
@@ -108,7 +111,7 @@ export default function ManualCarForm({
                 <CarVinField value={form.vin} onChange={value => onChange('vin', value)} />
             )}
             {(hasFrame || !hasVin) && (
-                <CarVinField frame value={form.frameNumber} onChange={value => onChange('frameNumber', value)} />
+                <CarVinField frame value={form.frameNumber} onChange={value => onChange('frameNumber', value)} onBlur={onFrameCommit} />
             )}
 
             {hasVin && correctedVin === form.vin && (

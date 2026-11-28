@@ -1,6 +1,7 @@
 import type { CatalogModification, CatalogVinRule, StoredMasterModel } from '@/features/admin/lib/system-store/types';
 import { isValidModelYear, isValidVin, isValidVinPrefix, normalizeVin, VIN_LENGTH } from './config/vin';
-import { isBelgeeS50SharedVin } from './belgeeS50Vin';
+import { isCatalogRecord, isUsableCatalogModel, isUsableCatalogModification } from './catalogDecoderRecords';
+import { vinRulesRequireConfirmation } from './vinDecodingPolicy';
 
 export function isVinMaskSpecific(positions: readonly number[]): boolean {
     const unique = new Set(positions);
@@ -103,7 +104,7 @@ export function assertNoVinRuleConflicts(
 }
 
 export function hasCatalogVinException(modification: CatalogModification, vin: string): boolean {
-    return Array.isArray(modification.vinExceptions) &&
+    return isUsableCatalogModification(modification) && Array.isArray(modification.vinExceptions) &&
         modification.vinExceptions.some(sample => typeof sample === 'string' && normalizeVin(sample) === vin);
 }
 
@@ -117,8 +118,16 @@ function vinMaskSize(rule: CatalogVinRule): number {
     return vinRuleKey(rule).replace(/\*/g, '').length;
 }
 
+function decoderVinRules(modification: CatalogModification): CatalogVinRule[] {
+    return (Array.isArray(modification.vinRules) ? modification.vinRules : []).flatMap(value => {
+        if (!isCatalogRecord(value)) return [];
+        const rule = { ...value, positions: value.positions === undefined ? [] : value.positions } as CatalogVinRule;
+        return isValidCatalogVinRule(rule) ? [rule] : [];
+    });
+}
+
 function matchingVinRules(modification: CatalogModification, vin: string) {
-    const matched = (Array.isArray(modification.vinRules) ? modification.vinRules : [])
+    const matched = decoderVinRules(modification)
         .filter(rule => catalogVinRuleMatches(rule, vin));
     const specificity = Math.max(0, ...matched.map(vinMaskSize));
     const years = new Set(matched.filter(rule => vinMaskSize(rule) === specificity)
@@ -128,14 +137,14 @@ function matchingVinRules(modification: CatalogModification, vin: string) {
 
 export function getCatalogVinModelYear(modification: CatalogModification, input: string): number | undefined {
     const vin = normalizeVin(input);
-    if (!isValidVin(vin) || hasCatalogVinException(modification, vin)) return undefined;
+    if (!isUsableCatalogModification(modification) || !isValidVin(vin) || hasCatalogVinException(modification, vin) || vinRulesRequireConfirmation(vin)) return undefined;
     return matchingVinRules(modification, vin).modelYear;
 }
 
 export function getConfirmedVinMatch(vin: string, models: StoredMasterModel[]): CatalogVinMatch | undefined {
     const matches = findCatalogVinMatches(vin, models);
     const [first, second] = matches;
-    return !second || (first?.specificity === VIN_LENGTH + 1 && second.specificity !== first.specificity) ? first : undefined;
+    return !second ? first : undefined;
 }
 
 export type CatalogVinMatch = { model: StoredMasterModel; modification: CatalogModification; modelYear?: number; specificity?: number };
@@ -146,20 +155,19 @@ export function findCatalogVinSuggestions(input: string, models: StoredMasterMod
     if (!isValidVin(vin)) return [];
     const byPrefix: CatalogVinMatch[] = [];
     const byManufacturer: CatalogVinMatch[] = [];
-    for (const model of models) {
-        if (!model.verified || !Array.isArray(model.modifications)) continue;
+    for (const model of models.filter(isUsableCatalogModel)) {
         let knownManufacturer = false;
-        for (const modification of model.modifications) {
-            const samples = [...(modification.vinExceptions ?? []),
-                ...(modification.vinRules ?? []).filter(isValidCatalogVinRule).map(rule => rule.sample)]
-                .filter(sample => isValidVin(sample) || isValidVinPrefix(sample)).map(normalizeVin);
+        for (const modification of model.modifications.filter(isUsableCatalogModification)) {
+            const samples = [...(Array.isArray(modification.vinExceptions) ? modification.vinExceptions : []),
+                ...decoderVinRules(modification).map(rule => rule.sample)]
+                .filter((sample): sample is string => typeof sample === 'string' && (isValidVin(sample) || isValidVinPrefix(sample))).map(normalizeVin);
             if (samples.some(sample => sample.slice(0, 3) === vin.slice(0, 3))) knownManufacturer = true;
             if (samples.some(sample => sample.slice(0, 8) === vin.slice(0, 8))) {
                 byPrefix.push({ model, modification });
             }
         }
         if (knownManufacturer) {
-            byManufacturer.push(...model.modifications.map(modification => ({ model, modification })));
+            byManufacturer.push(...model.modifications.filter(isUsableCatalogModification).map(modification => ({ model, modification })));
         }
     }
     return byPrefix.length ? byPrefix : byManufacturer;
@@ -168,13 +176,15 @@ export function findCatalogVinSuggestions(input: string, models: StoredMasterMod
 export function findCatalogVinMatches(input: string, models: StoredMasterModel[]): CatalogVinMatch[] {
     const vin = normalizeVin(input);
     if (!isValidVin(vin)) return [];
-    const sharedVin = isBelgeeS50SharedVin(vin);
-    return models.filter(model => model.verified).flatMap(model =>
-        (Array.isArray(model.modifications) ? model.modifications : []).flatMap((modification): CatalogVinMatch[] => {
+    const rulesRequireConfirmation = vinRulesRequireConfirmation(vin);
+    const matches = models.filter(isUsableCatalogModel).flatMap(model =>
+        model.modifications.filter(isUsableCatalogModification).flatMap((modification): CatalogVinMatch[] => {
             if (hasCatalogVinException(modification, vin)) return [{ model, modification, specificity: VIN_LENGTH + 1 }];
-            if (sharedVin) return [];
+            if (rulesRequireConfirmation) return [];
             const matched = matchingVinRules(modification, vin);
             return matched.specificity ? [{ model, modification, ...matched }] : [];
         })
     ).sort((first, second) => (second.specificity ?? 0) - (first.specificity ?? 0));
+    const exceptions = matches.filter(match => match.specificity === VIN_LENGTH + 1);
+    return exceptions.length ? exceptions : matches;
 }

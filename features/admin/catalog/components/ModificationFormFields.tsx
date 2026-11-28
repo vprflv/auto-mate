@@ -191,10 +191,10 @@ export function ModificationFormFields({ form }: Props) {
                                     <input
                                         id={sampleId}
                                         value={rule.sample}
-                                        onChange={event => updateRule({
-                                            ...rule, sample: normalizeVin(event.target.value),
-                                        })}
-                                        maxLength={VIN_LENGTH}
+                                        onChange={event => {
+                                            const sample = normalizeVin(event.target.value);
+                                            if (sample.length <= VIN_LENGTH) updateRule({ ...rule, sample });
+                                        }}
                                         placeholder="Например, SHHFK28607U"
                                         spellCheck={false}
                                         autoComplete="off"

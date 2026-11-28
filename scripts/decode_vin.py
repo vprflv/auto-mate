@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from vin_version_lookup import VersionProvider, lookup_bmw_version
+from vin_decoding_policy import vin_rules_require_confirmation
 
 VIN_LENGTH = 17
 VIN_PREFIX_LENGTH = 11
@@ -17,7 +18,7 @@ VIN_TYPOS = str.maketrans("OIQ", "010")
 
 
 def normalize_vin(value: str) -> str:
-    normalized = re.sub(r"\s+", "", value.upper().translate(CYRILLIC_LOOKALIKES))
+    normalized = re.sub(r"[\s‐‑–—−-]+", "", value.upper().translate(CYRILLIC_LOOKALIKES))
     return normalized.translate(VIN_TYPOS) if re.fullmatch(r"[A-Z0-9]{17}", normalized) else normalized
 
 
@@ -58,6 +59,21 @@ def vin_rule_score(rule: Any, vin: str) -> int:
     return len(selected) if all(vin[position] == sample[position] for position in selected) else 0
 
 
+def catalog_record_error(
+    record: Any, text_fields: tuple[str, ...], string_fields: tuple[str, ...] = ()
+) -> str | None:
+    if not isinstance(record, dict):
+        return "ожидается объект"
+    invalid = [field for field in text_fields if not isinstance(record.get(field), str) or not record[field].strip()]
+    invalid.extend(field for field in string_fields if not isinstance(record.get(field), str))
+    return "отсутствуют или некорректны поля: " + ", ".join(invalid) if invalid else None
+
+
+def report_skipped_record(location: str, reason: str) -> None:
+    # Report only catalogue locations and field names, never the VIN or record contents.
+    print(f"Пропущена запись {location}: {reason}.", file=sys.stderr)
+
+
 def decode_vin(
     vin: str, models: list[dict[str, Any]], version_provider: VersionProvider | None = None
 ) -> dict[str, Any]:
@@ -65,16 +81,35 @@ def decode_vin(
     if len(vin) != VIN_LENGTH or not VIN_CHARACTERS.fullmatch(vin):
         raise ValueError("Введите полный VIN из 17 символов без букв I, O и Q.")
 
+    rules_require_confirmation = vin_rules_require_confirmation(vin)
     matches = []
-    for model in models:
-        if not isinstance(model, dict) or model.get("verified") is not True:
+    for model_index, model in enumerate(models):
+        model_location = f"masterModels[{model_index}]"
+        if isinstance(model, dict) and model.get("verified") is False:
+            continue
+        error = catalog_record_error(model, ("brandSlug", "brandName", "modelSlug", "modelName"))
+        if error:
+            report_skipped_record(model_location, error)
+            continue
+        if model.get("verified") is not True:
+            report_skipped_record(model_location, "поле verified должно быть логическим значением")
             continue
 
         modifications = model.get("modifications")
         if not isinstance(modifications, list):
+            report_skipped_record(model_location, "поле modifications должно быть массивом")
             continue
-        for modification in modifications:
-            if not isinstance(modification, dict):
+        for modification_index, modification in enumerate(modifications):
+            location = f"{model_location}.modifications[{modification_index}]"
+            error = catalog_record_error(modification, ("id",), ("name",))
+            if error:
+                report_skipped_record(location, error)
+                continue
+            attributes = modification.get("attributes")
+            if not isinstance(attributes, dict) or any(
+                not isinstance(key, str) or not isinstance(value, str) for key, value in attributes.items()
+            ):
+                report_skipped_record(location, "поле attributes должно быть объектом со строковыми значениями")
                 continue
 
             exact_vins = modification.get("vinExceptions")
@@ -84,7 +119,7 @@ def decode_vin(
             rules = modification.get("vinRules")
             scored_rules = (
                 [(vin_rule_score(rule, vin), rule) for rule in rules]
-                if isinstance(rules, list) and not is_exception and not vin.startswith("Y4K8824Z") else []
+                if isinstance(rules, list) and not is_exception and not rules_require_confirmation else []
             )
             specificity = VIN_LENGTH + 1 if is_exception else max((score for score, _ in scored_rules), default=0)
             model_years = {
@@ -106,9 +141,16 @@ def decode_vin(
                     }
                 )
 
+    exceptions = [match for match in matches if match["specificity"] == VIN_LENGTH + 1]
+    if exceptions:
+        matches = exceptions
     matches.sort(key=lambda match: match["specificity"], reverse=True)
     if not matches:
-        hint = lookup_bmw_version(vin, version_provider)
+        try:
+            hint = lookup_bmw_version(vin, version_provider)
+        except Exception:
+            # Optional version hints must not interrupt the primary catalogue search.
+            hint = None
         return {"status": "no_match", "matches": [], **({"hint": hint} if hint else {})}
     elif len(matches) == 1:
         status = "matched"

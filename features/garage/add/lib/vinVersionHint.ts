@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isUsableCatalogModel, isUsableCatalogModification } from './catalogDecoderRecords';
 import type { StoredMasterModel } from '@/features/admin/lib/system-store/types';
 import { normalizeCode, matchesModificationField } from '@/features/catalog/lib/carCatalogIdentity';
 import { matchesFacelift } from '@/features/catalog/lib/facelift';
@@ -32,8 +33,8 @@ export function getLocalVinVersionHint(input: string): VinVersionHint | undefine
 }
 
 export function findVinVersionCandidates(hint: VinVersionHint, models: StoredMasterModel[]): CatalogVinMatch[] {
-    return models.filter(model => model.verified && model.brandSlug === 'bmw').flatMap(model =>
-        (model.modifications ?? []).flatMap(modification => {
+    return models.filter(isUsableCatalogModel).filter(model => model.brandSlug === 'bmw').flatMap(model =>
+        model.modifications.filter(isUsableCatalogModification).flatMap(modification => {
             const attributes = modification.attributes;
             const explicitVersion = attributes.trim?.match(/\b\d{3}[id](?:\s*xdrive)?\b/i)?.[0];
             if (normalizeCode(attributes.bodyCode) !== normalizeCode(hint.bodyCode) ||

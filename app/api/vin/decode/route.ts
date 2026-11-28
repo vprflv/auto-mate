@@ -4,8 +4,8 @@ import { z } from 'zod';
 
 import { isValidVin, MAX_MODEL_YEAR, MIN_MODEL_YEAR, normalizeVin, VIN_LENGTH } from '@/features/garage/add/lib/config/vin';
 
+import { isUsableCatalogModel, isUsableCatalogModification } from '@/features/garage/add/lib/catalogDecoderRecords';
 import { isValidCatalogVinRule } from '@/features/garage/add/lib/catalogVinRules';
-import { isBelgeeS50SharedVin } from '@/features/garage/add/lib/belgeeS50Vin';
 import { vinVersionHintSchema } from '@/features/garage/add/lib/vinVersionHint';
 
 export const runtime = 'nodejs';
@@ -26,24 +26,40 @@ const vinRuleSchema = z.object({
     positions: z.array(z.number().int().min(0).max(VIN_LENGTH - 1)).default([]),
 }).refine(isValidCatalogVinRule);
 
+const modificationSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    attributes: z.record(z.string(), z.string()),
+    vinRules: z.unknown().optional().transform(value => (Array.isArray(value) ? value : []).flatMap(rule => {
+        const parsed = vinRuleSchema.safeParse(rule);
+        return parsed.success ? [parsed.data] : [];
+    })),
+    vinExceptions: z.unknown().optional().transform(value => (Array.isArray(value) ? value : []).flatMap(sample => {
+        if (typeof sample !== 'string') return [];
+        const vin = normalizeVin(sample);
+        return isValidVin(vin) ? [vin] : [];
+    })),
+});
+
+const modelSchema = z.object({
+    brandSlug: z.string(),
+    brandName: z.string(),
+    modelSlug: z.string(),
+    modelName: z.string(),
+    verified: z.literal(true),
+    modifications: z.array(z.unknown()).transform(values => values.flatMap(value => {
+        if (!isUsableCatalogModification(value)) return [];
+        const parsed = modificationSchema.safeParse(value);
+        return parsed.success ? [parsed.data] : [];
+    })),
+});
+
 const requestSchema = z.object({
     vin: z.string().transform(normalizeVin).refine(isValidVin),
-    masterModels: z.array(z.object({
-        brandSlug: z.string(),
-        brandName: z.string(),
-        modelSlug: z.string(),
-        modelName: z.string(),
-        verified: z.literal(true),
-        modifications: z.array(z.object({
-            id: z.string(),
-            name: z.string(),
-            attributes: z.record(z.string(), z.string()),
-            vinRules: z.array(z.unknown()).transform(rules => rules.flatMap(rule => {
-                const parsed = vinRuleSchema.safeParse(rule);
-                return parsed.success ? [parsed.data] : [];
-            })).optional(),
-            vinExceptions: z.array(z.string().transform(normalizeVin).refine(isValidVin)).optional(),
-        })),
+    masterModels: z.array(z.unknown()).transform(values => values.flatMap(value => {
+        if (!isUsableCatalogModel(value)) return [];
+        const parsed = modelSchema.safeParse(value);
+        return parsed.success ? [parsed.data] : [];
     })),
 });
 
@@ -80,12 +96,7 @@ export async function POST(request: Request) {
     }
 
     try {
-        const { vin, masterModels } = input.data;
-        const models = isBelgeeS50SharedVin(vin) ? masterModels.map(model => ({
-            ...model,
-            modifications: model.modifications.map(modification => ({ ...modification, vinRules: undefined })),
-        })) : masterModels;
-        const stdout = await runDecoder({ vin, masterModels: models }, request.signal);
+        const stdout = await runDecoder(input.data, request.signal);
         return Response.json(resultSchema.parse(JSON.parse(stdout)));
     } catch {
         return Response.json({ error: 'Python-декодер недоступен.' }, { status: 503 });

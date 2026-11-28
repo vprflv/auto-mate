@@ -1,4 +1,5 @@
 import type { Car } from '@/types';
+import { isUsableCatalogModification } from '@/features/garage/add/lib/catalogDecoderRecords';
 import type { CatalogModification, StoredMasterModel } from '@/features/admin/lib/system-store/types';
 import { getConfirmedVinMatch } from '@/features/garage/add/lib/catalogVinRules';
 import { formatTransmission, ROBOT_TRANSMISSION } from '@/features/garage/add/lib/config/robotTransmission';
@@ -119,7 +120,7 @@ export function findVinMatchFacelift(
     const end = modelYear ?? years.end;
     if (start === undefined || end === undefined || end < start) return undefined;
 
-    const applicable = (model.modifications ?? []).flatMap(candidate => {
+    const applicable = (model.modifications ?? []).filter(isUsableCatalogModification).flatMap(candidate => {
         const version = knownFacelift(candidate.attributes?.facelift);
         if (!version || normalizeCode(candidate.attributes?.bodyCode) !== bodyCode) return [];
         const { start: first, end: last } = getCatalogProductionYears(candidate);

@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { isUsableCatalogModel, isUsableCatalogModification } from './catalogDecoderRecords';
 import type { CatalogFrameRule, StoredMasterModel } from '@/features/admin/lib/system-store/types';
 import type { CatalogVinMatch } from './catalogVinRules';
-import { isValidVin, MAX_MODEL_YEAR, MIN_MODEL_YEAR, normalizeIdentifierLetters, normalizeVin } from './config/vin';
+import { isValidVin, MAX_MODEL_YEAR, MIN_MODEL_YEAR, normalizeIdentifierLetters, normalizeVin, normalizeVinInput, VIN_LENGTH } from './config/vin';
 
 export const EXACT_FRAME_SPECIFICITY = 10;
 
@@ -11,6 +12,13 @@ export function normalizeFrameNumber(value: string): string {
     const normalized = normalizeIdentifierLetters(value).trim();
     const separated = normalized.replace(/^([A-Z][A-Z0-9]{1,7})\s+(\d{5,8})$/, '$1-$2');
     return separated.replace(/\s+/g, '').replace(/[‐‑–—−]/g, '-');
+}
+
+export function normalizeVehicleIdentifierInput(value: string): string {
+    const compact = normalizeVinInput(value);
+    // A full VIN has 17 significant characters; a valid Frame has at most 16.
+    return compact.length === VIN_LENGTH && /^[A-Z0-9\p{Script=Cyrillic}]+$/u.test(compact)
+        ? compact : normalizeFrameNumber(value);
 }
 
 export function getFrameCode(value: string): string | undefined {
@@ -104,9 +112,8 @@ export function readFrameRuleLines(text: string): unknown[] {
 }
 
 function* verifiedModifications(models: StoredMasterModel[]) {
-    for (const model of models) {
-        if (!model.verified || !Array.isArray(model.modifications)) continue;
-        for (const modification of model.modifications) yield { model, modification };
+    for (const model of models.filter(isUsableCatalogModel)) {
+        for (const modification of model.modifications.filter(isUsableCatalogModification)) yield { model, modification };
     }
 }
 
